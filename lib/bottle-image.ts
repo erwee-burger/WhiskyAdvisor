@@ -1,3 +1,8 @@
+type BottleImageCandidate = {
+  kind: "front" | "back" | "detail";
+  url: string;
+};
+
 export function getBottleImage(expressionName: string) {
   const name = expressionName.toLowerCase();
 
@@ -8,4 +13,13 @@ export function getBottleImage(expressionName: string) {
   if (name.includes("glenfiddich") || name.includes("kavalan")) return "/bottles/bottle-placeholder-b.svg";
 
   return "/bottles/bottle-placeholder-a.svg";
+}
+
+export function getBottleDisplayImage(
+  expressionName: string,
+  images: BottleImageCandidate[] = []
+) {
+  const uploadedFrontImage = images.find((entry) => entry.kind === "front" && entry.url);
+
+  return uploadedFrontImage?.url ?? getBottleImage(expressionName);
 }

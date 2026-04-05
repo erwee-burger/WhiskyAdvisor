@@ -1,8 +1,13 @@
 import { CollectionBrowser } from "@/components/collection-browser";
 import { getCollectionView } from "@/lib/repository";
 
-export default async function CollectionPage() {
+export default async function CollectionPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ notice?: string }>;
+}) {
   const collection = await getCollectionView();
+  const params = (await searchParams) ?? {};
 
   return (
     <div className="page">
@@ -14,6 +19,11 @@ export default async function CollectionPage() {
           series, or your flavor tags while quick details appear on hover.
         </p>
       </section>
+      {params.notice === "deleted" ? (
+        <div className="status-note status-note-success">
+          Bottle deleted from your collection.
+        </div>
+      ) : null}
       <CollectionBrowser collection={collection} />
     </div>
   );

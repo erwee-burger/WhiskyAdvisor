@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
 
+import { BottleRecordEditor } from "@/components/bottle-record-editor";
 import { TastingForm } from "@/components/tasting-form";
-import { getBottleImage } from "@/lib/bottle-image";
+import { getBottleDisplayImage } from "@/lib/bottle-image";
 import { getItemById } from "@/lib/repository";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -18,13 +19,16 @@ export default async function ItemDetailPage({
     notFound();
   }
 
+  const bottleImage = getBottleDisplayImage(entry.expression.name, entry.images);
+
   return (
     <div className="page">
       <section className="hero bottle-detail-hero">
         <div className="bottle-stand">
           <Image
-            src={getBottleImage(entry.expression.name)}
             alt={`${entry.expression.name} bottle cutout`}
+            src={bottleImage}
+            unoptimized
             width={220}
             height={320}
           />
@@ -150,6 +154,8 @@ export default async function ItemDetailPage({
           </div>
         </div>
       </section>
+
+      <BottleRecordEditor entry={entry} />
 
       <section className="grid columns-2">
         <div className="panel stack">

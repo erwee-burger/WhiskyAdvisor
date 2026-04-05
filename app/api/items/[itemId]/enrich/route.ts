@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getDraftById, getItemById } from "@/lib/repository";
+import { getDraftById, getDraftViewById, getItemById } from "@/lib/repository";
 
 export async function POST(
   _request: Request,
@@ -10,7 +10,8 @@ export async function POST(
   const draft = await getDraftById(itemId);
 
   if (draft) {
-    return NextResponse.json(draft);
+    const view = await getDraftViewById(itemId);
+    return NextResponse.json(view ?? draft);
   }
 
   const item = await getItemById(itemId);

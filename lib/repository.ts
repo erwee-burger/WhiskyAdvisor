@@ -20,10 +20,86 @@ import type {
   Distillery,
   Expression,
   FillState,
+  ItemImage,
   PriceSnapshot,
   TastingEntry,
   WhiskyStore
 } from "@/lib/types";
+
+type DraftView = {
+  draftId: string;
+  matchedExpressionId?: string;
+  source: string;
+  barcode?: string;
+  distilleryName: string;
+  bottlerName: string;
+  collection: {
+    status: CollectionStatus;
+    fillState: FillState;
+    purchaseCurrency: string;
+  };
+  expression: {
+    name: string;
+    releaseSeries?: string;
+    bottlerKind: Expression["bottlerKind"];
+    whiskyType: Expression["whiskyType"];
+    country: string;
+    region: string;
+    abv: number;
+    ageStatement?: string;
+    vintageYear?: number;
+    distilledYear?: number;
+    bottledYear?: number;
+    caskType?: string;
+    caskNumber?: string;
+    bottleNumber?: string;
+    outturn?: string;
+    barcode?: string;
+    peatLevel: Expression["peatLevel"];
+    caskInfluence: Expression["caskInfluence"];
+    flavorTags: string[];
+    description?: string;
+  };
+  suggestions: Array<{
+    field: string;
+    label: string;
+    confidence: number;
+  }>;
+};
+
+type BottleRecordPayload = {
+  distilleryName: string;
+  bottlerName: string;
+  name: string;
+  releaseSeries?: string;
+  bottlerKind: Expression["bottlerKind"];
+  whiskyType: Expression["whiskyType"];
+  country: string;
+  region: string;
+  abv?: number;
+  ageStatement?: string;
+  vintageYear?: number;
+  distilledYear?: number;
+  bottledYear?: number;
+  caskType?: string;
+  caskNumber?: string;
+  bottleNumber?: string;
+  outturn?: string;
+  barcode?: string;
+  peatLevel: Expression["peatLevel"];
+  caskInfluence: Expression["caskInfluence"];
+  flavorTags: string[];
+  description?: string;
+  status: CollectionStatus;
+  fillState: FillState;
+  purchaseCurrency: string;
+  purchasePrice?: number;
+  purchaseDate?: string;
+  purchaseSource?: string;
+  personalNotes?: string;
+  frontImageUrl?: string;
+  frontImageLabel?: string;
+};
 
 function toCollectionViewItems(store: WhiskyStore): CollectionViewItem[] {
   return store.collectionItems.map((item) => {
@@ -128,30 +204,264 @@ function buildFallbackExpression(name: string, barcode?: string): Expression {
   };
 }
 
-function ensureBaseDistilleryAndBottler(store: WhiskyStore) {
-  let distillery: Distillery | undefined = store.distilleries[0];
-  let bottler: Bottler | undefined = store.bottlers[0];
+function normalizeText(value?: string | null) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
 
-  if (!distillery) {
-    distillery = {
-      id: createId("dist"),
-      name: "Unknown Distillery",
-      country: "Unknown",
-      region: "Unknown"
-    };
-    store.distilleries.unshift(distillery);
+function normalizeNumber(value?: number | null) {
+  if (value === undefined || value === null || Number.isNaN(value)) {
+    return undefined;
   }
 
-  if (!bottler) {
-    bottler = {
-      id: createId("bot"),
-      name: "Unknown Bottler",
-      bottlerKind: "official"
+  return value;
+}
+
+function normalizeFlavorTags(value?: string[]) {
+  return (value ?? []).map((tag) => tag.trim()).filter(Boolean);
+}
+
+function ensureDistillery(
+  store: WhiskyStore,
+  name?: string,
+  country?: string,
+  region?: string
+) {
+  const distilleryName = normalizeText(name) ?? "Unknown Distillery";
+  const distilleryCountry = normalizeText(country) ?? "Unknown";
+  const distilleryRegion = normalizeText(region) ?? "Unknown";
+  const existingIndex = store.distilleries.findIndex(
+    (entry) => entry.name.toLowerCase() === distilleryName.toLowerCase()
+  );
+
+  if (existingIndex >= 0) {
+    const existing = store.distilleries[existingIndex];
+    const updated: Distillery = {
+      ...existing,
+      country: distilleryCountry,
+      region: distilleryRegion
     };
-    store.bottlers.unshift(bottler);
+    store.distilleries[existingIndex] = updated;
+    return updated;
   }
 
-  return { distillery, bottler };
+  const created: Distillery = {
+    id: createId("dist"),
+    name: distilleryName,
+    country: distilleryCountry,
+    region: distilleryRegion
+  };
+  store.distilleries.unshift(created);
+  return created;
+}
+
+function ensureBottler(
+  store: WhiskyStore,
+  name: string | undefined,
+  bottlerKind: Expression["bottlerKind"],
+  country?: string
+) {
+  const bottlerName = normalizeText(name) ?? "Unknown Bottler";
+  const bottlerCountry = normalizeText(country);
+  const existingIndex = store.bottlers.findIndex(
+    (entry) => entry.name.toLowerCase() === bottlerName.toLowerCase()
+  );
+
+  if (existingIndex >= 0) {
+    const existing = store.bottlers[existingIndex];
+    const updated: Bottler = {
+      ...existing,
+      bottlerKind,
+      country: bottlerCountry ?? existing.country
+    };
+    store.bottlers[existingIndex] = updated;
+    return updated;
+  }
+
+  const created: Bottler = {
+    id: createId("bot"),
+    name: bottlerName,
+    bottlerKind,
+    country: bottlerCountry
+  };
+  store.bottlers.unshift(created);
+  return created;
+}
+
+function buildDraftView(store: WhiskyStore, draft: Awaited<ReturnType<typeof getDraftById>>) {
+  if (!draft) {
+    return null;
+  }
+
+  const baseExpression = draft.matchedExpressionId
+    ? store.expressions.find((entry) => entry.id === draft.matchedExpressionId)
+    : undefined;
+  const distillery = baseExpression
+    ? store.distilleries.find((entry) => entry.id === baseExpression.distilleryId)
+    : undefined;
+  const bottler = baseExpression
+    ? store.bottlers.find((entry) => entry.id === baseExpression.bottlerId)
+    : undefined;
+
+  return {
+    draftId: draft.id,
+    matchedExpressionId: draft.matchedExpressionId,
+    source: draft.source,
+    barcode: draft.barcode,
+    distilleryName: distillery?.name ?? "Unknown Distillery",
+    bottlerName: bottler?.name ?? "Unknown Bottler",
+    collection: {
+      status: draft.collection.status ?? "owned",
+      fillState: draft.collection.fillState ?? "sealed",
+      purchaseCurrency: draft.collection.purchaseCurrency ?? "ZAR"
+    },
+    expression: {
+      name: draft.expression.name,
+      releaseSeries: normalizeText(draft.expression.releaseSeries) ?? baseExpression?.releaseSeries,
+      bottlerKind: draft.expression.bottlerKind ?? baseExpression?.bottlerKind ?? "official",
+      whiskyType: draft.expression.whiskyType ?? baseExpression?.whiskyType ?? "single-malt",
+      country: normalizeText(draft.expression.country) ?? baseExpression?.country ?? "Unknown",
+      region: normalizeText(draft.expression.region) ?? baseExpression?.region ?? "Unknown",
+      abv: normalizeNumber(draft.expression.abv) ?? baseExpression?.abv ?? 46,
+      ageStatement: normalizeText(draft.expression.ageStatement) ?? baseExpression?.ageStatement,
+      vintageYear: normalizeNumber(draft.expression.vintageYear) ?? baseExpression?.vintageYear,
+      distilledYear:
+        normalizeNumber(draft.expression.distilledYear) ?? baseExpression?.distilledYear,
+      bottledYear: normalizeNumber(draft.expression.bottledYear) ?? baseExpression?.bottledYear,
+      caskType: normalizeText(draft.expression.caskType) ?? baseExpression?.caskType,
+      caskNumber: normalizeText(draft.expression.caskNumber) ?? baseExpression?.caskNumber,
+      bottleNumber: normalizeText(draft.expression.bottleNumber) ?? baseExpression?.bottleNumber,
+      outturn: normalizeText(draft.expression.outturn) ?? baseExpression?.outturn,
+      barcode: normalizeText(draft.expression.barcode) ?? draft.barcode ?? baseExpression?.barcode,
+      peatLevel: draft.expression.peatLevel ?? baseExpression?.peatLevel ?? "medium",
+      caskInfluence:
+        draft.expression.caskInfluence ?? baseExpression?.caskInfluence ?? "mixed",
+      flavorTags: normalizeFlavorTags(draft.expression.flavorTags ?? baseExpression?.flavorTags),
+      description: normalizeText(draft.expression.description) ?? baseExpression?.description
+    },
+    suggestions: draft.suggestions.map((suggestion) => ({
+      field: suggestion.field,
+      label: suggestion.label,
+      confidence: suggestion.confidence
+    }))
+  } satisfies DraftView;
+}
+
+function upsertItemImage(store: WhiskyStore, image: ItemImage) {
+  const existingIndex = store.itemImages.findIndex(
+    (entry) => entry.collectionItemId === image.collectionItemId && entry.kind === image.kind
+  );
+
+  if (existingIndex >= 0) {
+    store.itemImages[existingIndex] = {
+      ...image,
+      id: store.itemImages[existingIndex].id
+    };
+    return;
+  }
+
+  store.itemImages.unshift(image);
+}
+
+function buildExpressionRecord(
+  expressionId: string,
+  baseExpression: Expression | null | undefined,
+  payload: BottleRecordPayload,
+  distilleryId: string,
+  bottlerId: string
+): Expression {
+  return {
+    id: expressionId,
+    name: payload.name,
+    distilleryId,
+    bottlerId,
+    bottlerKind: payload.bottlerKind,
+    whiskyType: payload.whiskyType,
+    releaseSeries: normalizeText(payload.releaseSeries),
+    country: normalizeText(payload.country) ?? "Unknown",
+    region: normalizeText(payload.region) ?? "Unknown",
+    abv: normalizeNumber(payload.abv) ?? baseExpression?.abv ?? 46,
+    ageStatement: normalizeText(payload.ageStatement),
+    vintageYear: normalizeNumber(payload.vintageYear),
+    distilledYear: normalizeNumber(payload.distilledYear),
+    bottledYear: normalizeNumber(payload.bottledYear),
+    caskType: normalizeText(payload.caskType),
+    caskNumber: normalizeText(payload.caskNumber),
+    bottleNumber: normalizeText(payload.bottleNumber),
+    outturn: normalizeText(payload.outturn),
+    barcode: normalizeText(payload.barcode),
+    peatLevel: payload.peatLevel,
+    caskInfluence: payload.caskInfluence,
+    flavorTags: normalizeFlavorTags(payload.flavorTags),
+    description: normalizeText(payload.description),
+    imageUrl: baseExpression?.imageUrl
+  };
+}
+
+function buildCollectionItemRecord(
+  itemId: string,
+  expressionId: string,
+  payload: BottleRecordPayload,
+  existingItem?: CollectionItem | null
+): CollectionItem {
+  const now = new Date().toISOString();
+
+  return {
+    id: itemId,
+    expressionId,
+    status: payload.status,
+    fillState: payload.fillState,
+    purchaseCurrency: payload.purchaseCurrency,
+    purchasePrice: payload.purchasePrice,
+    purchaseDate: payload.purchaseDate,
+    purchaseSource: payload.purchaseSource,
+    personalNotes: payload.personalNotes,
+    createdAt: existingItem?.createdAt ?? now,
+    updatedAt: now,
+    openedDate: existingItem?.openedDate,
+    finishedDate: existingItem?.finishedDate
+  };
+}
+
+function pruneUnusedDistillery(store: WhiskyStore, distilleryId?: string) {
+  if (!distilleryId) {
+    return;
+  }
+
+  const stillUsed = store.expressions.some((entry) => entry.distilleryId === distilleryId);
+  if (!stillUsed) {
+    store.distilleries = store.distilleries.filter((entry) => entry.id !== distilleryId);
+  }
+}
+
+function pruneUnusedBottler(store: WhiskyStore, bottlerId?: string) {
+  if (!bottlerId) {
+    return;
+  }
+
+  const stillUsed = store.expressions.some((entry) => entry.bottlerId === bottlerId);
+  if (!stillUsed) {
+    store.bottlers = store.bottlers.filter((entry) => entry.id !== bottlerId);
+  }
+}
+
+function removeExpressionIfOrphaned(store: WhiskyStore, expressionId: string) {
+  const stillReferenced = store.collectionItems.some((entry) => entry.expressionId === expressionId);
+
+  if (stillReferenced) {
+    return;
+  }
+
+  const expression = store.expressions.find((entry) => entry.id === expressionId);
+
+  store.priceSnapshots = store.priceSnapshots.filter((entry) => entry.expressionId !== expressionId);
+  store.citations = store.citations.filter((entry) => entry.entityId !== expressionId);
+  store.expressions = store.expressions.filter((entry) => entry.id !== expressionId);
+
+  if (expression) {
+    pruneUnusedDistillery(store, expression.distilleryId);
+    pruneUnusedBottler(store, expression.bottlerId);
+  }
 }
 
 export async function getCollectionView() {
@@ -175,6 +485,12 @@ export async function getDashboardData() {
 export async function getItemById(itemId: string) {
   const collection = await getCollectionView();
   return collection.find(({ item }) => item.id === itemId) ?? null;
+}
+
+export async function getDraftViewById(draftId: string) {
+  const store = await readStore();
+  const draft = store.drafts.find((entry) => entry.id === draftId);
+  return buildDraftView(store, draft ?? null);
 }
 
 export async function getExpressionChoiceList() {
@@ -326,16 +642,7 @@ export async function refreshPricing(itemId: string) {
 
 export async function saveDraftAsItem(
   draftId: string,
-  payload: {
-    name: string;
-    status: CollectionStatus;
-    fillState: FillState;
-    purchaseCurrency: string;
-    purchasePrice?: number;
-    purchaseDate?: string;
-    purchaseSource?: string;
-    personalNotes?: string;
-  }
+  payload: BottleRecordPayload
 ) {
   const store = await readStore();
   const draftIndex = store.drafts.findIndex((entry) => entry.id === draftId);
@@ -348,46 +655,143 @@ export async function saveDraftAsItem(
     ? store.expressions.find((entry) => entry.id === draft.matchedExpressionId)
     : null;
   const expressionId = baseExpression?.id ?? createId("expr");
+  const distillery = ensureDistillery(store, payload.distilleryName, payload.country, payload.region);
+  const bottler = ensureBottler(
+    store,
+    payload.bottlerName,
+    payload.bottlerKind,
+    payload.country
+  );
+  const expressionRecord = buildExpressionRecord(
+    expressionId,
+    baseExpression,
+    payload,
+    distillery.id,
+    bottler.id
+  );
+  const expressionIndex = store.expressions.findIndex((entry) => entry.id === expressionId);
 
-  if (!baseExpression) {
-    const { distillery, bottler } = ensureBaseDistilleryAndBottler(store);
-    store.expressions.unshift({
-      ...draft.expression,
-      id: expressionId,
-      distilleryId: distillery.id,
-      bottlerId: bottler.id,
-      bottlerKind: "official",
-      whiskyType: "single-malt",
-      country: "Unknown",
-      region: "Unknown",
-      abv: 46,
-      peatLevel: "medium",
-      caskInfluence: "mixed",
-      flavorTags: ["malt"],
-      name: payload.name
+  if (expressionIndex >= 0) {
+    store.expressions[expressionIndex] = expressionRecord;
+  } else {
+    store.expressions.unshift(expressionRecord);
+  }
+
+  const item = buildCollectionItemRecord(draft.collectionItemId, expressionId, payload);
+
+  const existingItemIndex = store.collectionItems.findIndex((entry) => entry.id === item.id);
+
+  if (existingItemIndex >= 0) {
+    store.collectionItems[existingItemIndex] = item;
+  } else {
+    store.collectionItems.unshift(item);
+  }
+
+  if (payload.frontImageUrl) {
+    upsertItemImage(store, {
+      id: createId("img"),
+      collectionItemId: item.id,
+      kind: "front",
+      url: payload.frontImageUrl,
+      label: normalizeText(payload.frontImageLabel) ?? "Uploaded front label"
     });
   }
 
-  const now = new Date().toISOString();
-  const item: CollectionItem = {
-    id: draft.collectionItemId,
-    expressionId,
-    status: payload.status,
-    fillState: payload.fillState,
-    purchaseCurrency: payload.purchaseCurrency,
-    purchasePrice: payload.purchasePrice,
-    purchaseDate: payload.purchaseDate,
-    purchaseSource: payload.purchaseSource,
-    personalNotes: payload.personalNotes,
-    createdAt: now,
-    updatedAt: now
-  };
-
-  store.collectionItems.unshift(item);
-  store.citations.unshift(...draft.citations);
+  store.citations.unshift(
+    ...draft.citations.map((citation) =>
+      citation.entityType === "expression"
+        ? {
+            ...citation,
+            entityId: expressionId
+          }
+        : citation
+    )
+  );
   store.drafts.splice(draftIndex, 1);
   await writeStore(store);
   return item;
+}
+
+export async function updateItem(itemId: string, payload: BottleRecordPayload) {
+  const store = await readStore();
+  const itemIndex = store.collectionItems.findIndex((entry) => entry.id === itemId);
+
+  if (itemIndex < 0) {
+    return null;
+  }
+
+  const existingItem = store.collectionItems[itemIndex];
+  const expressionIndex = store.expressions.findIndex(
+    (entry) => entry.id === existingItem.expressionId
+  );
+
+  if (expressionIndex < 0) {
+    return null;
+  }
+
+  const previousExpression = store.expressions[expressionIndex];
+  const distillery = ensureDistillery(store, payload.distilleryName, payload.country, payload.region);
+  const bottler = ensureBottler(
+    store,
+    payload.bottlerName,
+    payload.bottlerKind,
+    payload.country
+  );
+  const updatedExpression = buildExpressionRecord(
+    previousExpression.id,
+    previousExpression,
+    payload,
+    distillery.id,
+    bottler.id
+  );
+
+  store.expressions[expressionIndex] = updatedExpression;
+  store.collectionItems[itemIndex] = buildCollectionItemRecord(
+    existingItem.id,
+    existingItem.expressionId,
+    payload,
+    existingItem
+  );
+
+  if (payload.frontImageUrl) {
+    upsertItemImage(store, {
+      id: createId("img"),
+      collectionItemId: existingItem.id,
+      kind: "front",
+      url: payload.frontImageUrl,
+      label: normalizeText(payload.frontImageLabel) ?? "Uploaded front label"
+    });
+  }
+
+  if (previousExpression.distilleryId !== updatedExpression.distilleryId) {
+    pruneUnusedDistillery(store, previousExpression.distilleryId);
+  }
+
+  if (previousExpression.bottlerId !== updatedExpression.bottlerId) {
+    pruneUnusedBottler(store, previousExpression.bottlerId);
+  }
+
+  await writeStore(store);
+  return store.collectionItems[itemIndex];
+}
+
+export async function deleteItem(itemId: string) {
+  const store = await readStore();
+  const item = store.collectionItems.find((entry) => entry.id === itemId);
+
+  if (!item) {
+    return false;
+  }
+
+  store.tastingEntries = store.tastingEntries.filter(
+    (entry) => entry.collectionItemId !== itemId
+  );
+  store.itemImages = store.itemImages.filter((entry) => entry.collectionItemId !== itemId);
+  store.collectionItems = store.collectionItems.filter((entry) => entry.id !== itemId);
+  removeExpressionIfOrphaned(store, item.expressionId);
+
+  await writeStore(store);
+  return true;
 }
 
 export async function addTastingEntry(

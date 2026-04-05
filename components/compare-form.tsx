@@ -17,7 +17,7 @@ type CompareResult = {
 
 export function CompareForm({ options }: { options: CompareOption[] }) {
   const [result, setResult] = useState<CompareResult | null>(null);
-  const [message, setMessage] = useState("");
+  const [notice, setNotice] = useState<{ tone: "info" | "error"; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   async function handleCompare(formData: FormData) {
@@ -25,9 +25,11 @@ export function CompareForm({ options }: { options: CompareOption[] }) {
     const rightId = String(formData.get("rightId") ?? "");
 
     if (!leftId || !rightId) {
-      setMessage("Pick two whiskies to compare.");
+      setNotice({ tone: "error", text: "Pick two whiskies to compare." });
       return;
     }
+
+    setNotice({ tone: "info", text: "Building the side-by-side comparison..." });
 
     startTransition(async () => {
       const response = await fetch("/api/compare", {
@@ -37,12 +39,12 @@ export function CompareForm({ options }: { options: CompareOption[] }) {
       });
 
       if (!response.ok) {
-        setMessage("Comparison failed.");
+        setNotice({ tone: "error", text: "Comparison failed." });
         return;
       }
 
       setResult((await response.json()) as CompareResult);
-      setMessage("");
+      setNotice(null);
     });
   }
 
@@ -77,10 +79,10 @@ export function CompareForm({ options }: { options: CompareOption[] }) {
             </select>
           </div>
           <button className="button" disabled={isPending} type="submit">
-            Run comparison
+            {isPending ? "Running comparison..." : "Run comparison"}
           </button>
         </form>
-        {message ? <div className="status-note">{message}</div> : null}
+        {notice ? <div className={`status-note status-note-${notice.tone}`}>{notice.text}</div> : null}
       </section>
       <section className="panel stack">
         <div className="section-title">

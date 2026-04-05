@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 
-import { getBottleImage } from "@/lib/bottle-image";
+import { getBottleDisplayImage } from "@/lib/bottle-image";
 import type { CollectionViewItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -17,6 +17,7 @@ export function CollectionCard({
   const retailRange = currentPrice
     ? `${formatCurrency(currentPrice.low, currentPrice.currency)} - ${formatCurrency(currentPrice.high, currentPrice.currency)}`
     : "No web pricing yet";
+  const bottleImage = getBottleDisplayImage(entry.expression.name, entry.images);
 
   return (
     <Link
@@ -28,9 +29,10 @@ export function CollectionCard({
         <Image
           alt={`${entry.expression.name} bottle`}
           className="bottle-cutout"
-          height={220}
-          src={getBottleImage(entry.expression.name)}
+          src={bottleImage}
+          unoptimized
           width={130}
+          height={220}
         />
       </div>
 

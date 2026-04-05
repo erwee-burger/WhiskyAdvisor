@@ -26,6 +26,26 @@ function toIsoDate(value: unknown) {
   return String(value);
 }
 
+function quoteIds(ids: string[]) {
+  return ids.map((id) => `"${id.replaceAll("\"", "\\\"")}"`).join(",");
+}
+
+async function deleteRowsNotInIds(
+  supabase: NonNullable<ReturnType<typeof getSupabaseClient>>,
+  table: string,
+  ids: string[],
+  key = "id"
+) {
+  const response =
+    ids.length > 0
+      ? await supabase.from(table).delete().not(key, "in", `(${quoteIds(ids)})`)
+      : await supabase.from(table).delete().neq(key, "");
+
+  if (response.error) {
+    throw response.error;
+  }
+}
+
 export function isSupabaseStoreEnabled() {
   return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
@@ -190,130 +210,137 @@ export async function writeStoreToSupabase(store: WhiskyStore) {
     throw new Error("Supabase is not configured.");
   }
 
-  const operations = [
-    supabase.from("distilleries").upsert(
-      store.distilleries.map((entry) => ({
-        id: entry.id,
-        name: entry.name,
-        country: entry.country,
-        region: entry.region,
-        founded_year: entry.foundedYear ?? null,
-        notes: entry.notes ?? null
-      })),
-      { onConflict: "id" }
-    ),
-    supabase.from("bottlers").upsert(
-      store.bottlers.map((entry) => ({
-        id: entry.id,
-        name: entry.name,
-        bottler_kind: entry.bottlerKind,
-        country: entry.country ?? null,
-        notes: entry.notes ?? null
-      })),
-      { onConflict: "id" }
-    ),
-    supabase.from("expressions").upsert(
-      store.expressions.map((entry) => ({
-        id: entry.id,
-        name: entry.name,
-        distillery_id: entry.distilleryId,
-        bottler_id: entry.bottlerId,
-        bottler_kind: entry.bottlerKind,
-        release_series: entry.releaseSeries ?? null,
-        whisky_type: entry.whiskyType,
-        country: entry.country,
-        region: entry.region,
-        abv: entry.abv,
-        age_statement: entry.ageStatement ?? null,
-        vintage_year: entry.vintageYear ?? null,
-        distilled_year: entry.distilledYear ?? null,
-        bottled_year: entry.bottledYear ?? null,
-        cask_type: entry.caskType ?? null,
-        cask_number: entry.caskNumber ?? null,
-        bottle_number: entry.bottleNumber ?? null,
-        outturn: entry.outturn ?? null,
-        barcode: entry.barcode ?? null,
-        peat_level: entry.peatLevel,
-        cask_influence: entry.caskInfluence,
-        flavor_tags: entry.flavorTags,
-        description: entry.description ?? null,
-        image_url: entry.imageUrl ?? null
-      })),
-      { onConflict: "id" }
-    ),
-    supabase.from("collection_items").upsert(
-      store.collectionItems.map((entry) => ({
-        id: entry.id,
-        expression_id: entry.expressionId,
-        status: entry.status,
-        fill_state: entry.fillState,
-        purchase_price: entry.purchasePrice ?? null,
-        purchase_currency: entry.purchaseCurrency,
-        purchase_date: entry.purchaseDate ?? null,
-        purchase_source: entry.purchaseSource ?? null,
-        opened_date: entry.openedDate ?? null,
-        finished_date: entry.finishedDate ?? null,
-        personal_notes: entry.personalNotes ?? null,
-        created_at: entry.createdAt,
-        updated_at: entry.updatedAt
-      })),
-      { onConflict: "id" }
-    ),
-    supabase.from("tasting_entries").upsert(
-      store.tastingEntries.map((entry) => ({
-        id: entry.id,
-        collection_item_id: entry.collectionItemId,
-        tasted_at: entry.tastedAt,
-        nose: entry.nose,
-        palate: entry.palate,
-        finish: entry.finish,
-        overall_note: entry.overallNote,
-        rating: entry.rating
-      })),
-      { onConflict: "id" }
-    ),
-    supabase.from("item_images").upsert(
-      store.itemImages.map((entry) => ({
-        id: entry.id,
-        collection_item_id: entry.collectionItemId,
-        kind: entry.kind,
-        url: entry.url,
-        label: entry.label ?? null
-      })),
-      { onConflict: "id" }
-    ),
-    supabase.from("citations").upsert(
-      store.citations.map((entry) => ({
-        id: entry.id,
-        entity_type: entry.entityType,
-        entity_id: entry.entityId,
-        field: entry.field,
-        label: entry.label,
-        url: entry.url,
-        source_kind: entry.sourceKind,
-        confidence: entry.confidence,
-        snippet: entry.snippet ?? null,
-        created_at: entry.createdAt
-      })),
-      { onConflict: "id" }
-    ),
-    supabase.from("price_snapshots").upsert(
-      store.priceSnapshots.map((entry) => ({
-        id: entry.id,
-        expression_id: entry.expressionId,
-        refreshed_at: entry.refreshedAt,
-        retail: entry.retail ?? null,
-        auction: entry.auction ?? null
-      })),
-      { onConflict: "id" }
-    )
-  ];
+  const distilleriesUpsert = await supabase.from("distilleries").upsert(
+    store.distilleries.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      country: entry.country,
+      region: entry.region,
+      founded_year: entry.foundedYear ?? null,
+      notes: entry.notes ?? null
+    })),
+    { onConflict: "id" }
+  );
+  if (distilleriesUpsert.error) throw distilleriesUpsert.error;
 
-  const results = await Promise.all(operations);
-  const firstError = results.find((entry) => entry.error)?.error;
-  if (firstError) {
-    throw firstError;
-  }
+  const bottlersUpsert = await supabase.from("bottlers").upsert(
+    store.bottlers.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      bottler_kind: entry.bottlerKind,
+      country: entry.country ?? null,
+      notes: entry.notes ?? null
+    })),
+    { onConflict: "id" }
+  );
+  if (bottlersUpsert.error) throw bottlersUpsert.error;
+
+  const expressionsUpsert = await supabase.from("expressions").upsert(
+    store.expressions.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      distillery_id: entry.distilleryId,
+      bottler_id: entry.bottlerId,
+      bottler_kind: entry.bottlerKind,
+      release_series: entry.releaseSeries ?? null,
+      whisky_type: entry.whiskyType,
+      country: entry.country,
+      region: entry.region,
+      abv: entry.abv,
+      age_statement: entry.ageStatement ?? null,
+      vintage_year: entry.vintageYear ?? null,
+      distilled_year: entry.distilledYear ?? null,
+      bottled_year: entry.bottledYear ?? null,
+      cask_type: entry.caskType ?? null,
+      cask_number: entry.caskNumber ?? null,
+      bottle_number: entry.bottleNumber ?? null,
+      outturn: entry.outturn ?? null,
+      barcode: entry.barcode ?? null,
+      peat_level: entry.peatLevel,
+      cask_influence: entry.caskInfluence,
+      flavor_tags: entry.flavorTags,
+      description: entry.description ?? null,
+      image_url: entry.imageUrl ?? null
+    })),
+    { onConflict: "id" }
+  );
+  if (expressionsUpsert.error) throw expressionsUpsert.error;
+
+  const collectionItemsUpsert = await supabase.from("collection_items").upsert(
+    store.collectionItems.map((entry) => ({
+      id: entry.id,
+      expression_id: entry.expressionId,
+      status: entry.status,
+      fill_state: entry.fillState,
+      purchase_price: entry.purchasePrice ?? null,
+      purchase_currency: entry.purchaseCurrency,
+      purchase_date: entry.purchaseDate ?? null,
+      purchase_source: entry.purchaseSource ?? null,
+      opened_date: entry.openedDate ?? null,
+      finished_date: entry.finishedDate ?? null,
+      personal_notes: entry.personalNotes ?? null,
+      created_at: entry.createdAt,
+      updated_at: entry.updatedAt
+    })),
+    { onConflict: "id" }
+  );
+  if (collectionItemsUpsert.error) throw collectionItemsUpsert.error;
+
+  const tastingsUpsert = await supabase.from("tasting_entries").upsert(
+    store.tastingEntries.map((entry) => ({
+      id: entry.id,
+      collection_item_id: entry.collectionItemId,
+      tasted_at: entry.tastedAt,
+      nose: entry.nose,
+      palate: entry.palate,
+      finish: entry.finish,
+      overall_note: entry.overallNote,
+      rating: entry.rating
+    })),
+    { onConflict: "id" }
+  );
+  if (tastingsUpsert.error) throw tastingsUpsert.error;
+
+  const imagesUpsert = await supabase.from("item_images").upsert(
+    store.itemImages.map((entry) => ({
+      id: entry.id,
+      collection_item_id: entry.collectionItemId,
+      kind: entry.kind,
+      url: entry.url,
+      label: entry.label ?? null
+    })),
+    { onConflict: "id" }
+  );
+  if (imagesUpsert.error) throw imagesUpsert.error;
+
+  const citationsUpsert = await supabase.from("citations").upsert(
+    store.citations.map((entry) => ({
+      id: entry.id,
+      entity_type: entry.entityType,
+      entity_id: entry.entityId,
+      field: entry.field,
+      label: entry.label,
+      url: entry.url,
+      source_kind: entry.sourceKind,
+      confidence: entry.confidence,
+      snippet: entry.snippet ?? null,
+      created_at: entry.createdAt
+    })),
+    { onConflict: "id" }
+  );
+  if (citationsUpsert.error) throw citationsUpsert.error;
+
+  const priceSnapshotsUpsert = await supabase.from("price_snapshots").upsert(
+    store.priceSnapshots.map((entry) => ({
+      id: entry.id,
+      expression_id: entry.expressionId,
+      refreshed_at: entry.refreshedAt,
+      retail: entry.retail ?? null,
+      auction: entry.auction ?? null
+    })),
+    { onConflict: "id" }
+  );
+  if (priceSnapshotsUpsert.error) throw priceSnapshotsUpsert.error;
 
   const draftUpsert = await supabase.from("intake_drafts").upsert(
     store.drafts.map((entry) => ({
@@ -334,20 +361,33 @@ export async function writeStoreToSupabase(store: WhiskyStore) {
     throw draftUpsert.error;
   }
 
-  const draftIds = store.drafts.map((entry) => entry.id);
-  if (draftIds.length > 0) {
-    const quotedIds = draftIds.map((id) => `"${id.replaceAll("\"", "\\\"")}"`).join(",");
-    const staleDelete = await supabase
-      .from("intake_drafts")
-      .delete()
-      .not("id", "in", `(${quotedIds})`);
-    if (staleDelete.error) {
-      throw staleDelete.error;
-    }
-  } else {
-    const deleteAll = await supabase.from("intake_drafts").delete().neq("id", "");
-    if (deleteAll.error) {
-      throw deleteAll.error;
-    }
-  }
+  await deleteRowsNotInIds(supabase, "intake_drafts", store.drafts.map((entry) => entry.id));
+  await deleteRowsNotInIds(
+    supabase,
+    "tasting_entries",
+    store.tastingEntries.map((entry) => entry.id)
+  );
+  await deleteRowsNotInIds(
+    supabase,
+    "item_images",
+    store.itemImages.map((entry) => entry.id)
+  );
+  await deleteRowsNotInIds(
+    supabase,
+    "collection_items",
+    store.collectionItems.map((entry) => entry.id)
+  );
+  await deleteRowsNotInIds(
+    supabase,
+    "price_snapshots",
+    store.priceSnapshots.map((entry) => entry.id)
+  );
+  await deleteRowsNotInIds(supabase, "citations", store.citations.map((entry) => entry.id));
+  await deleteRowsNotInIds(supabase, "expressions", store.expressions.map((entry) => entry.id));
+  await deleteRowsNotInIds(supabase, "bottlers", store.bottlers.map((entry) => entry.id));
+  await deleteRowsNotInIds(
+    supabase,
+    "distilleries",
+    store.distilleries.map((entry) => entry.id)
+  );
 }

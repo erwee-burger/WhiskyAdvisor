@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import "@/app/globals.css";
+import { TopNav } from "@/components/top-nav";
 import { assertProductionEnv } from "@/lib/env";
 
 const navItems = [
@@ -26,24 +26,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body>
         <div className="app-shell">
-          <aside className="sidebar">
-            <div className="brand-block">
-              <p className="eyebrow">Private Cellar</p>
-              <Link className="brand" href="/">
-                Whisky Advisor
-              </Link>
-              <p className="brand-copy">
-                Catalog your whiskies, track prices, and get guidance from your own palate.
-              </p>
-            </div>
-            <nav className="nav-grid">
-              {navItems.map((item) => (
-                <Link className="nav-link" href={item.href} key={item.href}>
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          </aside>
+          <TopNav items={navItems} />
           <main className="main-content">{children}</main>
         </div>
       </body>

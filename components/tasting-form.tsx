@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 
 export function TastingForm({ itemId }: { itemId: string }) {
   const router = useRouter();
-  const [message, setMessage] = useState("");
+  const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   async function handleSubmit(formData: FormData) {
-    setMessage("");
+    setNotice(null);
 
     const payload = {
       tastedAt: String(formData.get("tastedAt") ?? ""),
@@ -28,11 +28,11 @@ export function TastingForm({ itemId }: { itemId: string }) {
       });
 
       if (!response.ok) {
-        setMessage("Could not save the tasting note.");
+        setNotice({ tone: "error", text: "Could not save the tasting note." });
         return;
       }
 
-      setMessage("Tasting note saved.");
+      setNotice({ tone: "success", text: "Tasting note saved." });
       router.refresh();
     });
   }
@@ -71,10 +71,12 @@ export function TastingForm({ itemId }: { itemId: string }) {
       </div>
       <div className="field full-span">
         <button className="button" disabled={isPending} type="submit">
-          Save tasting
+          {isPending ? "Saving tasting..." : "Save tasting"}
         </button>
       </div>
-      {message ? <div className="status-note full-span">{message}</div> : null}
+      {notice ? (
+        <div className={`status-note status-note-${notice.tone} full-span`}>{notice.text}</div>
+      ) : null}
     </form>
   );
 }
