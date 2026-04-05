@@ -1,0 +1,114 @@
+# Personal Whisky Advisor Web App (Expanded V1 With Pricing)
+
+## Summary
+- Build a **single-user whisky collection app** with **Next.js + Supabase + OpenAI**, deployed on **Vercel** and usable as a **responsive PWA**.
+- Core V1 includes: cataloging, photo-first add flow, optional barcode scan, AI-assisted enrichment with review, structured tasting notes, whisky classification, advisor recommendations, **collection analytics**, **visible palate profiling**, **comparison mode**, and **purchase vs current web pricing**.
+- Model whisky identity correctly for enthusiasts: keep **distillery** separate from **bottler**, track **official vs independent bottler**, and store **release series** plus special-release details.
+
+## Key Changes
+- Use these core entities:
+  - `Distillery`
+  - `Bottler`
+  - `Expression`
+  - `CollectionItem`
+  - `TastingEntry`
+  - `ItemImage`
+  - `Citation`
+  - `PriceSnapshot`
+- Expression model must include:
+  - `distillery_id`
+  - `bottler_id`
+  - `bottler_kind` as `official | independent`
+  - `release_series`
+  - `country`
+  - `region`
+  - `abv`
+  - `age_statement`
+  - `vintage_year`
+  - `distilled_year`
+  - `bottled_year`
+  - `cask_type`
+  - `cask_number`
+  - `bottle_number`
+  - `outturn`
+  - taxonomy tags for peat, cask influence, and flavor profile
+- `CollectionItem` must include:
+  - `status` as `owned | wishlist`
+  - `fill_state` as `sealed | open | finished`
+  - optional `purchase_price`
+  - `purchase_currency`
+  - optional `purchase_date`
+  - optional `purchase_source`
+- Add flow:
+  - Front-label photo required, extra photos optional.
+  - Barcode scan is optional and acts only as a helper.
+  - Intake combines barcode, OCR, and AI extraction into candidate bottle data.
+  - All AI-enriched fields show confidence and source references before save.
+- Pricing in V1:
+  - Track **what you paid** separately from **current internet price**.
+  - Internet pricing must split **retail** and **auction/secondary** sources.
+  - Show a **range**, source links, confidence, original currency, and normalized ZAR value.
+  - If purchase price is missing, still show current web price estimate.
+  - If purchase price exists, show simple paid-vs-current comparison.
+  - Refresh internet prices **on demand** and also keep a recent cached snapshot.
+- Collection analytics in V1:
+  - Show owned vs wishlist, sealed/open/finished, ratings distribution, region split, peat profile, top distilleries, top bottlers, and high-level value view from paid-vs-current data.
+- Palate profiling in V1:
+  - Generate visible profile cards from confirmed tasting history.
+  - Surface preferred peat level, favored cask styles, dominant flavor tags, favorite regions, and strong bottler/distillery patterns.
+  - Feed this profile directly into drink-now and buy-next ranking.
+- Comparison mode in V1:
+  - Support comparing any whisky, not only saved items.
+  - Allow saved-vs-saved, saved-vs-searched, and searched-vs-searched comparisons.
+  - Present a structured side-by-side view with specs, release details, taxonomy, pricing snapshot, your notes if available, and an AI summary of differences plus likely fit to your palate.
+
+## Public APIs / Interfaces / Types
+- `POST /api/items/intake-photo` -> image upload, OCR, extraction, candidate expression match.
+- `POST /api/items/intake-barcode` -> barcode lookup and candidate match result.
+- `POST /api/items/:id/enrich` -> normalized metadata with citations.
+- `PATCH /api/items/:id` -> confirm/edit/save expression and collection fields.
+- `POST /api/items/:id/tastings` -> add tasting note and rating.
+- `GET /api/analytics/collection` -> collection metrics and chart-ready aggregates.
+- `GET /api/profile/palate` -> current palate profile cards and supporting signals.
+- `POST /api/compare` -> structured side-by-side comparison for two saved or searched whiskies.
+- `GET /api/items/:id/pricing` -> latest cached retail and auction price ranges with sources.
+- `POST /api/items/:id/pricing/refresh` -> fetch fresh internet pricing on demand.
+- `GET /api/advisor/drink-now` -> ranked owned-bottle suggestions with reasons.
+- `GET /api/advisor/buy-next` -> ranked wishlist or discovery suggestions with reasons.
+- `GET /api/export?format=csv|json` -> full export.
+- Important types:
+  - `BottlerKind`
+  - `ReleaseDetails`
+  - `BarcodeMatchResult`
+  - `CollectionAnalytics`
+  - `PalateProfile`
+  - `ComparisonResult`
+  - `PriceRange`
+  - `PriceSnapshot`
+  - `Citation`
+
+## Test Plan
+- Barcode-assisted add finds standard bottles correctly and still requires confirmation.
+- Barcode ambiguity or no-match falls back cleanly to photo/OCR review.
+- Independent bottlings store distillery and bottler separately.
+- `release_series` and special-release fields persist and display correctly.
+- Purchase price fields remain optional and do not block save.
+- Internet pricing returns retail and auction ranges separately with source links and timestamps.
+- Bottles without purchase price still show current web price estimate.
+- Bottles with purchase price show paid-vs-current comparison correctly.
+- Analytics aggregates update after adding bottles, statuses, tasting entries, and pricing snapshots.
+- Palate profile changes after new ratings and notes are saved.
+- Comparison works for saved-vs-saved, saved-vs-searched, and searched-vs-searched whiskies.
+- Advisor explanations reflect both palate profile and sourced bottle facts.
+- Mobile add flow works for camera upload and optional barcode scan.
+- CSV/JSON export includes release details, pricing fields, and tasting history.
+
+## Assumptions
+- Single-user app only.
+- OpenAI is the primary AI provider for vision, extraction, comparison summaries, and advisor reasoning.
+- Barcode is optional and never treated as the source of truth.
+- Distillery, bottler, bottler kind, and release series are first-class fields in V1.
+- Analytics, palate profiling, comparison mode, and internet pricing are fully included in V1.
+- Internet prices are estimates, not guaranteed market values.
+- Web pricing is shown in original source currency and normalized to ZAR for comparison.
+- Cached pricing is used by default; live refresh happens only on demand or scheduled refresh.

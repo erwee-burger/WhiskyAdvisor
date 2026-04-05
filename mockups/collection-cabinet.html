@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Whisky Cabinet Mockup</title>
+    <link rel="stylesheet" href="./styles/bar-theme.css" />
+    <style>
+      :root {
+        --bg: var(--bg-900);
+        --wood-dark: #2a0f15;
+        --wood-mid: #4a1620;
+        --wood-light: #6a1f2b;
+        --wood-glow: var(--amber-500);
+        --glass: rgba(200, 255, 255, 0.12);
+        --glass-line: rgba(186, 250, 243, 0.45);
+        --text: var(--text-100);
+        --muted: rgba(213, 198, 173, 0.8);
+        --panel: rgba(32, 14, 20, 0.78);
+        --line: rgba(231, 191, 116, 0.16);
+        --radius-xl: 28px;
+        --radius-lg: 18px;
+        --radius-md: 12px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Cormorant Garamond", "Georgia", serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 50% -12%, rgba(255, 210, 145, 0.06), transparent 22%),
+          linear-gradient(180deg, var(--bg-800) 0%, var(--bg-900) 100%);
+      }
+
+      .page {
+        padding: 22px;
+      }
+
+      .frame {
+        max-width: 1500px;
+        margin: 0 auto;
+        border-radius: var(--radius-xl);
+        overflow: hidden;
+        border: 1px solid rgba(255, 221, 177, 0.08);
+        box-shadow: 0 26px 80px rgba(0, 0, 0, 0.48);
+        background:
+          linear-gradient(180deg, rgba(58, 20, 28, 0.14), rgba(9, 12, 18, 0.2) 20%),
+          linear-gradient(180deg, rgba(17, 22, 32, 0.96), rgba(11, 14, 21, 0.98));
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        padding: 20px 26px 12px;
+        background: linear-gradient(180deg, rgba(55, 18, 26, 0.84), rgba(16, 18, 26, 0.74));
+        border-bottom: 1px solid var(--line);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .brand-mark {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background:
+          linear-gradient(180deg, rgba(255, 220, 174, 0.18), transparent),
+          linear-gradient(135deg, #b76e28, #4b2412);
+        position: relative;
+        box-shadow: 0 0 30px rgba(212, 139, 57, 0.18);
+      }
+
+      .brand-mark::before {
+        content: "";
+        position: absolute;
+        inset: 8px;
+        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(241, 247, 249, 0.95), rgba(202, 230, 249, 0.75));
+      }
+
+      .brand-copy h1 {
+        margin: 0;
+        font-size: clamp(1.7rem, 2.6vw, 2.4rem);
+        letter-spacing: 0.03em;
+      }
+
+      .brand-copy p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .mode-switch {
+        display: inline-flex;
+        gap: 6px;
+        padding: 6px;
+        border-radius: 999px;
+        background: rgba(23, 28, 39, 0.8);
+        border: 1px solid rgba(255, 219, 173, 0.1);
+      }
+
+      .mode-chip {
+        padding: 10px 16px;
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+
+      .mode-chip.active {
+        color: var(--text);
+        background: linear-gradient(180deg, rgba(212, 157, 69, 0.3), rgba(86, 33, 27, 0.6));
+        box-shadow: 0 0 16px rgba(212, 157, 69, 0.2);
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        padding: 16px 26px 22px;
+      }
+
+      .search,
+      .filters {
+        min-height: 66px;
+        display: flex;
+        align-items: center;
+        border-radius: 999px;
+        background:
+          linear-gradient(180deg, rgba(93, 50, 24, 0.62), rgba(54, 29, 17, 0.82)),
+          linear-gradient(90deg, rgba(255, 220, 174, 0.06), transparent);
+        border: 1px solid rgba(255, 219, 173, 0.1);
+      }
+
+      .search {
+        padding: 0 24px;
+        color: rgba(246, 231, 207, 0.5);
+        font-size: 1.12rem;
+      }
+
+      .filters {
+        gap: 10px;
+        padding: 8px 12px;
+      }
+
+      .pill {
+        padding: 10px 13px;
+        border-radius: 999px;
+        background: rgba(255, 224, 184, 0.06);
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+
+      .cabinet-wall {
+        position: relative;
+        padding: 18px 18px 26px;
+        background:
+          linear-gradient(180deg, rgba(86, 46, 20, 0.16), rgba(20, 11, 8, 0.08) 9%, transparent 12%),
+          linear-gradient(180deg, rgba(30, 16, 10, 0.98), rgba(20, 11, 8, 1));
+      }
+
+      .cabinet-wall::before {
+        content: "";
+        position: absolute;
+        inset: 8px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 218, 170, 0.14);
+        box-shadow:
+          inset 0 0 0 1px rgba(79, 39, 20, 0.72),
+          inset 0 16px 28px rgba(255, 200, 120, 0.05),
+          inset 0 -18px 24px rgba(8, 4, 3, 0.34);
+        pointer-events: none;
+      }
+
+      .cabinet-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .cabinet-grid::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 18px;
+        transform: translateX(-50%);
+        border-radius: 12px;
+        background:
+          linear-gradient(90deg, rgba(23, 11, 8, 0.96), rgba(92, 49, 24, 0.95) 42%, rgba(32, 15, 9, 0.94));
+        box-shadow:
+          inset 1px 0 0 rgba(255, 223, 177, 0.08),
+          inset -1px 0 0 rgba(0, 0, 0, 0.45),
+          0 0 30px rgba(0, 0, 0, 0.35);
+        z-index: 2;
+        pointer-events: none;
+      }
+
+      .cabinet-grid::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 16px;
+        background:
+          linear-gradient(110deg, rgba(255, 255, 255, 0.06) 10%, rgba(255, 255, 255, 0.015) 22%, transparent 34%),
+          linear-gradient(95deg, transparent 54%, rgba(255, 255, 255, 0.045) 68%, rgba(255, 255, 255, 0.012) 76%, transparent 84%);
+        mix-blend-mode: screen;
+        opacity: 0.7;
+        pointer-events: none;
+        z-index: 2;
+      }
+
+      .cabinet-column {
+        position: relative;
+        min-height: 820px;
+        border-radius: 18px;
+        padding: 22px 20px 28px;
+        background:
+          linear-gradient(180deg, rgba(110, 36, 34, 0.38), rgba(66, 22, 26, 0.42)),
+          linear-gradient(180deg, rgba(54, 16, 18, 0.24), rgba(28, 10, 14, 0.36)),
+          radial-gradient(circle at 28% 18%, rgba(154, 58, 56, 0.16), transparent 36%),
+          linear-gradient(90deg, rgba(0, 0, 0, 0.34), transparent 9%, transparent 91%, rgba(0, 0, 0, 0.32)),
+          url("./assets/cabinet-panel-reference.jpg");
+        background-size: cover;
+        background-repeat: repeat;
+        background-position: center center;
+        background-blend-mode: multiply, multiply, normal, normal;
+        border: 1px solid rgba(255, 225, 188, 0.09);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 221, 177, 0.05),
+          inset 0 18px 60px rgba(255, 193, 102, 0.04),
+          inset 0 -80px 120px rgba(24, 10, 6, 0.2),
+          0 25px 45px rgba(0, 0, 0, 0.18);
+        overflow: visible;
+        isolation: isolate;
+        z-index: 3;
+      }
+
+      .cabinet-column::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(180deg, rgba(255, 225, 205, 0.03), transparent 14%, transparent 76%, rgba(18, 7, 5, 0.24)),
+          linear-gradient(180deg, rgba(128, 34, 42, 0.06), transparent 20%, transparent 78%, rgba(42, 12, 18, 0.08)),
+          linear-gradient(90deg, rgba(255, 227, 190, 0.04), transparent 8%, transparent 92%, rgba(255, 227, 190, 0.04));
+        z-index: 0;
+        pointer-events: none;
+      }
+
+      .cabinet-column::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(180deg, rgba(255, 247, 232, 0.02), transparent 18%, transparent 82%, rgba(24, 10, 7, 0.14)),
+          linear-gradient(90deg, rgba(58, 27, 15, 0.2), transparent 4%, transparent 96%, rgba(42, 20, 12, 0.17)),
+          linear-gradient(180deg, rgba(74, 36, 20, 0.16), transparent 10%, transparent 90%, rgba(55, 24, 13, 0.14));
+        z-index: 0;
+        pointer-events: none;
+      }
+
+      .cabinet-column > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      .spotlight {
+        display: none;
+      }
+
+      .glass-shelf {
+        position: relative;
+        min-height: 238px;
+        display: grid;
+        align-items: end;
+        padding: 44px 14px 42px;
+        background:
+          linear-gradient(180deg, rgba(255, 227, 169, 0.04), transparent 18%, transparent 76%, rgba(0, 0, 0, 0.12));
+      }
+
+      .glass-shelf:first-child {
+        padding-top: 112px;
+      }
+
+      .glass-shelf:first-child .hover-card {
+        bottom: calc(100% - 42px);
+      }
+
+      .glass-shelf + .glass-shelf {
+        margin-top: 20px;
+      }
+
+      .glass-shelf::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 24px;
+        height: 8px;
+        background:
+          linear-gradient(180deg, rgba(205, 242, 235, 0.7), rgba(77, 170, 152, 0.2)),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.38), transparent 18%, transparent 82%, rgba(255, 255, 255, 0.38));
+        border-radius: 999px 999px 10px 10px;
+        box-shadow:
+          0 0 10px rgba(98, 241, 223, 0.12),
+          0 11px 20px rgba(0, 0, 0, 0.34),
+          inset 0 1px 0 rgba(255, 255, 255, 0.46);
+      }
+
+      .glass-shelf::after {
+        content: "";
+        position: absolute;
+        left: 10px;
+        right: 10px;
+        bottom: 8px;
+        height: 42px;
+        background:
+          linear-gradient(180deg, rgba(67, 31, 18, 0.72), rgba(29, 13, 8, 0.18)),
+          radial-gradient(ellipse at center, rgba(0, 0, 0, 0.28), transparent 72%);
+        border-radius: 0 0 14px 14px;
+        filter: blur(2px);
+      }
+
+      .glass-shelf .shelf-face {
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        bottom: -2px;
+        height: 24px;
+        border-radius: 0 0 10px 10px;
+        background:
+          linear-gradient(180deg, rgba(132, 75, 41, 0.86), rgba(60, 30, 17, 0.94)),
+          url("./assets/cabinet-panel-reference.jpg");
+        background-size: cover;
+        background-position: center;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 230, 196, 0.12),
+          0 8px 18px rgba(0, 0, 0, 0.24);
+        pointer-events: none;
+      }
+
+      .shelf-back-shadow {
+        position: absolute;
+        left: 22px;
+        right: 22px;
+        bottom: 58px;
+        height: 18px;
+        border-radius: 999px;
+        background: radial-gradient(ellipse at center, rgba(31, 13, 9, 0.42), transparent 72%);
+        filter: blur(5px);
+        pointer-events: none;
+      }
+
+      .bottle-row {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+        align-items: end;
+        position: relative;
+        z-index: 1;
+      }
+
+      .bottle-row.centered {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .bottle-card {
+        position: relative;
+        min-height: 188px;
+        display: grid;
+        justify-items: center;
+        align-items: end;
+        padding-bottom: 28px;
+        padding-top: 46px;
+        transition: transform 180ms ease;
+      }
+
+      .bottle-card::after {
+        content: "";
+        position: absolute;
+        bottom: 22px;
+        width: calc(var(--w) + 28px);
+        height: 22px;
+        border-radius: 999px;
+        background: radial-gradient(ellipse at center, rgba(255, 224, 167, 0.08), transparent 72%);
+        filter: blur(5px);
+        opacity: 0.65;
+      }
+
+      .bottle-card:hover {
+        z-index: 30;
+      }
+
+      .bottle-card:hover .hover-card {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+
+      .bottle-shadow {
+        position: absolute;
+        bottom: 24px;
+        width: calc(var(--w) + 24px);
+        height: 16px;
+        border-radius: 999px;
+        background:
+          radial-gradient(ellipse at center, rgba(0, 0, 0, 0.68), transparent 72%),
+          radial-gradient(ellipse at 50% 35%, rgba(0, 0, 0, 0.24), transparent 76%);
+        filter: blur(2px);
+      }
+
+      .bottle {
+        width: var(--w);
+        height: var(--h);
+        position: relative;
+        display: block;
+        background: var(--photo) center bottom / contain no-repeat;
+        transform: translateY(2px);
+        filter:
+          drop-shadow(0 15px 18px rgba(0, 0, 0, 0.36))
+          drop-shadow(0 3px 2px rgba(0, 0, 0, 0.2));
+        transition: transform 180ms ease, filter 180ms ease;
+      }
+
+      .bottle-card:hover .bottle {
+        transform: translateY(-5px) scale(1.06);
+        filter:
+          drop-shadow(0 20px 22px rgba(0, 0, 0, 0.4))
+          drop-shadow(0 5px 3px rgba(0, 0, 0, 0.25))
+          drop-shadow(0 0 9px rgba(255, 208, 132, 0.35));
+      }
+
+      .bottle > * {
+        display: none;
+      }
+
+      .cap {
+        width: calc(var(--w) * 0.24);
+        height: calc(var(--h) * 0.08);
+        border-radius: 5px 5px 2px 2px;
+        background: var(--cap, linear-gradient(180deg, #5d4427, #291a10));
+        border: 1px solid rgba(255, 226, 183, 0.08);
+      }
+
+      .neck {
+        width: calc(var(--w) * 0.18);
+        height: calc(var(--h) * 0.18);
+        background:
+          linear-gradient(180deg, rgba(255, 243, 219, 0.18), transparent 30%),
+          var(--neck, linear-gradient(180deg, rgba(160, 113, 56, 0.84), rgba(69, 35, 17, 0.96)));
+        border-left: 1px solid rgba(255, 236, 210, 0.12);
+        border-right: 1px solid rgba(255, 211, 163, 0.08);
+      }
+
+      .body {
+        width: 100%;
+        height: calc(var(--h) * 0.74);
+        position: relative;
+        border-radius: var(--shape, 12px 12px 14px 14px);
+        background:
+          linear-gradient(90deg, rgba(255, 248, 236, 0.18), transparent 14%, rgba(0, 0, 0, 0.18) 84%, transparent),
+          linear-gradient(180deg, rgba(255, 244, 226, 0.14), transparent 22%),
+          radial-gradient(circle at 25% 24%, rgba(255, 250, 240, 0.12), transparent 32%),
+          var(--juice, linear-gradient(180deg, #cd8a35, #773718 72%, #572910));
+        border: 1px solid rgba(255, 231, 198, 0.16);
+        overflow: hidden;
+      }
+
+      .body::before {
+        content: "";
+        position: absolute;
+        top: 10%;
+        left: 12%;
+        width: 12%;
+        height: 56%;
+        border-radius: 999px;
+        background: linear-gradient(180deg, rgba(255, 248, 236, 0.5), transparent);
+      }
+
+      .body::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 8%;
+        background: linear-gradient(180deg, rgba(255, 250, 239, 0.14), transparent);
+      }
+
+      .label {
+        position: absolute;
+        left: 50%;
+        top: var(--label-top, 40%);
+        width: var(--label-width, 64%);
+        min-height: var(--label-height, 28%);
+        transform: translateX(-50%);
+        padding: 8px 6px;
+        border-radius: 7px;
+        background: linear-gradient(180deg, rgba(247, 236, 214, 0.9), rgba(214, 188, 145, 0.86));
+        color: #2b170d;
+        display: grid;
+        align-content: start;
+        gap: 3px;
+        text-align: center;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.4),
+          0 1px 2px rgba(0, 0, 0, 0.15);
+        backdrop-filter: blur(0.5px);
+      }
+
+      .label strong {
+        font-size: clamp(0.48rem, 0.7vw, 0.7rem);
+        line-height: 1.06;
+      }
+
+      .label span {
+        font-size: clamp(0.4rem, 0.56vw, 0.54rem);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .name {
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% - 8px);
+        transform: translateX(-50%);
+        text-align: center;
+        width: max-content;
+        max-width: 146px;
+        padding: 7px 10px;
+        border-radius: var(--radius-md);
+        background: linear-gradient(180deg, rgba(22, 11, 7, 0.9), rgba(12, 6, 4, 0.82));
+        border: 1px solid var(--line);
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.36);
+        z-index: 2;
+      }
+
+      .name strong {
+        display: block;
+        font-weight: 400;
+        font-size: 0.9rem;
+        line-height: 1.2;
+      }
+
+      .name span {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 0.74rem;
+      }
+
+      .hover-card {
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% - 8px);
+        width: 250px;
+        padding: 15px;
+        border-radius: var(--radius-lg);
+        transform: translate(-50%, 10px);
+        background:
+          linear-gradient(180deg, rgba(35, 18, 11, 0.98), rgba(19, 11, 8, 0.98)),
+          radial-gradient(circle at top, rgba(212, 139, 57, 0.12), transparent 34%);
+        border: 1px solid var(--line);
+        box-shadow: 0 26px 70px rgba(0, 0, 0, 0.48);
+        opacity: 0;
+        pointer-events: none;
+        transition: 180ms ease;
+        z-index: 9999;
+      }
+
+      .hover-card::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: -8px;
+        width: 16px;
+        height: 16px;
+        transform: translateX(-50%) rotate(45deg);
+        background: rgba(22, 12, 8, 0.98);
+        border-right: 1px solid rgba(255, 220, 177, 0.1);
+        border-bottom: 1px solid rgba(255, 220, 177, 0.1);
+      }
+
+      .hover-card h3 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hover-card p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 0.88rem;
+        line-height: 1.42;
+      }
+
+      .hover-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 12px;
+      }
+
+      .hover-meta span {
+        padding: 6px 9px;
+        border-radius: 999px;
+        background: rgba(255, 223, 178, 0.08);
+        color: rgba(246, 231, 207, 0.84);
+        font-size: 0.76rem;
+      }
+
+      .bottle-card.placeholder {
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      .lagavulin { --w: 66px; --h: 160px; --photo: url("./assets/bottles/whisky_PNG118.png"); }
+      .springbank { --w: 58px; --h: 150px; --photo: url("./assets/bottles/whisky_PNG135.png"); }
+      .amrut { --w: 70px; --h: 154px; --photo: url("./assets/bottles/whisky_PNG136.png"); }
+      .ardbeg { --w: 52px; --h: 166px; --photo: url("./assets/bottles/whisky_PNG140.png"); }
+      .glenfiddich { --w: 78px; --h: 176px; --photo: url("./assets/bottles/whisky_PNG141.png"); }
+      .talisker { --w: 54px; --h: 164px; --photo: url("./assets/bottles/whisky_PNG137.png"); }
+      .octomore { --w: 60px; --h: 170px; --photo: url("./assets/bottles/whisky_PNG140.png"); }
+      .macallan { --w: 74px; --h: 174px; --photo: url("./assets/bottles/whisky_PNG139.png"); }
+      .hp { --w: 66px; --h: 166px; --photo: url("./assets/bottles/whisky_PNG138.png"); }
+      .glendronach { --w: 60px; --h: 166px; --photo: url("./assets/bottles/whisky_PNG134.png"); }
+
+      @media (max-width: 1180px) {
+        .cabinet-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .cabinet-column {
+          min-height: auto;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .topbar {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .controls {
+          grid-template-columns: 1fr;
+        }
+
+        .bottle-row {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .hover-card {
+          width: min(220px, 88vw);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="frame">
+        <header class="topbar">
+          <div class="brand">
+            <div class="brand-mark"></div>
+            <div class="brand-copy">
+              <h1>The Cabinet</h1>
+              <p>A more realistic showcase view for your collection.</p>
+            </div>
+          </div>
+          <div class="mode-switch">
+            <span class="mode-chip active">Bar Glow</span>
+            <span class="mode-chip">Candlelight</span>
+            <span class="mode-chip">Daylight</span>
+            <span class="mode-chip">Showcase</span>
+          </div>
+        </header>
+
+        <div class="controls">
+          <div class="search">Search your collection by bottle, region, distillery, or tag...</div>
+          <div class="filters">
+            <span class="pill">open</span>
+            <span class="pill">sherry</span>
+            <span class="pill">smoke</span>
+            <span class="pill">favorite</span>
+          </div>
+        </div>
+
+        <div class="cabinet-wall">
+          <div class="cabinet-grid">
+            <section class="cabinet-column" id="cabinet-column-left"></section>
+            <section class="cabinet-column" id="cabinet-column-right"></section>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script>
+      const bottles = [
+        { name: "Lagavulin 16", region: "Islay", style: "lagavulin", desc: "Classic Islay shape with medicinal smoke, dried fruit depth, and coastal salt.", meta: ["43%", "Open", "Smoke"] },
+        { name: "Springbank 10", region: "Campbeltown", style: "springbank", desc: "Stockier Campbeltown bottle with oily texture, gentle peat, and dunnage funk.", meta: ["46%", "Sealed", "Coastal"] },
+        { name: "Amrut Fusion", region: "India", style: "amrut", desc: "Broader shoulder bottle with bright malt, spice, and a richer amber presentation.", meta: ["50%", "Open", "India"] },
+        { name: "Ardbeg Uigeadail", region: "Islay", style: "ardbeg", desc: "Darker, more compact silhouette with tar, smoke, espresso, and sherry sweetness.", meta: ["54.2%", "Open", "Sherry"] },
+        { name: "Glenfiddich 15", region: "Speyside", style: "glenfiddich", desc: "Tall triangular bottle that instantly changes the shelf silhouette and keeps the cabinet believable.", meta: ["40%", "Open", "Solera"] },
+        { name: "Octomore 14.1", region: "Islay", style: "octomore", desc: "Modern black bottle acting as a visual anchor and collector piece on the lower shelf.", meta: ["59.6%", "Wishlist", "Peat"] },
+        { name: "Macallan 18", region: "Speyside", style: "macallan", desc: "One of the broader-shouldered bottles that helps the cabinet feel less uniform and more real.", meta: ["43%", "Sealed", "Sherry"] },
+        { name: "Highland Park", region: "Orkney", style: "hp", desc: "Rich amber and broad shoulders make this shelf section feel more like a private display cabinet.", meta: ["Single Cask", "Favorite", "Orkney"] },
+        { name: "Talisker 10", region: "Island", style: "talisker", desc: "Compact maritime bottle with enough variation to keep the cabinet from looking like repeated icons.", meta: ["45.8%", "Pepper", "Sea Spray"] },
+        { name: "Glendronach 18", region: "Highlands", style: "glendronach", desc: "Warmer amber and classic shape, good for a darker sherry-heavy lower shelf section.", meta: ["46%", "Wishlist", "Dark Fruit"] },
+        { name: "BenRiach 12", region: "Speyside", style: "springbank", desc: "A slightly taller official bottle that helps break up the left-to-right profile line.", meta: ["46%", "Open", "Fruit"] },
+        { name: "Balvenie 14", region: "Speyside", style: "macallan", desc: "Traditional honeyed bottle with a wider stance to make the shelf feel curated, not templated.", meta: ["43%", "Open", "Honey"] },
+        { name: "Dalwhinnie 15", region: "Highlands", style: "lagavulin", desc: "Narrower bottle with a bright label to give a different visual rhythm on the shelf.", meta: ["43%", "Sealed", "Highlands"] },
+        { name: "Benromach 10", region: "Speyside", style: "springbank", desc: "Compact bottle in a warmer tone that sits naturally in a private home display cabinet.", meta: ["43%", "Open", "Malt"] },
+        { name: "Ardnamurchan", region: "Highlands", style: "ardbeg", desc: "Tall dark bottle adding a modern silhouette to contrast the traditional amber bottles nearby.", meta: ["AD/", "Open", "Coastal"] },
+        { name: "Ben Nevis 2015", region: "Independent", style: "talisker", desc: "Independent bottling placed among official releases so the hover card can tell the story.", meta: ["57.1%", "Signatory", "Cask 900182"] },
+        { name: "Kavalan Solist", region: "Taiwan", style: "glenfiddich", desc: "Lusher color and more angular body shape to suggest a world whisky section without changing the scene.", meta: ["57.8%", "Wishlist", "Wine Cask"] },
+        { name: "Port Charlotte 10", region: "Islay", style: "hp", desc: "Heavy peated Islay with a broad bottle that adds believable cabinet density.", meta: ["50%", "Open", "Barbecue"] },
+        { name: "Bunnahabhain 12", region: "Islay", style: "macallan", desc: "Classic rounder shape with a pale amber fill, balancing the darker labels around it.", meta: ["46.3%", "Sealed", "Coastal"] },
+        { name: "GlenAllachie 12", region: "Speyside", style: "glendronach", desc: "Warmer sherried bottle near the edge to keep the cabinet feeling full and realistic.", meta: ["46%", "Open", "Sherry"] }
+      ];
+
+      const shelvesPerColumn = 5;
+      const columns = [document.getElementById("cabinet-column-left"), document.getElementById("cabinet-column-right")];
+      const midpoint = Math.ceil(bottles.length / 2);
+      const columnBottles = [bottles.slice(0, midpoint), bottles.slice(midpoint)];
+
+      function chunk(items, size) {
+        const out = [];
+        for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+        return out;
+      }
+
+      function renderBottle(item) {
+        if (!item) {
+          return `<article class="bottle-card placeholder"></article>`;
+        }
+        const meta = item.meta.map((m) => `<span>${m}</span>`).join("");
+        return `
+          <article class="bottle-card">
+            <div class="hover-card">
+              <h3>${item.name}</h3>
+              <p>${item.desc}</p>
+              <div class="hover-meta">${meta}</div>
+            </div>
+            <div class="bottle-shadow"></div>
+            <div class="bottle ${item.style}">
+              <div class="cap"></div>
+              <div class="neck"></div>
+              <div class="body">
+                <div class="label"><strong>${item.name}</strong><span>${item.region}</span></div>
+              </div>
+            </div>
+            <div class="name"><strong>${item.name}</strong><span>${item.region}</span></div>
+          </article>
+        `;
+      }
+
+      columns.forEach((column, index) => {
+        chunk(columnBottles[index], shelvesPerColumn).forEach((row) => {
+          const padded = Array(5).fill(null);
+          const offset = Math.floor((5 - row.length) / 2);
+          row.forEach((item, i) => {
+            padded[offset + i] = item;
+          });
+          const shelf = document.createElement("div");
+          shelf.className = "glass-shelf";
+          shelf.innerHTML = `
+            <div class="shelf-back-shadow"></div>
+            <div class="shelf-face"></div>
+            <div class="bottle-row centered">${padded.map(renderBottle).join("")}</div>
+          `;
+          column.appendChild(shelf);
+        });
+      });
+    </script>
+  </body>
+</html>
