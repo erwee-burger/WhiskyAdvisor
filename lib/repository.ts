@@ -302,14 +302,16 @@ function buildDraftView(store: WhiskyStore, draft: Awaited<ReturnType<typeof get
   const bottler = baseExpression
     ? store.bottlers.find((entry) => entry.id === baseExpression.bottlerId)
     : undefined;
+  const extractedDistilleryName = normalizeText(draft.expression.distilleryName);
+  const extractedBottlerName = normalizeText(draft.expression.bottlerName);
 
   return {
     draftId: draft.id,
     matchedExpressionId: draft.matchedExpressionId,
     source: draft.source,
     barcode: draft.barcode,
-    distilleryName: distillery?.name ?? "Unknown Distillery",
-    bottlerName: bottler?.name ?? "Unknown Bottler",
+    distilleryName: distillery?.name ?? extractedDistilleryName ?? "Unknown Distillery",
+    bottlerName: bottler?.name ?? extractedBottlerName ?? "Unknown Bottler",
     collection: {
       status: draft.collection.status ?? "owned",
       fillState: draft.collection.fillState ?? "sealed",

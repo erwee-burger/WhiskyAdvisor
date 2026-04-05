@@ -1,5 +1,17 @@
 import { createId } from "@/lib/id";
-import type { Citation, CollectionItem, Expression, IntakeDraft, PriceSnapshot } from "@/lib/types";
+import type {
+  Citation,
+  CollectionItem,
+  Expression,
+  IntakeDraft,
+  PriceSnapshot
+} from "@/lib/types";
+import {
+  BOTTLER_KIND_VALUES,
+  CASK_INFLUENCE_VALUES,
+  PEAT_LEVEL_VALUES,
+  WHISKY_TYPE_VALUES
+} from "@/lib/types";
 import { convertToZar } from "@/lib/currency";
 
 function getResponseText(payload: unknown) {
@@ -79,31 +91,118 @@ async function callOpenAi(prompt: string, imageBase64?: string) {
   return response.json();
 }
 
+type ExtractedBottlePayload = {
+  distilleryName?: string | null;
+  bottlerName?: string | null;
+  name?: string | null;
+  releaseSeries?: string | null;
+  bottlerKind?: Expression["bottlerKind"] | null;
+  whiskyType?: Expression["whiskyType"] | null;
+  country?: string | null;
+  region?: string | null;
+  abv?: number | null;
+  ageStatement?: string | number | null;
+  vintageYear?: number | string | null;
+  distilledYear?: number | string | null;
+  bottledYear?: number | string | null;
+  caskType?: string | null;
+  caskNumber?: string | null;
+  bottleNumber?: string | number | null;
+  outturn?: string | number | null;
+  barcode?: string | null;
+  peatLevel?: Expression["peatLevel"] | null;
+  caskInfluence?: Expression["caskInfluence"] | null;
+  flavorTags?: string[] | null;
+  description?: string | null;
+};
+
+function normalizeText(value: string | number | null | undefined) {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  const normalized = String(value).trim();
+  return normalized ? normalized : undefined;
+}
+
+function normalizeNumber(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+function normalizeFlavorTags(value: string[] | null | undefined) {
+  return (value ?? [])
+    .map((tag) => tag.trim().toLowerCase().replace(/\s+/g, "-"))
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+function normalizeEnumValue<T extends string>(value: T | null | undefined) {
+  return value ?? undefined;
+}
+
+function normalizeAnalyzedBottle(payload: ExtractedBottlePayload, fileName: string) {
+  return {
+    expression: {
+      distilleryName: normalizeText(payload.distilleryName),
+      bottlerName: normalizeText(payload.bottlerName),
+      name: normalizeText(payload.name) ?? fileName.replace(/\.[^.]+$/, ""),
+      releaseSeries: normalizeText(payload.releaseSeries),
+      bottlerKind: normalizeEnumValue(payload.bottlerKind),
+      whiskyType: normalizeEnumValue(payload.whiskyType),
+      country: normalizeText(payload.country),
+      region: normalizeText(payload.region),
+      abv: normalizeNumber(payload.abv),
+      ageStatement: normalizeText(payload.ageStatement),
+      vintageYear: normalizeNumber(payload.vintageYear),
+      distilledYear: normalizeNumber(payload.distilledYear),
+      bottledYear: normalizeNumber(payload.bottledYear),
+      caskType: normalizeText(payload.caskType),
+      caskNumber: normalizeText(payload.caskNumber),
+      bottleNumber: normalizeText(payload.bottleNumber),
+      outturn: normalizeText(payload.outturn),
+      barcode: normalizeText(payload.barcode),
+      peatLevel: normalizeEnumValue(payload.peatLevel),
+      caskInfluence: normalizeEnumValue(payload.caskInfluence),
+      flavorTags: normalizeFlavorTags(payload.flavorTags),
+      description: normalizeText(payload.description)
+    }
+  };
+}
+
 export async function analyzeBottleImage(fileName: string, imageBase64?: string) {
   if (!process.env.OPENAI_API_KEY || !imageBase64) {
     return null;
   }
 
   const prompt = [
-    "You are helping build a whisky collection app.",
-    "Read the bottle label and return JSON only.",
-    "Fields: name, releaseSeries, bottlerKind, country, region, abv, ageStatement, caskType, caskNumber, bottleNumber, outturn, peatLevel, caskInfluence, flavorTags."
+    "You are a whisky expert and data extraction assistant.",
+    "Your task is to analyze the provided image of a whisky bottle and extract structured information for a whisky collection app.",
+    "Return ONLY a valid JSON object. Do not include markdown, explanations, or extra text.",
+    "If a field is not visible or cannot be determined with reasonable confidence, return null.",
+    "Be conservative. Prefer the label. Use well-known product knowledge only for widely known whiskies, and never invent rare release details.",
+    `Use these exact enum values where needed: bottlerKind in [${BOTTLER_KIND_VALUES.join(", ")}], whiskyType in [${WHISKY_TYPE_VALUES.join(", ")}], peatLevel in [${PEAT_LEVEL_VALUES.join(", ")}], caskInfluence in [${CASK_INFLUENCE_VALUES.join(", ")}].`,
+    "Keep distilleryName and bottlerName separate. For official bottlings, bottlerName is often the same house as the distillery if no separate bottler is shown. For independent bottlings, keep them distinct whenever the label indicates both.",
+    "For ageStatement, return digits only as a string, for example \"12\", not \"12 years old\".",
+    "For bottleNumber and outturn, preserve the label text if present, for example \"123 of 300\" or \"1/258\".",
+    "For flavorTags, return up to 6 concise lowercase tags and use hyphens for multi-word tags, for example \"dark-chocolate\".",
+    "Fields to extract: distilleryName, bottlerName, name, releaseSeries, bottlerKind, whiskyType, country, region, abv, ageStatement, vintageYear, distilledYear, bottledYear, caskType, caskNumber, bottleNumber, outturn, barcode, peatLevel, caskInfluence, flavorTags, description.",
+    'Output format: {"distilleryName":null,"bottlerName":null,"name":null,"releaseSeries":null,"bottlerKind":null,"whiskyType":null,"country":null,"region":null,"abv":null,"ageStatement":null,"vintageYear":null,"distilledYear":null,"bottledYear":null,"caskType":null,"caskNumber":null,"bottleNumber":null,"outturn":null,"barcode":null,"peatLevel":null,"caskInfluence":null,"flavorTags":null,"description":null}'
   ].join(" ");
 
   const payload = await callOpenAi(prompt, imageBase64);
   const text = getResponseText(payload);
-  const parsed = extractJson<Partial<Expression>>(text);
+  const parsed = extractJson<ExtractedBottlePayload>(text);
 
   if (!parsed) {
     return null;
   }
 
-  return {
-    expression: {
-      ...parsed,
-      name: parsed.name ?? fileName.replace(/\.[^.]+$/, "")
-    }
-  };
+  return normalizeAnalyzedBottle(parsed, fileName);
 }
 
 export async function refreshPricingWithAi(expression: Expression): Promise<PriceSnapshot | null> {

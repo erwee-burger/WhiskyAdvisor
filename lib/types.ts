@@ -1,21 +1,27 @@
-export type BottlerKind = "official" | "independent";
+export const BOTTLER_KIND_VALUES = ["official", "independent"] as const;
+export type BottlerKind = (typeof BOTTLER_KIND_VALUES)[number];
 export type CollectionStatus = "owned" | "wishlist";
 export type FillState = "sealed" | "open" | "finished";
-export type WhiskyType =
-  | "single-malt"
-  | "blended-malt"
-  | "blended-scotch"
-  | "single-grain"
-  | "world-single-malt";
-export type PeatLevel = "unpeated" | "light" | "medium" | "heavily-peated";
-export type CaskInfluence =
-  | "bourbon"
-  | "sherry"
-  | "wine"
-  | "rum"
-  | "virgin-oak"
-  | "mixed"
-  | "refill";
+export const WHISKY_TYPE_VALUES = [
+  "single-malt",
+  "blended-malt",
+  "blended-scotch",
+  "single-grain",
+  "world-single-malt"
+] as const;
+export type WhiskyType = (typeof WHISKY_TYPE_VALUES)[number];
+export const PEAT_LEVEL_VALUES = ["unpeated", "light", "medium", "heavily-peated"] as const;
+export type PeatLevel = (typeof PEAT_LEVEL_VALUES)[number];
+export const CASK_INFLUENCE_VALUES = [
+  "bourbon",
+  "sherry",
+  "wine",
+  "rum",
+  "virgin-oak",
+  "mixed",
+  "refill"
+] as const;
+export type CaskInfluence = (typeof CASK_INFLUENCE_VALUES)[number];
 export type SourceKind = "official" | "retail" | "auction" | "editorial" | "ai";
 export type PriceSourceKind = "retail" | "auction";
 export type IntakeSource = "photo" | "barcode" | "hybrid";
@@ -156,7 +162,10 @@ export interface IntakeDraft {
   matchedExpressionId?: string;
   source: IntakeSource;
   barcode?: string;
-  expression: Partial<Expression> & Pick<Expression, "name">;
+  expression: (Partial<Expression> & Pick<Expression, "name">) & {
+    distilleryName?: string;
+    bottlerName?: string;
+  };
   collection: Partial<CollectionItem>;
   suggestions: FieldSuggestion[];
   citations: Citation[];

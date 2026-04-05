@@ -1,18 +1,18 @@
 import { z } from "zod";
+import {
+  BOTTLER_KIND_VALUES,
+  CASK_INFLUENCE_VALUES,
+  PEAT_LEVEL_VALUES,
+  WHISKY_TYPE_VALUES
+} from "@/lib/types";
 
 const bottleRecordSchema = z.object({
   distilleryName: z.string().min(1),
   bottlerName: z.string().min(1),
   name: z.string().min(1),
   releaseSeries: z.string().optional(),
-  bottlerKind: z.enum(["official", "independent"]),
-  whiskyType: z.enum([
-    "single-malt",
-    "blended-malt",
-    "blended-scotch",
-    "single-grain",
-    "world-single-malt"
-  ]),
+  bottlerKind: z.enum(BOTTLER_KIND_VALUES),
+  whiskyType: z.enum(WHISKY_TYPE_VALUES),
   country: z.string().min(1),
   region: z.string().min(1),
   abv: z.number().optional(),
@@ -25,8 +25,8 @@ const bottleRecordSchema = z.object({
   bottleNumber: z.string().optional(),
   outturn: z.string().optional(),
   barcode: z.string().optional(),
-  peatLevel: z.enum(["unpeated", "light", "medium", "heavily-peated"]),
-  caskInfluence: z.enum(["bourbon", "sherry", "wine", "rum", "virgin-oak", "mixed", "refill"]),
+  peatLevel: z.enum(PEAT_LEVEL_VALUES),
+  caskInfluence: z.enum(CASK_INFLUENCE_VALUES),
   flavorTags: z.array(z.string()),
   description: z.string().optional(),
   status: z.enum(["owned", "wishlist"]),
