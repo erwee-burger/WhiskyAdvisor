@@ -13,9 +13,12 @@ import {
 } from "@/lib/openai";
 import { buildPalateProfile } from "@/lib/profile";
 import type {
+  Bottler,
   CollectionItem,
   CollectionStatus,
   CollectionViewItem,
+  Distillery,
+  Expression,
   FillState,
   PriceSnapshot,
   TastingEntry,
@@ -98,6 +101,59 @@ function toExpressionView(store: WhiskyStore, expressionId: string): CollectionV
   };
 }
 
+function buildFallbackExpression(name: string, barcode?: string): Expression {
+  return {
+    id: createId("expr"),
+    name,
+    distilleryId: createId("dist"),
+    bottlerId: createId("bot"),
+    bottlerKind: "official",
+    whiskyType: "single-malt",
+    country: "Unknown",
+    region: "Unknown",
+    abv: 46,
+    ageStatement: undefined,
+    vintageYear: undefined,
+    distilledYear: undefined,
+    bottledYear: undefined,
+    caskType: undefined,
+    caskNumber: undefined,
+    bottleNumber: undefined,
+    outturn: undefined,
+    peatLevel: "medium",
+    caskInfluence: "mixed",
+    flavorTags: ["malt"],
+    barcode,
+    description: undefined
+  };
+}
+
+function ensureBaseDistilleryAndBottler(store: WhiskyStore) {
+  let distillery: Distillery | undefined = store.distilleries[0];
+  let bottler: Bottler | undefined = store.bottlers[0];
+
+  if (!distillery) {
+    distillery = {
+      id: createId("dist"),
+      name: "Unknown Distillery",
+      country: "Unknown",
+      region: "Unknown"
+    };
+    store.distilleries.unshift(distillery);
+  }
+
+  if (!bottler) {
+    bottler = {
+      id: createId("bot"),
+      name: "Unknown Bottler",
+      bottlerKind: "official"
+    };
+    store.bottlers.unshift(bottler);
+  }
+
+  return { distillery, bottler };
+}
+
 export async function getCollectionView() {
   const store = await readStore();
   return toCollectionViewItems(store);
@@ -144,8 +200,12 @@ export async function createDraftFromBarcode(barcode: string) {
     store.expressions.find((entry) => entry.barcode === barcode) ??
     store.expressions.find((entry) => barcode && entry.name.toLowerCase().includes(barcode.toLowerCase()));
 
-  const expression = matched ?? store.expressions[0];
+  const expression = matched ?? buildFallbackExpression(`Unknown whisky (${barcode})`, barcode);
   const draft = buildDraftFromMatchedExpression(expression, "barcode", barcode);
+  if (!matched) {
+    draft.matchedExpressionId = undefined;
+    draft.expression = { ...draft.expression, name: `Unknown whisky (${barcode})` };
+  }
   store.drafts.unshift(draft);
   await writeStore(store);
   return draft;
@@ -162,8 +222,16 @@ export async function createDraftFromPhoto(fileName: string, imageBase64?: strin
       fileName.toLowerCase().includes(entry.name.toLowerCase().split(" ")[0])
     );
 
-  const expression = matched ?? store.expressions[0];
+  const expression =
+    matched ??
+    buildFallbackExpression(
+      aiResult?.expression.name ?? fileName.replace(/\.[^.]+$/, ""),
+      undefined
+    );
   const draft = buildDraftFromMatchedExpression(expression, aiResult ? "hybrid" : "photo");
+  if (!matched) {
+    draft.matchedExpressionId = undefined;
+  }
 
   if (aiResult?.expression) {
     draft.expression = {
@@ -282,14 +350,15 @@ export async function saveDraftAsItem(
   const expressionId = baseExpression?.id ?? createId("expr");
 
   if (!baseExpression) {
+    const { distillery, bottler } = ensureBaseDistilleryAndBottler(store);
     store.expressions.unshift({
       ...draft.expression,
       id: expressionId,
-      distilleryId: store.distilleries[0].id,
-      bottlerId: store.bottlers[0].id,
+      distilleryId: distillery.id,
+      bottlerId: bottler.id,
       bottlerKind: "official",
       whiskyType: "single-malt",
-      country: "Scotland",
+      country: "Unknown",
       region: "Unknown",
       abv: 46,
       peatLevel: "medium",
