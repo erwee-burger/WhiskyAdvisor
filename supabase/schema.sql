@@ -97,3 +97,16 @@ create table if not exists price_snapshots (
   retail jsonb,
   auction jsonb
 );
+
+create table if not exists intake_drafts (
+  id text primary key,
+  collection_item_id text not null,
+  matched_expression_id text,
+  source text not null check (source in ('photo', 'barcode', 'hybrid')),
+  barcode text,
+  expression jsonb not null default '{}'::jsonb,
+  collection jsonb not null default '{}'::jsonb,
+  suggestions jsonb not null default '[]'::jsonb,
+  citations jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now()
+);
