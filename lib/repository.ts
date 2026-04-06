@@ -21,6 +21,8 @@ import type {
   Expression,
   FillState,
   ItemImage,
+  IntakeRawExpression,
+  IntakeReviewItem,
   PriceSnapshot,
   TastingEntry,
   WhiskyStore
@@ -31,6 +33,7 @@ type DraftView = {
   matchedExpressionId?: string;
   source: string;
   barcode?: string;
+  rawExpression?: IntakeRawExpression;
   distilleryName: string;
   bottlerName: string;
   collection: {
@@ -71,6 +74,7 @@ type DraftView = {
     label: string;
     confidence: number;
   }>;
+  reviewItems: IntakeReviewItem[];
 };
 
 type BottleRecordPayload = {
@@ -336,6 +340,7 @@ function buildDraftView(store: WhiskyStore, draft: Awaited<ReturnType<typeof get
     matchedExpressionId: draft.matchedExpressionId,
     source: draft.source,
     barcode: draft.barcode,
+    rawExpression: draft.rawExpression,
     distilleryName: distillery?.name ?? extractedDistilleryName ?? "Unknown Distillery",
     bottlerName: bottler?.name ?? extractedBottlerName ?? "Unknown Bottler",
     collection: {
@@ -379,7 +384,8 @@ function buildDraftView(store: WhiskyStore, draft: Awaited<ReturnType<typeof get
       field: suggestion.field,
       label: suggestion.label,
       confidence: suggestion.confidence
-    }))
+    })),
+    reviewItems: draft.reviewItems ?? []
   } satisfies DraftView;
 }
 
@@ -596,6 +602,14 @@ export async function createDraftFromPhoto(fileName: string, imageBase64?: strin
       ...draft.expression,
       ...aiResult.expression
     };
+  }
+
+  if (aiResult?.rawExpression) {
+    draft.rawExpression = aiResult.rawExpression;
+  }
+
+  if (aiResult?.reviewItems) {
+    draft.reviewItems = aiResult.reviewItems;
   }
 
   store.drafts.unshift(draft);

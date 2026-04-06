@@ -162,18 +162,61 @@ export interface FieldSuggestion {
   citationIds: string[];
 }
 
+export interface IntakeReviewItem {
+  field: string;
+  label: string;
+  rawValue: string | number | string[] | boolean | undefined;
+  suggestedValue: string | number | string[] | boolean | undefined;
+  confidence: number;
+  needsReview: boolean;
+  note?: string;
+}
+
+export interface IntakeRawExpression {
+  distilleryName?: string;
+  bottlerName?: string;
+  brand?: string;
+  name: string;
+  releaseSeries?: string;
+  bottlerKind?: string;
+  whiskyType?: string;
+  country?: string;
+  region?: string;
+  abv?: number;
+  ageStatement?: number;
+  vintageYear?: number;
+  distilledYear?: number;
+  bottledYear?: number;
+  volumeMl?: number;
+  caskType?: string;
+  caskNumber?: string;
+  bottleNumber?: number;
+  outturn?: number;
+  barcode?: string;
+  peatLevel?: string;
+  caskInfluence?: string;
+  isChillFiltered?: boolean;
+  isNaturalColor?: boolean;
+  isLimited?: boolean;
+  isNas?: boolean;
+  flavorTags?: string[];
+  description?: string;
+}
+
 export interface IntakeDraft {
   id: string;
   collectionItemId: string;
   matchedExpressionId?: string;
   source: IntakeSource;
   barcode?: string;
+  rawExpression?: IntakeRawExpression;
   expression: (Partial<Expression> & Pick<Expression, "name">) & {
     distilleryName?: string;
     bottlerName?: string;
   };
   collection: Partial<CollectionItem>;
   suggestions: FieldSuggestion[];
+  reviewItems: IntakeReviewItem[];
   citations: Citation[];
 }
 

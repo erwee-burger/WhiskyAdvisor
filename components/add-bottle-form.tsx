@@ -9,6 +9,34 @@ type DraftResponse = {
   matchedExpressionId?: string;
   source: string;
   barcode?: string;
+  rawExpression?: {
+    brand?: string;
+    name: string;
+    releaseSeries?: string;
+    bottlerKind?: string;
+    whiskyType?: string;
+    country?: string;
+    region?: string;
+    abv?: number;
+    ageStatement?: number;
+    vintageYear?: number;
+    distilledYear?: number;
+    bottledYear?: number;
+    volumeMl?: number;
+    caskType?: string;
+    caskNumber?: string;
+    bottleNumber?: number;
+    outturn?: number;
+    barcode?: string;
+    peatLevel?: string;
+    caskInfluence?: string;
+    isNas?: boolean;
+    isChillFiltered?: boolean;
+    isNaturalColor?: boolean;
+    isLimited?: boolean;
+    flavorTags?: string[];
+    description?: string;
+  };
   distilleryName: string;
   bottlerName: string;
   collection: {
@@ -53,6 +81,15 @@ type DraftResponse = {
     field: string;
     label: string;
     confidence: number;
+  }>;
+  reviewItems: Array<{
+    field: string;
+    label: string;
+    rawValue: string | number | string[] | boolean | undefined;
+    suggestedValue: string | number | string[] | boolean | undefined;
+    confidence: number;
+    needsReview: boolean;
+    note?: string;
   }>;
 };
 
@@ -457,6 +494,41 @@ export function AddBottleForm() {
                   {suggestion.label} {Math.round(suggestion.confidence * 100)}%
                 </span>
               ))}
+            </div>
+
+            <div className="review-panel">
+              <div className="section-title">
+                <div>
+                  <h3>Review differences</h3>
+                  <p>Raw AI values are shown next to the mapped values before you save.</p>
+                </div>
+              </div>
+              {draft.reviewItems.filter((item) => item.needsReview).length > 0 ? (
+                <div className="review-list">
+                  {draft.reviewItems
+                    .filter((item) => item.needsReview)
+                    .map((item) => (
+                      <article className="review-item" key={item.field}>
+                        <div className="review-item-head">
+                          <strong>{item.label}</strong>
+                          <span className="pill">{Math.round(item.confidence * 100)}%</span>
+                        </div>
+                        <p>
+                          Raw: <span className="review-value">{String(item.rawValue ?? "Not set")}</span>
+                        </p>
+                        <p>
+                          Suggested:{" "}
+                          <span className="review-value">{String(item.suggestedValue ?? "Not set")}</span>
+                        </p>
+                        {item.note ? <p className="muted">{item.note}</p> : null}
+                      </article>
+                    ))}
+                </div>
+              ) : (
+                <div className="status-note status-note-success">
+                  No mapping differences detected. The AI values can be reviewed directly in the form below.
+                </div>
+              )}
             </div>
 
             <form className="form-grid" key={draft.draftId} onSubmit={handleSave}>
