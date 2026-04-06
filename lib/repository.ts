@@ -338,6 +338,15 @@ function buildDraftView(store: WhiskyStore, draft: Awaited<ReturnType<typeof get
     return null;
   }
 
+  const baseExpression = draft.matchedExpressionId
+    ? store.expressions.find((entry) => entry.id === draft.matchedExpressionId)
+    : undefined;
+  const distillery = baseExpression
+    ? store.distilleries.find((entry) => entry.id === baseExpression.distilleryId)
+    : undefined;
+  const bottler = baseExpression
+    ? store.bottlers.find((entry) => entry.id === baseExpression.bottlerId)
+    : undefined;
   const extractedDistilleryName = normalizeText(draft.rawExpression?.distilleryName);
   const extractedBottlerName = normalizeText(draft.rawExpression?.bottlerName);
 
@@ -366,8 +375,16 @@ function buildDraftView(store: WhiskyStore, draft: Awaited<ReturnType<typeof get
           }
         : undefined),
     rawExpression: draft.rawExpression,
-    distilleryName: extractedDistilleryName ?? draft.identification?.distilleryName ?? undefined,
-    bottlerName: extractedBottlerName ?? draft.identification?.bottlerName ?? undefined,
+    distilleryName:
+      extractedDistilleryName ??
+      draft.identification?.distilleryName ??
+      distillery?.name ??
+      undefined,
+    bottlerName:
+      extractedBottlerName ??
+      draft.identification?.bottlerName ??
+      bottler?.name ??
+      undefined,
     collection: {
       status: draft.collection.status ?? "owned",
       fillState: draft.collection.fillState ?? "sealed",

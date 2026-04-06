@@ -144,6 +144,9 @@ const BOTTLER_KIND_LOOKUP: Array<{ raw: string; mapped: Expression["bottlerKind"
   { raw: "official", mapped: "official" },
   { raw: "official bottler", mapped: "official" },
   { raw: "official bottling", mapped: "official" },
+  { raw: "distillery", mapped: "official" },
+  { raw: "distillery company", mapped: "official" },
+  { raw: "distillery bottling", mapped: "official" },
   { raw: "ob", mapped: "official" },
   { raw: "independent", mapped: "independent" },
   { raw: "independent bottler", mapped: "independent" },
@@ -153,12 +156,16 @@ const BOTTLER_KIND_LOOKUP: Array<{ raw: string; mapped: Expression["bottlerKind"
 
 const WHISKY_TYPE_LOOKUP: Array<{ raw: string; mapped: Expression["whiskyType"] }> = [
   { raw: "single malt", mapped: "single-malt" },
+  { raw: "single malt scotch whisky", mapped: "single-malt" },
   { raw: "single-malt", mapped: "single-malt" },
   { raw: "blended malt", mapped: "blended-malt" },
+  { raw: "blended malt scotch whisky", mapped: "blended-malt" },
   { raw: "blended-malt", mapped: "blended-malt" },
   { raw: "blended scotch", mapped: "blended-scotch" },
+  { raw: "blended scotch whisky", mapped: "blended-scotch" },
   { raw: "blended-scotch", mapped: "blended-scotch" },
   { raw: "single grain", mapped: "single-grain" },
+  { raw: "single grain scotch whisky", mapped: "single-grain" },
   { raw: "single-grain", mapped: "single-grain" },
   { raw: "world single malt", mapped: "world-single-malt" },
   { raw: "world-single-malt", mapped: "world-single-malt" }
@@ -180,6 +187,11 @@ const CASK_INFLUENCE_LOOKUP: Array<{ raw: string; mapped: Expression["caskInflue
   { raw: "sherry", mapped: "sherry" },
   { raw: "sherry finish", mapped: "sherry" },
   { raw: "sherry cask", mapped: "sherry" },
+  { raw: "madeira", mapped: "wine" },
+  { raw: "madeira cask", mapped: "wine" },
+  { raw: "madeira casks", mapped: "wine" },
+  { raw: "port", mapped: "wine" },
+  { raw: "wine cask", mapped: "wine" },
   { raw: "wine", mapped: "wine" },
   { raw: "rum", mapped: "rum" },
   { raw: "virgin oak", mapped: "virgin-oak" },
@@ -204,6 +216,54 @@ function normalizeNumber(value: string | number | null | undefined) {
 
   const parsed = Number(value);
   return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+function normalizeAgeStatement(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return undefined;
+  }
+
+  if (typeof value === "number") {
+    return Number.isNaN(value) ? undefined : value;
+  }
+
+  const numericMatch = value.match(/(\d{1,3})/);
+  if (numericMatch) {
+    return Number(numericMatch[1]);
+  }
+
+  return undefined;
+}
+
+function normalizeConfidence(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return undefined;
+  }
+
+  if (typeof value === "number") {
+    if (Number.isNaN(value)) {
+      return undefined;
+    }
+
+    if (value > 1) {
+      return Math.max(0, Math.min(1, value / 100));
+    }
+
+    return Math.max(0, Math.min(1, value));
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === "high") return 0.9;
+  if (normalized === "medium") return 0.7;
+  if (normalized === "low") return 0.4;
+
+  const parsed = Number(normalized);
+  if (!Number.isNaN(parsed)) {
+    return normalizeConfidence(parsed);
+  }
+
+  return undefined;
 }
 
 function normalizeBoolean(value: boolean | string | number | null | undefined) {
@@ -238,7 +298,7 @@ function normalizeFlavorTags(value: string[] | null | undefined) {
 }
 
 function normalizeIdentification(payload: BottleIdentificationPayload): BottleIdentification {
-  const confidence = normalizeNumber(payload.productMatchConfidence);
+  const confidence = normalizeConfidence(payload.productMatchConfidence);
 
   return {
     identifiedName: normalizeText(payload.identifiedName) ?? null,
@@ -247,7 +307,7 @@ function normalizeIdentification(payload: BottleIdentificationPayload): BottleId
     bottlerName: normalizeText(payload.bottlerName) ?? null,
     bottlerKind: normalizeText(payload.bottlerKind) ?? null,
     country: normalizeText(payload.country) ?? null,
-    ageStatement: normalizeNumber(payload.ageStatement) ?? null,
+    ageStatement: normalizeAgeStatement(payload.ageStatement) ?? null,
     releaseSeries: normalizeText(payload.releaseSeries) ?? null,
     caskType: normalizeText(payload.caskType) ?? null,
     whiskyType: normalizeText(payload.whiskyType) ?? null,
@@ -273,7 +333,9 @@ function normalizeEnumValue<T extends string>(
     return exactMatch.mapped;
   }
 
-  const partialMatch = lookup.find((entry) => normalized.includes(entry.raw) || entry.raw.includes(normalized));
+  const partialMatch = lookup.find(
+    (entry) => normalized.includes(entry.raw) || entry.raw.includes(normalized)
+  );
 
   return partialMatch?.mapped ?? fallback;
 }
@@ -346,6 +408,8 @@ function buildReviewItems(
 
   pushItem("brand", "Brand", 0.8);
   pushItem("name", "Bottle name", 0.94);
+  pushItem("distilleryName", "Distillery", 0.9);
+  pushItem("bottlerName", "Bottler", 0.9);
   pushItem("releaseSeries", "Release series", 0.88);
   pushItem("bottlerKind", "Bottler kind", 0.9, "Mapped into the app's canonical bottler kind.");
   pushItem("whiskyType", "Whisky type", 0.88, "Mapped into the app's canonical whisky type.");
