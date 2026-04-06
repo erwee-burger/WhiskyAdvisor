@@ -69,10 +69,17 @@ RULES:
 - When recommending a bottle, always give a reason tied to their actual palate
 - At the end of each response, suggest 2-3 natural follow-up questions as a JSON block on its own line: {"suggestions": ["...", "...", "..."]}`;
 
+  // Replace __opening__ sentinel with a greet instruction
+  const processedMessages: ModelMessage[] = messages.map(m =>
+    m.content === "__opening__"
+      ? { ...m, content: "Please greet me warmly and share one genuinely interesting insight from my collection. Keep it to 2-3 sentences. End with a follow-up suggestions JSON block." }
+      : m
+  ) as ModelMessage[];
+
   const result = streamText({
     model: openai("gpt-4o"),
     system: systemPrompt,
-    messages
+    messages: processedMessages
   });
 
   return result.toTextStreamResponse();
