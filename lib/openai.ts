@@ -7,7 +7,7 @@ async function callOpenAi(prompt: string, imageBase64?: string, mimeType = "imag
     return null;
   }
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -15,13 +15,13 @@ async function callOpenAi(prompt: string, imageBase64?: string, mimeType = "imag
     },
     body: JSON.stringify({
       model: process.env.OPENAI_MODEL ?? "gpt-4o",
-      input: [
+      messages: [
         {
           role: "user",
           content: [
-            { type: "input_text", text: prompt },
+            { type: "text", text: prompt },
             ...(imageBase64
-              ? [{ type: "input_image", image_url: `data:${mimeType};base64,${imageBase64}` }]
+              ? [{ type: "image_url", image_url: { url: `data:${mimeType};base64,${imageBase64}` } }]
               : [])
           ]
         }
@@ -38,13 +38,9 @@ async function callOpenAi(prompt: string, imageBase64?: string, mimeType = "imag
 
 function getResponseText(payload: unknown): string {
   if (!payload || typeof payload !== "object") return "";
-  const p = payload as {
-    output_text?: string;
-    output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>;
-  };
-  if (typeof p.output_text === "string") return p.output_text;
-  const message = p.output?.find((item) => item.type === "message");
-  return message?.content?.find((item) => item.type === "output_text")?.text ?? "";
+  const p = payload as { choices?: Array<{ message?: { content?: string } }> };
+  const message = p.choices?.[0]?.message;
+  return typeof message?.content === "string" ? message.content : "";
 }
 
 function extractJson<T>(text: string): T | null {
