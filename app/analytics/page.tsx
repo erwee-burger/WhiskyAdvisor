@@ -25,6 +25,26 @@ export default async function AnalyticsPage() {
         </div>
       </section>
 
+      <section className="panel">
+        <div className="section-title">
+          <div>
+            <h2>Bottle profile</h2>
+            <p>New schema fields surfaced as shelf-level signals.</p>
+          </div>
+        </div>
+        <div className="stats-grid">
+          <StatCard label="Brand tagged" value={String(analytics.bottleProfile.brandTagged)} />
+          <StatCard label="NAS" value={String(analytics.bottleProfile.nas)} />
+          <StatCard label="Limited" value={String(analytics.bottleProfile.limited)} />
+          <StatCard label="Chill filtered" value={String(analytics.bottleProfile.chillFiltered)} />
+          <StatCard label="Natural color" value={String(analytics.bottleProfile.naturalColor)} />
+          <StatCard
+            label="Avg bottle size"
+            value={analytics.bottleProfile.averageVolumeMl ? `${analytics.bottleProfile.averageVolumeMl} ml` : "Not set"}
+          />
+        </div>
+      </section>
+
       <section className="grid columns-3">
         <div className="panel stack">
           <div className="section-title">

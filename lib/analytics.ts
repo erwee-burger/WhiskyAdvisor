@@ -17,6 +17,14 @@ export function buildCollectionAnalytics(items: CollectionViewItem[]): Collectio
   const distilleryCounts = countBy(ownedItems.map(({ distillery }) => distillery.name));
   const bottlerCounts = countBy(ownedItems.map(({ bottler }) => bottler.name));
   const ratings = countBy(tastingEntries.map((entry) => String(entry.rating)));
+  const volumeItems = ownedItems.filter(({ expression }) => Boolean(expression.volumeMl));
+  const averageVolumeMl =
+    volumeItems.length > 0
+      ? Math.round(
+          volumeItems.reduce((sum, { expression }) => sum + (expression.volumeMl ?? 0), 0) /
+            volumeItems.length
+        )
+      : null;
 
   const paidTotalZar = sum(
     ownedItems.map(({ item }) => {
@@ -35,6 +43,15 @@ export function buildCollectionAnalytics(items: CollectionViewItem[]): Collectio
       open: items.filter(({ item }) => item.fillState === "open").length,
       sealed: items.filter(({ item }) => item.fillState === "sealed").length,
       finished: items.filter(({ item }) => item.fillState === "finished").length
+    },
+    bottleProfile: {
+      brandTagged: ownedItems.filter(({ expression }) => Boolean(expression.brand)).length,
+      nas: ownedItems.filter(({ expression }) => expression.isNas).length,
+      limited: ownedItems.filter(({ expression }) => expression.isLimited).length,
+      chillFiltered: ownedItems.filter(({ expression }) => expression.isChillFiltered).length,
+      naturalColor: ownedItems.filter(({ expression }) => expression.isNaturalColor).length,
+      withVolume: volumeItems.length,
+      averageVolumeMl
     },
     ratingDistribution: [1, 2, 3, 4, 5].map((rating) => ({
       rating,

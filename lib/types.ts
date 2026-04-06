@@ -196,6 +196,15 @@ export interface CollectionAnalytics {
     sealed: number;
     finished: number;
   };
+  bottleProfile: {
+    brandTagged: number;
+    nas: number;
+    limited: number;
+    chillFiltered: number;
+    naturalColor: number;
+    withVolume: number;
+    averageVolumeMl: number | null;
+  };
   ratingDistribution: Array<{
     rating: number;
     count: number;

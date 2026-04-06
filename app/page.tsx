@@ -48,6 +48,35 @@ export default async function DashboardPage() {
         </div>
       </section>
 
+      <section className="panel">
+        <div className="section-title">
+          <div>
+            <h2>Bottle profile</h2>
+            <p>The schema signals that help the app classify your shelf.</p>
+          </div>
+        </div>
+        <div className="stats-grid">
+          <StatCard
+            label="Brand tagged"
+            value={String(analytics.bottleProfile.brandTagged)}
+            hint="Owned bottles with an explicit label brand."
+          />
+          <StatCard label="NAS" value={String(analytics.bottleProfile.nas)} hint="No age statement bottles." />
+          <StatCard
+            label="Limited"
+            value={String(analytics.bottleProfile.limited)}
+            hint="Bottles flagged as limited releases."
+          />
+          <StatCard
+            label="Avg bottle size"
+            value={
+              analytics.bottleProfile.averageVolumeMl ? `${analytics.bottleProfile.averageVolumeMl} ml` : "Not set"
+            }
+            hint={`${analytics.bottleProfile.withVolume} owned bottles have volume recorded.`}
+          />
+        </div>
+      </section>
+
       <section className="grid columns-2">
         <div className="panel stack">
           <div className="section-title">
