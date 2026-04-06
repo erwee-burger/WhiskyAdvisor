@@ -20,6 +20,19 @@ export function CompareForm({ options }: { options: CompareOption[] }) {
   const [notice, setNotice] = useState<{ tone: "info" | "error"; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  function renderButtonLabel(text: string, spinning: boolean) {
+    if (!spinning) {
+      return text;
+    }
+
+    return (
+      <span className="button-content">
+        <span className="button-spinner" aria-hidden="true" />
+        {text}
+      </span>
+    );
+  }
+
   async function handleCompare(formData: FormData) {
     const leftId = String(formData.get("leftId") ?? "");
     const rightId = String(formData.get("rightId") ?? "");
@@ -79,7 +92,7 @@ export function CompareForm({ options }: { options: CompareOption[] }) {
             </select>
           </div>
           <button className="button" disabled={isPending} type="submit">
-            {isPending ? "Running comparison..." : "Run comparison"}
+            {renderButtonLabel("Run comparison", isPending)}
           </button>
         </form>
         {notice ? <div className={`status-note status-note-${notice.tone}`}>{notice.text}</div> : null}

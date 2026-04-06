@@ -324,6 +324,12 @@ textarea {
   transform: translateY(-1px);
 }
 
+.button:active,
+.button-subtle:active,
+.button-danger:active {
+  transform: translateY(1px) scale(0.99);
+}
+
 .button:disabled,
 .button-subtle:disabled {
   cursor: wait;
@@ -355,6 +361,22 @@ textarea {
 .button-danger:disabled {
   cursor: wait;
   opacity: 0.72;
+}
+
+.button-spinner {
+  width: 1em;
+  height: 1em;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+
+.button-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .grid {
@@ -613,11 +635,53 @@ td {
 }
 
 .panel-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   padding: 14px 16px;
   border-radius: var(--radius-md);
   border: 1px solid rgba(255, 225, 190, 0.14);
   background: linear-gradient(135deg, rgba(212, 157, 69, 0.14), rgba(90, 29, 38, 0.3));
   color: rgba(248, 238, 223, 0.92);
+}
+
+.panel-loader::before,
+.loading-spinner {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(248, 238, 223, 0.7);
+  border-right-color: transparent;
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+
+.loading-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.loading-hero h1 {
+  margin-bottom: 2px;
+}
+
+.loading-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.loading-card {
+  height: 110px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 225, 190, 0.08);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03)),
+    rgba(255, 255, 255, 0.03);
+  background-size: 240% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
 }
 
 .image-preview-card {
@@ -978,6 +1042,25 @@ td {
 .shelf-bottle:focus-visible .shelf-popup {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+.page-loading {
+  min-height: calc(100vh - 140px);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .shelf-popup-header {

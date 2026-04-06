@@ -9,6 +9,19 @@ export function UnlockForm({ nextPath }: { nextPath: string }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  function renderButtonLabel(text: string, spinning: boolean) {
+    if (!spinning) {
+      return text;
+    }
+
+    return (
+      <span className="button-content">
+        <span className="button-spinner" aria-hidden="true" />
+        {text}
+      </span>
+    );
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -49,7 +62,7 @@ export function UnlockForm({ nextPath }: { nextPath: string }) {
         />
       </div>
       <button className="button" disabled={loading || token.trim().length === 0} type="submit">
-        {loading ? "Unlocking..." : "Unlock"}
+        {renderButtonLabel("Unlock", loading)}
       </button>
       {error ? <div className="status-note">{error}</div> : null}
     </form>

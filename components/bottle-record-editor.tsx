@@ -65,6 +65,19 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
     entry.images.find((image) => image.kind === "front")?.label ?? "Current front image"
   );
 
+  function renderButtonLabel(text: string, spinning: boolean) {
+    if (!spinning) {
+      return text;
+    }
+
+    return (
+      <span className="button-content">
+        <span className="button-spinner" aria-hidden="true" />
+        {text}
+      </span>
+    );
+  }
+
   async function fileToDataUrl(file: File) {
     return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -471,7 +484,7 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
 
         <div className="field full-span editor-actions">
           <button className={`button${isSaving ? " button-active" : ""}`} disabled={isSaving || isDeleting} type="submit">
-            {isSaving ? "Saving changes..." : "Save changes"}
+            {renderButtonLabel("Save changes", isSaving)}
           </button>
           <button
             className="button-danger"
@@ -479,7 +492,7 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
             onClick={handleDelete}
             type="button"
           >
-            {isDeleting ? "Deleting..." : "Delete bottle"}
+            {renderButtonLabel("Delete bottle", isDeleting)}
           </button>
         </div>
       </form>

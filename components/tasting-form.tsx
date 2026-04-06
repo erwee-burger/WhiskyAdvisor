@@ -8,6 +8,19 @@ export function TastingForm({ itemId }: { itemId: string }) {
   const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  function renderButtonLabel(text: string, spinning: boolean) {
+    if (!spinning) {
+      return text;
+    }
+
+    return (
+      <span className="button-content">
+        <span className="button-spinner" aria-hidden="true" />
+        {text}
+      </span>
+    );
+  }
+
   async function handleSubmit(formData: FormData) {
     setNotice(null);
 
@@ -71,7 +84,7 @@ export function TastingForm({ itemId }: { itemId: string }) {
       </div>
       <div className="field full-span">
         <button className="button" disabled={isPending} type="submit">
-          {isPending ? "Saving tasting..." : "Save tasting"}
+          {renderButtonLabel("Save tasting", isPending)}
         </button>
       </div>
       {notice ? (

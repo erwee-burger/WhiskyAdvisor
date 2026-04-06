@@ -349,6 +349,19 @@ export function AddBottleForm() {
 
   const isBusy = busyAction !== null;
 
+  function renderButtonLabel(text: string, spinning: boolean) {
+    if (!spinning) {
+      return text;
+    }
+
+    return (
+      <span className="button-content">
+        <span className="button-spinner" aria-hidden="true" />
+        {text}
+      </span>
+    );
+  }
+
   return (
     <div className="grid columns-2">
       <section className={`panel stack${busyAction === "photo" || busyAction === "barcode" ? " panel-busy" : ""}`}>
@@ -401,7 +414,7 @@ export function AddBottleForm() {
             />
           </div>
           <button className={`button${busyAction === "photo" ? " button-active" : ""}`} disabled={isBusy} type="submit">
-            {busyAction === "photo" ? "Running photo intake..." : "Run photo intake"}
+            {renderButtonLabel("Run photo intake", busyAction === "photo")}
           </button>
         </form>
 
@@ -415,7 +428,7 @@ export function AddBottleForm() {
             disabled={isBusy}
             type="submit"
           >
-            {busyAction === "barcode" ? "Looking up barcode..." : "Lookup by barcode"}
+            {renderButtonLabel("Lookup by barcode", busyAction === "barcode")}
           </button>
         </form>
 
@@ -693,7 +706,7 @@ export function AddBottleForm() {
               </div>
               <div className="field full-span">
                 <button className={`button${busyAction === "save" ? " button-active" : ""}`} disabled={isBusy} type="submit">
-                  {busyAction === "save" ? "Saving bottle..." : "Save bottle"}
+                  {renderButtonLabel("Save bottle", busyAction === "save")}
                 </button>
               </div>
             </form>
