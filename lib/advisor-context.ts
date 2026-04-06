@@ -40,7 +40,7 @@ export function detectContextTriggers(query: string): ContextTriggers {
 export function buildCollectionSummary(items: CollectionViewItem[]): string {
   const analytics = buildCollectionAnalytics(items);
   const topRegions = analytics.regionSplit.slice(0, 3).map(r => r.region).join(", ");
-  const topDistilleries = analytics.distillerySplit?.slice(0, 3).map((d: { distillery: string }) => d.distillery).join(", ") ?? "";
+  const topDistilleries = analytics.topDistilleries.slice(0, 3).map(d => d.name).join(", ");
 
   return [
     `Collection: ${analytics.totals.owned} owned, ${analytics.totals.wishlist} on wishlist.`,
