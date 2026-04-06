@@ -1,0 +1,132 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { NewsFeed } from "@/components/news-feed";
+import type { ScoredNewsItem } from "@/lib/types";
+import { scoreToPalateStars } from "@/lib/news-store";
+
+interface RawNewsRow {
+  id: string;
+  source: string;
+  kind: string;
+  name: string;
+  price: number;
+  original_price: number | null;
+  discount_pct: number | null;
+  url: string;
+  image_url: string | null;
+  in_stock: boolean;
+  fetched_at: string;
+}
+
+interface NewsResponse {
+  specials: RawNewsRow[];
+  newReleases: RawNewsRow[];
+  fetchedAt: string | null;
+  stale: boolean;
+}
+
+function toScoredItem(raw: RawNewsRow): ScoredNewsItem {
+  const score = 0; // palate scoring happens server-side in a future enhancement
+  return {
+    id: raw.id,
+    source: raw.source,
+    kind: raw.kind as "special" | "new_release",
+    name: raw.name,
+    price: raw.price,
+    originalPrice: raw.original_price ?? undefined,
+    discountPct: raw.discount_pct ?? undefined,
+    url: raw.url,
+    imageUrl: raw.image_url ?? undefined,
+    inStock: raw.in_stock,
+    fetchedAt: raw.fetched_at,
+    palateScore: score,
+    palateStars: scoreToPalateStars(score)
+  };
+}
+
+function timeAgo(isoString: string): string {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const hours = Math.floor(diff / 3600000);
+  if (hours < 1) return "less than an hour ago";
+  if (hours === 1) return "1 hour ago";
+  return `${hours} hours ago`;
+}
+
+export default function NewsPage() {
+  const [specials, setSpecials] = useState<ScoredNewsItem[]>([]);
+  const [newReleases, setNewReleases] = useState<ScoredNewsItem[]>([]);
+  const [fetchedAt, setFetchedAt] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState("");
+
+  async function loadNews() {
+    setLoading(true);
+    const res = await fetch("/api/news");
+    const data: NewsResponse = await res.json();
+    setSpecials(data.specials.map(toScoredItem));
+    setNewReleases(data.newReleases.map(toScoredItem));
+    setFetchedAt(data.fetchedAt);
+    setStale(data.stale);
+    setLoading(false);
+  }
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    setRefreshMessage("");
+    const timer = setTimeout(() => setRefreshMessage("Still fetching…"), 10000);
+    await fetch("/api/news/refresh", { method: "POST" });
+    clearTimeout(timer);
+    await loadNews();
+    setRefreshing(false);
+    setRefreshMessage("");
+  }
+
+  useEffect(() => { loadNews(); }, []);
+
+  if (loading) {
+    return (
+      <div className="page">
+        <section className="hero">
+          <p className="eyebrow">News</p>
+          <h1>What&apos;s on the shelves right now.</h1>
+        </section>
+        <p>Loading…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page">
+      <section className="hero">
+        <p className="eyebrow">News</p>
+        <h1>What&apos;s on the shelves right now.</h1>
+        <div className="news-page__meta">
+          {fetchedAt && <p>Last updated {timeAgo(fetchedAt)}{stale ? " — data may be stale" : ""}</p>}
+          <button
+            className="news-page__refresh"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            {refreshing ? "Refreshing…" : "Refresh ↻"}
+          </button>
+          {refreshMessage && <p>{refreshMessage}</p>}
+        </div>
+      </section>
+
+      <NewsFeed
+        title="What's on special"
+        items={specials}
+        emptyMessage="No specials found right now — check back later."
+      />
+
+      <NewsFeed
+        title="New arrivals"
+        items={newReleases}
+        emptyMessage="No new arrivals right now — check back later."
+      />
+    </div>
+  );
+}
