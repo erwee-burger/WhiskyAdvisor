@@ -4,13 +4,13 @@ import { createDraftFromPhoto, getDraftViewById } from "@/lib/repository";
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { fileName?: string; imageBase64?: string };
+    const body = (await request.json()) as { fileName?: string; imageBase64?: string; imageMimeType?: string };
 
     if (!body.fileName) {
       return NextResponse.json({ error: "A file name or label description is required." }, { status: 400 });
     }
 
-    const draft = await createDraftFromPhoto(body.fileName, body.imageBase64);
+    const draft = await createDraftFromPhoto(body.fileName, body.imageBase64, body.imageMimeType);
     const view = await getDraftViewById(draft.id);
 
     return NextResponse.json(
@@ -23,7 +23,8 @@ export async function POST(request: Request) {
         rawExpression: draft.rawExpression,
         expression: draft.expression,
         suggestions: draft.suggestions,
-        reviewItems: draft.reviewItems
+        reviewItems: draft.reviewItems,
+        citations: draft.citations
       }
     );
   } catch (error) {

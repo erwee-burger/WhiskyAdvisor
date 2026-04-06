@@ -46,7 +46,7 @@ function extractJson<T>(text: string): T | null {
   }
 }
 
-async function callOpenAi(prompt: string, imageBase64?: string) {
+async function callOpenAi(prompt: string, imageBase64?: string, mimeType = "image/jpeg") {
   if (!process.env.OPENAI_API_KEY) {
     return null;
   }
@@ -71,7 +71,7 @@ async function callOpenAi(prompt: string, imageBase64?: string) {
               ? [
                   {
                     type: "input_image",
-                    image_url: `data:image/jpeg;base64,${imageBase64}`
+                    image_url: `data:${mimeType};base64,${imageBase64}`
                   }
                 ]
               : [])
@@ -477,7 +477,11 @@ function normalizeAnalyzedBottle(payload: ExtractedBottlePayload, fileName: stri
   };
 }
 
-export async function identifyBottleImage(fileName: string, imageBase64?: string) {
+export async function identifyBottleImage(
+  fileName: string,
+  imageBase64?: string,
+  mimeType = "image/jpeg"
+) {
   if (!process.env.OPENAI_API_KEY || !imageBase64) {
     return null;
   }
@@ -497,7 +501,7 @@ export async function identifyBottleImage(fileName: string, imageBase64?: string
     'Output format: {"identifiedName":null,"brand":null,"distilleryName":null,"bottlerName":null,"bottlerKind":null,"country":null,"ageStatement":null,"releaseSeries":null,"caskType":null,"whiskyType":null,"productMatchConfidence":null,"internetLookupUsed":null,"matchNotes":null}'
   ].join(" ");
 
-  const payload = await callOpenAi(prompt, imageBase64);
+  const payload = await callOpenAi(prompt, imageBase64, mimeType);
   const text = getResponseText(payload);
   const parsed = extractJson<BottleIdentificationPayload>(text);
 
@@ -531,14 +535,15 @@ function buildEnrichmentPrompt(identification: BottleIdentification | null) {
 async function enrichBottleImage(
   fileName: string,
   imageBase64?: string,
-  identification?: BottleIdentification | null
+  identification?: BottleIdentification | null,
+  mimeType = "image/jpeg"
 ) {
   if (!process.env.OPENAI_API_KEY || !imageBase64) {
     return null;
   }
 
   const prompt = buildEnrichmentPrompt(identification ?? null);
-  const payload = await callOpenAi(prompt, imageBase64);
+  const payload = await callOpenAi(prompt, imageBase64, mimeType);
   const text = getResponseText(payload);
   const parsed = extractJson<ExtractedBottlePayload>(text);
 
@@ -549,13 +554,17 @@ async function enrichBottleImage(
   return normalizeAnalyzedBottle(parsed, fileName);
 }
 
-export async function analyzeBottleImage(fileName: string, imageBase64?: string) {
+export async function analyzeBottleImage(
+  fileName: string,
+  imageBase64?: string,
+  mimeType = "image/jpeg"
+) {
   if (!process.env.OPENAI_API_KEY || !imageBase64) {
     return null;
   }
 
-  const identification = await identifyBottleImage(fileName, imageBase64);
-  const payload = await enrichBottleImage(fileName, imageBase64, identification);
+  const identification = await identifyBottleImage(fileName, imageBase64, mimeType);
+  const payload = await enrichBottleImage(fileName, imageBase64, identification, mimeType);
 
   if (!payload) {
     return null;

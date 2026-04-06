@@ -161,6 +161,7 @@ export function AddBottleForm() {
   const [busyAction, setBusyAction] = useState<BusyAction>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [previewLabel, setPreviewLabel] = useState<string>("");
+  const [previewMimeType, setPreviewMimeType] = useState<string>("image/jpeg");
 
   async function fileToDataUrl(file: File) {
     return new Promise<string>((resolve, reject) => {
@@ -186,6 +187,7 @@ export function AddBottleForm() {
     if (!file) {
       setPreviewUrl("");
       setPreviewLabel("");
+      setPreviewMimeType("image/jpeg");
       return;
     }
 
@@ -193,6 +195,7 @@ export function AddBottleForm() {
       const dataUrl = await fileToDataUrl(file);
       setPreviewUrl(dataUrl);
       setPreviewLabel(file.name);
+      setPreviewMimeType(file.type || "image/jpeg");
       setNotice({
         tone: "info",
         text: `${file.name} is loaded locally. Run photo intake when you want me to extract bottle data.`
@@ -272,6 +275,8 @@ export function AddBottleForm() {
     setBusyAction("photo");
 
     try {
+      const imageMimeType =
+        file instanceof File && file.size > 0 ? file.type || "image/jpeg" : previewMimeType;
       const imageDataUrl =
         file instanceof File && file.size > 0
           ? await fileToDataUrl(file)
@@ -280,6 +285,9 @@ export function AddBottleForm() {
       if (imageDataUrl) {
         setPreviewUrl(imageDataUrl);
         setPreviewLabel(fileName);
+        if (file instanceof File && file.size > 0) {
+          setPreviewMimeType(imageMimeType);
+        }
       }
 
       const response = await fetch("/api/items/intake-photo", {
@@ -287,7 +295,8 @@ export function AddBottleForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fileName,
-          imageBase64: imageDataUrl?.split(",")[1]
+          imageBase64: imageDataUrl?.split(",")[1],
+          imageMimeType
         })
       });
 

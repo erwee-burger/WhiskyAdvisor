@@ -357,23 +357,38 @@ export async function writeStoreToSupabase(store: WhiskyStore) {
   );
   if (priceSnapshotsUpsert.error) throw priceSnapshotsUpsert.error;
 
-  const draftUpsert = await supabase.from("intake_drafts").upsert(
-    store.drafts.map((entry) => ({
+  const draftRowsDetailed = store.drafts.map((entry) => ({
+    id: entry.id,
+    collection_item_id: entry.collectionItemId,
+    matched_expression_id: entry.matchedExpressionId ?? null,
+    source: entry.source,
+    barcode: entry.barcode ?? null,
+    raw_expression: entry.rawExpression ?? {},
+    identification: entry.identification ?? null,
+    review_items: entry.reviewItems,
+    expression: entry.expression,
+    collection: entry.collection,
+    suggestions: entry.suggestions,
+    citations: entry.citations
+  }));
+
+  let draftUpsert = await supabase.from("intake_drafts").upsert(draftRowsDetailed, { onConflict: "id" });
+
+  if (draftUpsert.error) {
+    const draftRowsLegacy = store.drafts.map((entry) => ({
       id: entry.id,
       collection_item_id: entry.collectionItemId,
       matched_expression_id: entry.matchedExpressionId ?? null,
       source: entry.source,
       barcode: entry.barcode ?? null,
-      raw_expression: entry.rawExpression ?? {},
-      identification: entry.identification ?? null,
-      review_items: entry.reviewItems,
       expression: entry.expression,
       collection: entry.collection,
       suggestions: entry.suggestions,
       citations: entry.citations
-    })),
-    { onConflict: "id" }
-  );
+    }));
+
+    draftUpsert = await supabase.from("intake_drafts").upsert(draftRowsLegacy, { onConflict: "id" });
+  }
 
   if (draftUpsert.error) {
     throw draftUpsert.error;

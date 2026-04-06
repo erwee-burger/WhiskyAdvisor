@@ -613,10 +613,14 @@ export async function createDraftFromBarcode(barcode: string) {
   return draft;
 }
 
-export async function createDraftFromPhoto(fileName: string, imageBase64?: string) {
+export async function createDraftFromPhoto(
+  fileName: string,
+  imageBase64?: string,
+  mimeType = "image/jpeg"
+) {
   const store = await readStore();
-  const aiResult = await analyzeBottleImage(fileName, imageBase64);
-  const evidenceUrl = imageBase64 ? `data:image/jpeg;base64,${imageBase64}` : undefined;
+  const aiResult = await analyzeBottleImage(fileName, imageBase64, mimeType);
+  const evidenceUrl = fileName ? `upload://front-label/${encodeURIComponent(fileName)}` : undefined;
   const matched =
     store.expressions.find(
       (entry) => entry.name.toLowerCase() === aiResult?.expression.name?.toLowerCase()

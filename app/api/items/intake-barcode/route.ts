@@ -24,7 +24,8 @@ export async function POST(request: Request) {
         rawExpression: draft.rawExpression,
         expression: draft.expression,
         suggestions: draft.suggestions,
-        reviewItems: draft.reviewItems
+        reviewItems: draft.reviewItems,
+        citations: draft.citations
       }
     );
   } catch (error) {
