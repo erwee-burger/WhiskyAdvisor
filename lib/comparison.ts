@@ -1,5 +1,4 @@
 import type { CollectionViewItem, ComparisonResult } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
 import {
   getPeatTag,
   getCaskStyleTags,
@@ -9,10 +8,6 @@ import {
   isLimited,
   isIndependentBottler
 } from "@/lib/tags";
-
-function displayCurrentPrice(item: CollectionViewItem) {
-  return "No web price yet";
-}
 
 export function buildComparison(left: CollectionViewItem, right: CollectionViewItem): ComparisonResult {
   return {

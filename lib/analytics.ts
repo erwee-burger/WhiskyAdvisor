@@ -26,16 +26,6 @@ export function buildCollectionAnalytics(items: CollectionViewItem[]): Collectio
   const bottlerCounts = countBy(ownedItems.map(({ expression }) => expression.bottlerName ?? "Unknown").filter((b): b is string => Boolean(b)));
   const ratings = countBy(tastingEntries.map((entry) => String(entry.rating)));
 
-  const paidTotalZar = sum(
-    ownedItems.map(({ item }) => {
-      if (!item.purchasePrice) {
-        return 0;
-      }
-
-      return convertToZar(item.purchasePrice, item.purchaseCurrency ?? "ZAR");
-    })
-  );
-
   return {
     totals: {
       owned: items.filter(({ item }) => item.status === "owned").length,
