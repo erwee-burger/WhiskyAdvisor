@@ -341,20 +341,18 @@ export async function saveDraftAsItem(draftId: string, payload: BottleRecordPayl
     });
   }
 
+  // Save the bottle (draft still present so it won't be deleted by the cleanup logic)
+  await writeStore(store);
+
+  // Best-effort: remove the draft. If this fails, the bottle is already saved.
+  store.drafts.splice(draftIndex, 1);
   try {
-    // Write the new data first
     await writeStore(store);
-
-    // Only remove the draft after write succeeds
-    store.drafts.splice(draftIndex, 1);
-
-    // Write again to persist the draft removal
-    await writeStore(store);
-
-    return collectionItem;
-  } catch (error) {
-    throw new Error(`Failed to save draft as item: ${error instanceof Error ? error.message : String(error)}`);
+  } catch {
+    // Draft cleanup failed — not critical, bottle is already in the collection.
   }
+
+  return collectionItem;
 }
 
 export async function updateItem(itemId: string, payload: BottleRecordPayload) {
