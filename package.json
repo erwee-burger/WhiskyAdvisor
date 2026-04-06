@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.51",
+    "@ai-sdk/react": "^3.0.149",
     "@supabase/supabase-js": "^2.49.8",
     "ai": "^6.0.147",
     "cheerio": "^1.2.0",

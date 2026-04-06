@@ -22,16 +22,6 @@ interface SerializedMessage {
   parts: Array<{ type: string; text: string }>;
 }
 
-function loadMessages(): SerializedMessage[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as SerializedMessage[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 function saveMessages(messages: SerializedMessage[]) {
   const capped = messages.slice(-MAX_MESSAGES);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(capped));
@@ -53,23 +43,14 @@ function serializeMessage(msg: UIMessage): SerializedMessage {
   return {
     id: msg.id,
     role: msg.role,
-    parts: msg.parts.map((p: any) => ({
+    parts: msg.parts.map((p: { type: string; text?: string }) => ({
       type: p.type,
-      text: p.type === "text" ? p.text : ""
+      text: p.type === "text" ? (p.text ?? "") : ""
     }))
   };
 }
 
-function deserializeMessage(msg: SerializedMessage): UIMessage {
-  return {
-    id: msg.id,
-    role: msg.role as "user" | "assistant",
-    parts: msg.parts.map((p) => ({ type: p.type, text: p.text } as any))
-  } as UIMessage;
-}
-
 export function AdvisorChat() {
-  const savedMessages = loadMessages();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [chips, setChips] = useState<string[]>(DEFAULT_CHIPS);
   const [isSessionOpened, setIsSessionOpened] = useState(false);
@@ -119,7 +100,7 @@ export function AdvisorChat() {
     if (lastAssistantMessage) {
       const textPart = lastAssistantMessage.parts.find((p) => p.type === "text");
       if (textPart && "text" in textPart) {
-        const { suggestions } = extractSuggestions((textPart as any).text);
+        const { suggestions } = extractSuggestions((textPart as { text: string }).text);
         if (suggestions.length) setChips(suggestions);
       }
     }
@@ -143,7 +124,7 @@ export function AdvisorChat() {
 
   const displayMessages = messages.filter((m) => {
     const textPart = m.parts.find((p) => p.type === "text");
-    return textPart && "text" in textPart && (textPart as any).text !== "__opening__";
+    return textPart && "text" in textPart && (textPart as { text: string }).text !== "__opening__";
   });
 
   return (
@@ -151,7 +132,7 @@ export function AdvisorChat() {
       <div className="advisor-chat__messages">
         {displayMessages.map((m) => {
           const textPart = m.parts.find((p) => p.type === "text");
-          const text = textPart && "text" in textPart ? (textPart as any).text : "";
+          const text = textPart && "text" in textPart ? (textPart as { text: string }).text : "";
           const { text: cleanText } = extractSuggestions(text);
           return (
             <div

@@ -63,7 +63,19 @@ export async function getNewsItems(): Promise<Array<{
     .order("fetched_at", { ascending: false });
 
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as Array<{
+    id: string;
+    source: string;
+    kind: string;
+    name: string;
+    price: number;
+    original_price: number | null;
+    discount_pct: number | null;
+    url: string;
+    image_url: string | null;
+    in_stock: boolean;
+    fetched_at: string;
+  }>;
 }
 
 export function isStale(fetchedAt: string): boolean {
