@@ -474,7 +474,7 @@ export function AddBottleForm() {
             ) : null}
 
             <div className="pill-row">
-              {draft.suggestions.map((suggestion) => (
+              {(draft.suggestions ?? []).map((suggestion) => (
                 <span className="pill" key={suggestion.field}>
                   {suggestion.label} {Math.round(suggestion.confidence * 100)}%
                 </span>
@@ -488,9 +488,9 @@ export function AddBottleForm() {
                   <p>Raw AI values are shown next to the mapped values before you save.</p>
                 </div>
               </div>
-              {draft.reviewItems.filter((item) => item.needsReview).length > 0 ? (
+              {(draft.reviewItems ?? []).filter((item) => item.needsReview).length > 0 ? (
                 <div className="review-list">
-                  {draft.reviewItems
+                  {(draft.reviewItems ?? [])
                     .filter((item) => item.needsReview)
                     .map((item) => (
                       <article className="review-item" key={item.field}>
