@@ -5,7 +5,15 @@ import { upsertNewsItems } from "@/lib/news-store";
 export const maxDuration = 60;
 
 export async function POST() {
-  const items = await scrapeAll();
-  await upsertNewsItems(items);
-  return NextResponse.json({ count: items.length, ok: true });
+  try {
+    const items = await scrapeAll();
+    if (items.length === 0) {
+      console.warn("[api/news/refresh] all scrapers returned 0 items");
+    }
+    await upsertNewsItems(items);
+    return NextResponse.json({ count: items.length, ok: true });
+  } catch (err) {
+    console.error("[api/news/refresh] POST failed:", err);
+    return NextResponse.json({ ok: false, error: "Refresh failed" }, { status: 500 });
+  }
 }
