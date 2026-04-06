@@ -2,7 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { WhiskyStore } from "@/lib/types";
 
-function getSupabaseClient() {
+function getSupabaseClient(): ReturnType<typeof createClient> | null {
   const url = process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceRoleKey) return null;
@@ -33,10 +33,20 @@ async function deleteRowsNotInIds(
   if (response.error) throw response.error;
 }
 
+/**
+ * Checks if Supabase environment variables are configured.
+ * @returns true if both SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set
+ */
 export function isSupabaseStoreEnabled() {
   return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
+/**
+ * Reads the complete whisky store from Supabase.
+ * Fetches data from all 5 tables and transforms to WhiskyStore format.
+ * @returns Complete store with expressions, collection items, tastings, images, and drafts
+ * @throws Error if Supabase is not configured or read operations fail
+ */
 export async function readStoreFromSupabase(): Promise<WhiskyStore> {
   const supabase = getSupabaseClient();
   if (!supabase) throw new Error("Supabase is not configured.");
@@ -110,6 +120,13 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
   };
 }
 
+/**
+ * Writes the complete whisky store to Supabase.
+ * Upserts all 5 tables and deletes any rows not in the current store.
+ * @param store - The WhiskyStore to persist
+ * @throws Error if Supabase is not configured or write operations fail
+ * @note Not transactional - if a write fails partway through, database may be in inconsistent state
+ */
 export async function writeStoreToSupabase(store: WhiskyStore) {
   const supabase = getSupabaseClient();
   if (!supabase) throw new Error("Supabase is not configured.");
@@ -185,8 +202,8 @@ export async function writeStoreToSupabase(store: WhiskyStore) {
       source: d.source,
       barcode: d.barcode ?? null,
       raw_ai_response: d.rawAiResponse ?? null,
-      expression: d.expression,
-      collection: d.collection
+      expression: d.expression ?? { name: "Unknown", tags: [] },
+      collection: d.collection ?? {}
     })),
     { onConflict: "id" }
   );
