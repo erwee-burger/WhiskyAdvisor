@@ -1,4 +1,5 @@
-import type { CollectionViewItem, PalateProfile, PeatLevel } from "@/lib/types";
+import type { CollectionViewItem, PalateProfile } from "@/lib/types";
+import { getCaskStyleTags, getPeatTag } from "@/lib/tags";
 
 function topEntries(map: Map<string, number>, limit = 3) {
   return [...map.entries()]
@@ -11,7 +12,7 @@ export function buildPalateProfile(items: CollectionViewItem[]): PalateProfile {
   const flavorScores = new Map<string, number>();
   const regionScores = new Map<string, number>();
   const caskScores = new Map<string, number>();
-  const peatScores = new Map<PeatLevel, number>();
+  const peatScores = new Map<string, number>();
   const hasSignals = items.some((entry) => entry.tastingEntries.length > 0);
 
   for (const entry of items) {
@@ -20,25 +21,25 @@ export function buildPalateProfile(items: CollectionViewItem[]): PalateProfile {
         (entry.tastingEntries.length || 1) || 0;
     const weight = average || 3;
 
-    for (const tag of entry.expression.flavorTags) {
+    for (const tag of entry.expression.tags) {
       flavorScores.set(tag, (flavorScores.get(tag) ?? 0) + weight);
     }
 
     regionScores.set(
-      entry.expression.region,
-      (regionScores.get(entry.expression.region) ?? 0) + weight
+      entry.expression.country ?? "",
+      (regionScores.get(entry.expression.country ?? "") ?? 0) + weight
     );
-    caskScores.set(
-      entry.expression.caskInfluence,
-      (caskScores.get(entry.expression.caskInfluence) ?? 0) + weight
-    );
-    peatScores.set(
-      entry.expression.peatLevel,
-      (peatScores.get(entry.expression.peatLevel) ?? 0) + weight
-    );
+    const caskTags = getCaskStyleTags(entry.expression.tags);
+    for (const caskTag of caskTags) {
+      caskScores.set(caskTag, (caskScores.get(caskTag) ?? 0) + weight);
+    }
+    const peatTag = getPeatTag(entry.expression.tags);
+    if (peatTag) {
+      peatScores.set(peatTag, (peatScores.get(peatTag) ?? 0) + weight);
+    }
   }
 
-  const favoredPeatLevel = hasSignals
+  const favoredPeatTag = hasSignals
     ? [...peatScores.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? null
     : null;
 
@@ -46,7 +47,7 @@ export function buildPalateProfile(items: CollectionViewItem[]): PalateProfile {
     cards: [
       {
         title: "Peat comfort zone",
-        value: favoredPeatLevel ?? "No data yet",
+        value: favoredPeatTag ?? "No data yet",
         supporting: hasSignals
           ? "Weighted from your highest-rated pours."
           : "Add tasting notes before the app starts inferring this."
@@ -76,6 +77,6 @@ export function buildPalateProfile(items: CollectionViewItem[]): PalateProfile {
     favoredFlavorTags: topEntries(flavorScores, 5),
     favoredRegions: topEntries(regionScores, 3),
     favoredCaskStyles: topEntries(caskScores, 3),
-    favoredPeatLevel
+    favoredPeatTag
   };
 }

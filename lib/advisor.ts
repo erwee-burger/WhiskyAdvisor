@@ -1,22 +1,24 @@
 import type { AdvisorSuggestion, CollectionViewItem, PalateProfile } from "@/lib/types";
 import { clamp } from "@/lib/utils";
+import { getCaskStyleTags, getPeatTag } from "@/lib/tags";
 
 function scoreMatch(item: CollectionViewItem, profile: PalateProfile) {
   let score = 55;
 
-  if (profile.favoredRegions.includes(item.expression.region)) {
+  if (profile.favoredRegions.includes(item.expression.country ?? "")) {
     score += 10;
   }
 
-  if (profile.favoredCaskStyles.includes(item.expression.caskInfluence)) {
+  const caskStyles = getCaskStyleTags(item.expression.tags);
+  if (caskStyles.some((cask) => profile.favoredCaskStyles.includes(cask))) {
     score += 10;
   }
 
-  if (item.expression.peatLevel === profile.favoredPeatLevel) {
+  if (getPeatTag(item.expression.tags) === profile.favoredPeatTag) {
     score += 10;
   }
 
-  const tagMatches = item.expression.flavorTags.filter((tag) =>
+  const tagMatches = item.expression.tags.filter((tag) =>
     profile.favoredFlavorTags.includes(tag)
   );
   score += tagMatches.length * 4;
@@ -36,12 +38,12 @@ function scoreMatch(item: CollectionViewItem, profile: PalateProfile) {
 }
 
 function makeReason(item: CollectionViewItem, profile: PalateProfile, tags: string[]) {
-  const peatLine = profile.favoredPeatLevel
-    ? `Your profile currently leans ${profile.favoredPeatLevel}.`
+  const peatLine = profile.favoredPeatTag
+    ? `Your profile currently leans ${profile.favoredPeatTag}.`
     : "I still need tasting notes before I can infer a peat preference.";
   const regionLine =
-    profile.favoredRegions.includes(item.expression.region) && profile.favoredRegions.length > 0
-      ? `You tend to rate ${item.expression.region} whiskies highly.`
+    profile.favoredRegions.includes(item.expression.country ?? "") && profile.favoredRegions.length > 0
+      ? `You tend to rate ${item.expression.country} whiskies highly.`
       : `It broadens your shelf without leaving your comfort zone.`;
   const tagLine =
     tags.length > 0
