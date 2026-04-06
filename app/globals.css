@@ -1028,6 +1028,7 @@ td {
   display: grid;
   place-items: end center;
   filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.42));
+  mix-blend-mode: screen;
 }
 
 .bottle-cutout {

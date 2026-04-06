@@ -2,7 +2,6 @@
 
 import { type ChangeEvent, type FormEvent, useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 
 type DraftResponse = {
   draftId: string;
@@ -110,7 +109,6 @@ async function readResponseMessage(response: Response, fallback: string) {
 }
 
 export function AddBottleForm() {
-  const router = useRouter();
   const [draft, setDraft] = useState<DraftResponse | null>(null);
   const [notice, setNotice] = useState<{ tone: NoticeTone; text: string } | null>(null);
   const [busyAction, setBusyAction] = useState<BusyAction>(null);
@@ -350,8 +348,7 @@ export function AddBottleForm() {
 
       const saved = (await response.json()) as { itemId: string };
       setNotice({ tone: "success", text: "Bottle saved. Opening the record now..." });
-      router.push(`/collection/${saved.itemId}`, { scroll: true });
-      router.refresh();
+      window.location.assign(`/collection/${saved.itemId}`);
     } catch (error) {
       setNotice({
         tone: "error",
