@@ -2,6 +2,8 @@ import { StatCard } from "@/components/stat-card";
 import { getAnalytics } from "@/lib/repository";
 import { formatCurrency } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default async function AnalyticsPage() {
   const analytics = await getAnalytics();
 

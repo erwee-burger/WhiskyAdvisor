@@ -2,6 +2,8 @@ import { AdvisorCard } from "@/components/advisor-card";
 import { ProfileCard } from "@/components/profile-card";
 import { getAdvisor, getPalateProfile } from "@/lib/repository";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdvisorPage() {
   const [profile, drinkNow, buyNext] = await Promise.all([
     getPalateProfile(),

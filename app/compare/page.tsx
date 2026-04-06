@@ -1,6 +1,8 @@
 import { CompareForm } from "@/components/compare-form";
 import { getExpressionChoiceList } from "@/lib/repository";
 
+export const dynamic = "force-dynamic";
+
 export default async function ComparePage() {
   const options = await getExpressionChoiceList();
 

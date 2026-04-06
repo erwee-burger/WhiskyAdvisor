@@ -6,6 +6,8 @@ import { StatCard } from "@/components/stat-card";
 import { getDashboardData } from "@/lib/repository";
 import { formatCurrency } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const { collection, analytics, profile, drinkNow, buyNext } = await getDashboardData();
 

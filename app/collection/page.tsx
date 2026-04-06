@@ -1,6 +1,8 @@
 import { CollectionBrowser } from "@/components/collection-browser";
 import { getCollectionView } from "@/lib/repository";
 
+export const dynamic = "force-dynamic";
+
 export default async function CollectionPage({
   searchParams
 }: {
