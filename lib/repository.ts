@@ -476,6 +476,18 @@ export async function getPalateProfile() {
   return buildPalateProfile(collection.filter((entry) => entry.item.status === "owned"));
 }
 
+export async function getCollectionDashboard() {
+  const collection = await getCollectionView();
+  const profile = buildPalateProfile(collection.filter((entry) => entry.item.status === "owned"));
+  return {
+    collection,
+    analytics: buildCollectionAnalytics(collection),
+    profile,
+    drinkNow: buildDrinkNowSuggestions(collection, profile),
+    buyNext: buildBuyNextSuggestions(collection, profile)
+  };
+}
+
 export async function getAdvisor(kind: "drink-now" | "buy-next") {
   const collection = await getCollectionView();
   const profile = buildPalateProfile(collection.filter((entry) => entry.item.status === "owned"));
