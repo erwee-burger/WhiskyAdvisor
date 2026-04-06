@@ -9,6 +9,10 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const { collection, analytics, profile, drinkNow, buyNext } = await getDashboardData();
+  const safeDrinkNow = Array.isArray(drinkNow) ? drinkNow : [];
+  const safeBuyNext = Array.isArray(buyNext) ? buyNext : [];
+  const safeProfileCards = Array.isArray(profile?.cards) ? profile.cards : [];
+  const safeCollection = Array.isArray(collection) ? collection : [];
 
   return (
     <div className="page">
@@ -80,7 +84,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="card-list">
-            {drinkNow.map((suggestion) => (
+            {safeDrinkNow.map((suggestion) => (
               <AdvisorCard key={suggestion.itemId} suggestion={suggestion} />
             ))}
           </div>
@@ -93,7 +97,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="card-list">
-            {buyNext.map((suggestion) => (
+            {safeBuyNext.map((suggestion) => (
               <AdvisorCard key={suggestion.itemId} suggestion={suggestion} />
             ))}
           </div>
@@ -109,7 +113,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="grid columns-2">
-            {profile.cards.map((card) => (
+            {safeProfileCards.map((card) => (
               <ProfileCard card={card} key={card.title} />
             ))}
           </div>
@@ -125,7 +129,7 @@ export default async function DashboardPage() {
             </PendingLink>
           </div>
           <div className="card-list">
-            {collection.slice(0, 3).map((entry) => (
+            {safeCollection.slice(0, 3).map((entry) => (
               <CollectionCard entry={entry} key={entry.item.id} />
             ))}
           </div>

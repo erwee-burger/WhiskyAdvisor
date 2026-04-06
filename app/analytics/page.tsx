@@ -5,6 +5,13 @@ export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
   const analytics = await getAnalytics();
+  const safePeatProfile = Array.isArray(analytics?.peatProfile) ? analytics.peatProfile : [];
+  const safeRegionSplit = Array.isArray(analytics?.regionSplit) ? analytics.regionSplit : [];
+  const safeRatingDistribution = Array.isArray(analytics?.ratingDistribution)
+    ? analytics.ratingDistribution
+    : [];
+  const safeTopDistilleries = Array.isArray(analytics?.topDistilleries) ? analytics.topDistilleries : [];
+  const safeTopBottlers = Array.isArray(analytics?.topBottlers) ? analytics.topBottlers : [];
   const tastingNotesCount = analytics.ratingDistribution.reduce((total, entry) => total + entry.count, 0);
 
   return (
@@ -53,7 +60,7 @@ export default async function AnalyticsPage() {
             </div>
           </div>
           <div className="card-list">
-            {analytics.regionSplit.map((entry) => (
+            {safeRegionSplit.map((entry) => (
               <div className="advisor-card" key={entry.region}>
                 <strong>{entry.region}</strong>
                 <p className="muted">{entry.count} bottles</p>
@@ -69,7 +76,7 @@ export default async function AnalyticsPage() {
             </div>
           </div>
           <div className="card-list">
-            {analytics.peatProfile.map((entry) => (
+            {safePeatProfile.map((entry) => (
               <div className="advisor-card" key={entry.tag}>
                 <strong>{entry.tag}</strong>
                 <p className="muted">{entry.count} bottles</p>
@@ -85,7 +92,7 @@ export default async function AnalyticsPage() {
             </div>
           </div>
           <div className="card-list">
-            {analytics.ratingDistribution.map((entry) => (
+            {safeRatingDistribution.map((entry) => (
               <div className="advisor-card" key={entry.rating}>
                 <strong>{entry.rating}/5</strong>
                 <p className="muted">{entry.count} tasting notes</p>
@@ -104,7 +111,7 @@ export default async function AnalyticsPage() {
             </div>
           </div>
           <div className="card-list">
-            {analytics.topDistilleries.map((entry) => (
+            {safeTopDistilleries.map((entry) => (
               <div className="advisor-card" key={entry.name}>
                 <strong>{entry.name}</strong>
                 <p className="muted">{entry.count} bottles</p>
@@ -120,7 +127,7 @@ export default async function AnalyticsPage() {
             </div>
           </div>
           <div className="card-list">
-            {analytics.topBottlers.map((entry) => (
+            {safeTopBottlers.map((entry) => (
               <div className="advisor-card" key={entry.name}>
                 <strong>{entry.name}</strong>
                 <p className="muted">{entry.count} bottles</p>
