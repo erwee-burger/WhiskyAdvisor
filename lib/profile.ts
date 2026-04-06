@@ -12,6 +12,7 @@ export function buildPalateProfile(items: CollectionViewItem[]): PalateProfile {
   const regionScores = new Map<string, number>();
   const caskScores = new Map<string, number>();
   const peatScores = new Map<PeatLevel, number>();
+  const hasSignals = items.some((entry) => entry.tastingEntries.length > 0);
 
   for (const entry of items) {
     const average =
@@ -37,30 +38,39 @@ export function buildPalateProfile(items: CollectionViewItem[]): PalateProfile {
     );
   }
 
-  const favoredPeatLevel =
-    [...peatScores.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? "medium";
+  const favoredPeatLevel = hasSignals
+    ? [...peatScores.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? null
+    : null;
 
   return {
     cards: [
       {
         title: "Peat comfort zone",
-        value: favoredPeatLevel,
-        supporting: "Weighted from your highest-rated pours."
+        value: favoredPeatLevel ?? "No data yet",
+        supporting: hasSignals
+          ? "Weighted from your highest-rated pours."
+          : "Add tasting notes before the app starts inferring this."
       },
       {
         title: "Regional lean",
-        value: topEntries(regionScores, 1)[0] ?? "Still learning",
-        supporting: "Based on your saved notes and recent ratings."
+        value: hasSignals ? topEntries(regionScores, 1)[0] ?? "Still learning" : "No data yet",
+        supporting: hasSignals
+          ? "Based on your saved notes and recent ratings."
+          : "Regional preferences appear once you rate a few drams."
       },
       {
         title: "Cask bias",
-        value: topEntries(caskScores, 1)[0] ?? "Mixed",
-        supporting: "The cask styles that currently suit your palate best."
+        value: hasSignals ? topEntries(caskScores, 1)[0] ?? "Mixed" : "No data yet",
+        supporting: hasSignals
+          ? "The cask styles that currently suit your palate best."
+          : "Cask preferences appear after confirmed tastings."
       },
       {
         title: "Signature notes",
-        value: topEntries(flavorScores, 3).join(", ") || "No notes yet",
-        supporting: "Descriptors that keep surfacing in bottles you rate highly."
+        value: hasSignals ? topEntries(flavorScores, 3).join(", ") || "No notes yet" : "No data yet",
+        supporting: hasSignals
+          ? "Descriptors that keep surfacing in bottles you rate highly."
+          : "Flavor patterns appear after you save tasting notes."
       }
     ],
     favoredFlavorTags: topEntries(flavorScores, 5),

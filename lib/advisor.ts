@@ -36,14 +36,24 @@ function scoreMatch(item: CollectionViewItem, profile: PalateProfile) {
 }
 
 function makeReason(item: CollectionViewItem, profile: PalateProfile, tags: string[]) {
-  const phrases = [
-    `Your profile currently leans ${profile.favoredPeatLevel}.`,
-    profile.favoredRegions.includes(item.expression.region)
+  const peatLine = profile.favoredPeatLevel
+    ? `Your profile currently leans ${profile.favoredPeatLevel}.`
+    : "I still need tasting notes before I can infer a peat preference.";
+  const regionLine =
+    profile.favoredRegions.includes(item.expression.region) && profile.favoredRegions.length > 0
       ? `You tend to rate ${item.expression.region} whiskies highly.`
-      : `It broadens your shelf without leaving your comfort zone.`,
+      : `It broadens your shelf without leaving your comfort zone.`;
+  const tagLine =
     tags.length > 0
       ? `Flavor overlap: ${tags.slice(0, 3).join(", ")}.`
-      : `The cask and texture profile match your recent favorites.`
+      : profile.favoredFlavorTags.length > 0
+        ? `The cask and texture profile match your recent favorites.`
+        : `There are not enough tasting notes yet to compare flavor patterns.`;
+
+  const phrases = [
+    peatLine,
+    regionLine,
+    tagLine
   ];
 
   return phrases.join(" ");

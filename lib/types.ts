@@ -303,7 +303,7 @@ export interface PalateProfile {
   favoredFlavorTags: string[];
   favoredRegions: string[];
   favoredCaskStyles: string[];
-  favoredPeatLevel: PeatLevel;
+  favoredPeatLevel: PeatLevel | null;
 }
 
 export interface AdvisorSuggestion {
