@@ -10,7 +10,7 @@ import type { CollectionViewItem } from "@/lib/types";
 type NoticeTone = "info" | "success" | "error";
 
 function parseNumber(value: FormDataEntryValue | null) {
-  if (!value) {
+  if (value === null || value === "") {
     return undefined;
   }
 
@@ -18,15 +18,11 @@ function parseNumber(value: FormDataEntryValue | null) {
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
-function parseFlavorTags(value: FormDataEntryValue | null) {
+function parseTags(value: FormDataEntryValue | null) {
   return String(value ?? "")
     .split(",")
     .map((tag) => tag.trim())
     .filter(Boolean);
-}
-
-function parseToggle(value: FormDataEntryValue | null) {
-  return value !== null;
 }
 
 async function readResponseMessage(response: Response, fallback: string) {
@@ -58,8 +54,7 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(
-    entry.images.find((image) => image.kind === "front")?.url ??
-      getBottleDisplayImage(entry.expression.name, entry.images)
+    entry.expression.imageUrl ?? entry.images.find((image) => image.kind === "front")?.url ?? getBottleDisplayImage(entry.expression.name, entry.images)
   );
   const [previewLabel, setPreviewLabel] = useState(
     entry.images.find((image) => image.kind === "front")?.label ?? "Current front image"
@@ -130,30 +125,13 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
       bottlerName: String(formData.get("bottlerName") ?? "").trim(),
       brand: String(formData.get("brand") ?? "").trim() || undefined,
       name: String(formData.get("name") ?? "").trim(),
-      releaseSeries: String(formData.get("releaseSeries") ?? "").trim() || undefined,
-      bottlerKind: String(formData.get("bottlerKind") ?? "official"),
-      whiskyType: String(formData.get("whiskyType") ?? "single-malt"),
       country: String(formData.get("country") ?? "").trim(),
-      region: String(formData.get("region") ?? "").trim(),
       abv: parseNumber(formData.get("abv")),
       ageStatement: parseNumber(formData.get("ageStatement")),
-      vintageYear: parseNumber(formData.get("vintageYear")),
-      distilledYear: parseNumber(formData.get("distilledYear")),
-      bottledYear: parseNumber(formData.get("bottledYear")),
-      volumeMl: parseNumber(formData.get("volumeMl")),
-      caskType: String(formData.get("caskType") ?? "").trim() || undefined,
-      caskNumber: String(formData.get("caskNumber") ?? "").trim() || undefined,
-      bottleNumber: parseNumber(formData.get("bottleNumber")),
-      outturn: parseNumber(formData.get("outturn")),
       barcode: String(formData.get("barcode") ?? "").trim() || undefined,
-      peatLevel: String(formData.get("peatLevel") ?? "medium"),
-      caskInfluence: String(formData.get("caskInfluence") ?? "mixed"),
-      isNas: parseToggle(formData.get("isNas")) || parseNumber(formData.get("ageStatement")) === undefined,
-      isChillFiltered: parseToggle(formData.get("isChillFiltered")),
-      isNaturalColor: parseToggle(formData.get("isNaturalColor")),
-      isLimited: parseToggle(formData.get("isLimited")),
-      flavorTags: parseFlavorTags(formData.get("flavorTags")),
       description: String(formData.get("description") ?? "").trim() || undefined,
+      imageUrl: previewUrl || undefined,
+      tags: parseTags(formData.get("tags")),
       status: String(formData.get("status") ?? "owned"),
       fillState: String(formData.get("fillState") ?? "sealed"),
       purchaseCurrency: String(formData.get("purchaseCurrency") ?? "ZAR")
@@ -162,9 +140,7 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
       purchasePrice: parseNumber(formData.get("purchasePrice")),
       purchaseDate: String(formData.get("purchaseDate") ?? "").trim() || undefined,
       purchaseSource: String(formData.get("purchaseSource") ?? "").trim() || undefined,
-      personalNotes: String(formData.get("personalNotes") ?? "").trim() || undefined,
-      frontImageUrl: previewUrl || undefined,
-      frontImageLabel: previewLabel || undefined
+      personalNotes: String(formData.get("personalNotes") ?? "").trim() || undefined
     };
 
     try {
@@ -239,7 +215,7 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
       <div className="section-title">
         <div>
           <h2>Edit bottle record</h2>
-          <p>Every visible bottle field can be changed here, including the front image.</p>
+          <p>Update the bottle details, collection fields, and front image.</p>
         </div>
       </div>
 
@@ -278,168 +254,52 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
 
         <div className="field full-span form-section-title">
           <label>Identity</label>
-          <p>Collector identity and bottling details.</p>
+          <p>Core bottle details that should always read clearly.</p>
         </div>
         <div className="field">
           <label htmlFor="distilleryName">Distillery</label>
-          <input defaultValue={entry.distillery.name} id="distilleryName" name="distilleryName" required />
+          <input defaultValue={entry.expression.distilleryName ?? ""} id="distilleryName" name="distilleryName" />
         </div>
         <div className="field">
           <label htmlFor="bottlerName">Bottler</label>
-          <input defaultValue={entry.bottler.name} id="bottlerName" name="bottlerName" required />
+          <input defaultValue={entry.expression.bottlerName ?? ""} id="bottlerName" name="bottlerName" />
         </div>
         <div className="field">
           <label htmlFor="brand">Brand</label>
-          <input defaultValue={entry.expression.brand} id="brand" name="brand" placeholder="Label brand or series name" />
+          <input defaultValue={entry.expression.brand ?? ""} id="brand" name="brand" placeholder="Label brand or series name" />
         </div>
         <div className="field full-span">
           <label htmlFor="name">Bottle name</label>
           <input defaultValue={entry.expression.name} id="name" name="name" required />
         </div>
         <div className="field">
-          <label htmlFor="bottlerKind">Bottler kind</label>
-          <select defaultValue={entry.expression.bottlerKind} id="bottlerKind" name="bottlerKind">
-            <option value="official">Official bottler</option>
-            <option value="independent">Independent bottler</option>
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="releaseSeries">Release series</label>
-          <input defaultValue={entry.expression.releaseSeries} id="releaseSeries" name="releaseSeries" />
-        </div>
-        <div className="field">
-          <label htmlFor="whiskyType">Whisky type</label>
-          <select defaultValue={entry.expression.whiskyType} id="whiskyType" name="whiskyType">
-            <option value="single-malt">Single malt</option>
-            <option value="blended-malt">Blended malt</option>
-            <option value="blended-scotch">Blended Scotch</option>
-            <option value="single-grain">Single grain</option>
-            <option value="world-single-malt">World single malt</option>
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="barcode">Barcode</label>
-          <input defaultValue={entry.expression.barcode} id="barcode" name="barcode" />
-        </div>
-
-        <div className="field full-span form-section-title">
-          <label>Specs</label>
-          <p>Release specs, casks, and flavor classification.</p>
-        </div>
-        <div className="field">
           <label htmlFor="country">Country</label>
-          <input defaultValue={entry.expression.country} id="country" name="country" required />
-        </div>
-        <div className="field">
-          <label htmlFor="region">Region</label>
-          <input defaultValue={entry.expression.region} id="region" name="region" required />
+          <input defaultValue={entry.expression.country ?? ""} id="country" name="country" />
         </div>
         <div className="field">
           <label htmlFor="abv">ABV</label>
-          <input defaultValue={entry.expression.abv} id="abv" min={0} name="abv" step="0.1" type="number" />
+          <input defaultValue={entry.expression.abv ?? ""} id="abv" min={0} name="abv" step="0.1" type="number" />
         </div>
         <div className="field">
           <label htmlFor="ageStatement">Age statement</label>
-          <input defaultValue={entry.expression.ageStatement} id="ageStatement" min={0} name="ageStatement" type="number" />
+          <input defaultValue={entry.expression.ageStatement ?? ""} id="ageStatement" min={0} name="ageStatement" type="number" />
         </div>
         <div className="field">
-          <label htmlFor="volumeMl">Bottle size (ml)</label>
-          <input defaultValue={entry.expression.volumeMl} id="volumeMl" min={0} name="volumeMl" placeholder="700" type="number" />
-        </div>
-        <div className="field">
-          <label htmlFor="vintageYear">Vintage year</label>
-          <input defaultValue={entry.expression.vintageYear} id="vintageYear" name="vintageYear" type="number" />
-        </div>
-        <div className="field">
-          <label htmlFor="distilledYear">Distilled year</label>
-          <input defaultValue={entry.expression.distilledYear} id="distilledYear" name="distilledYear" type="number" />
-        </div>
-        <div className="field">
-          <label htmlFor="bottledYear">Bottled year</label>
-          <input defaultValue={entry.expression.bottledYear} id="bottledYear" name="bottledYear" type="number" />
-        </div>
-        <div className="field">
-          <label htmlFor="outturn">Outturn</label>
-          <input defaultValue={entry.expression.outturn} id="outturn" min={0} name="outturn" type="number" />
-        </div>
-        <div className="field">
-          <label htmlFor="caskType">Cask type</label>
-          <input defaultValue={entry.expression.caskType} id="caskType" name="caskType" />
-        </div>
-        <div className="field">
-          <label htmlFor="caskNumber">Cask number</label>
-          <input defaultValue={entry.expression.caskNumber} id="caskNumber" name="caskNumber" />
-        </div>
-        <div className="field">
-          <label htmlFor="bottleNumber">Bottle number</label>
-          <input defaultValue={entry.expression.bottleNumber} id="bottleNumber" min={0} name="bottleNumber" type="number" />
-        </div>
-        <div className="field">
-          <label htmlFor="peatLevel">Peat level</label>
-          <select defaultValue={entry.expression.peatLevel} id="peatLevel" name="peatLevel">
-            <option value="unpeated">Unpeated</option>
-            <option value="light">Light</option>
-            <option value="medium">Medium</option>
-            <option value="heavily-peated">Heavily peated</option>
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="caskInfluence">Cask influence</label>
-          <select defaultValue={entry.expression.caskInfluence} id="caskInfluence" name="caskInfluence">
-            <option value="bourbon">Bourbon</option>
-            <option value="sherry">Sherry</option>
-            <option value="wine">Wine</option>
-            <option value="rum">Rum</option>
-            <option value="virgin-oak">Virgin oak</option>
-            <option value="mixed">Mixed</option>
-            <option value="refill">Refill</option>
-          </select>
-        </div>
-        <div className="field">
-          <label className="checkbox-label" htmlFor="isNas">
-            <input defaultChecked={entry.expression.isNas} id="isNas" name="isNas" type="checkbox" />
-            NAS
-          </label>
-        </div>
-        <div className="field">
-          <label className="checkbox-label" htmlFor="isChillFiltered">
-            <input
-              defaultChecked={entry.expression.isChillFiltered}
-              id="isChillFiltered"
-              name="isChillFiltered"
-              type="checkbox"
-            />
-            Chill filtered
-          </label>
-        </div>
-        <div className="field">
-          <label className="checkbox-label" htmlFor="isNaturalColor">
-            <input
-              defaultChecked={entry.expression.isNaturalColor}
-              id="isNaturalColor"
-              name="isNaturalColor"
-              type="checkbox"
-            />
-            Natural color
-          </label>
-        </div>
-        <div className="field">
-          <label className="checkbox-label" htmlFor="isLimited">
-            <input defaultChecked={entry.expression.isLimited} id="isLimited" name="isLimited" type="checkbox" />
-            Limited release
-          </label>
+          <label htmlFor="barcode">Barcode</label>
+          <input defaultValue={entry.expression.barcode ?? ""} id="barcode" name="barcode" />
         </div>
         <div className="field full-span">
-          <label htmlFor="flavorTags">Flavor tags</label>
+          <label htmlFor="tags">Tags</label>
           <input
-            defaultValue={entry.expression.flavorTags.join(", ")}
-            id="flavorTags"
-            name="flavorTags"
+            defaultValue={entry.expression.tags.join(", ")}
+            id="tags"
+            name="tags"
+            placeholder="smoke, sherry-cask, coastal"
           />
         </div>
         <div className="field full-span">
           <label htmlFor="description">Description</label>
-          <textarea defaultValue={entry.expression.description} id="description" name="description" />
+          <textarea defaultValue={entry.expression.description ?? ""} id="description" name="description" />
         </div>
 
         <div className="field full-span form-section-title">
@@ -463,23 +323,35 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
         </div>
         <div className="field">
           <label htmlFor="purchaseCurrency">Currency</label>
-          <input defaultValue={entry.item.purchaseCurrency} id="purchaseCurrency" maxLength={3} name="purchaseCurrency" />
+          <input
+            defaultValue={entry.item.purchaseCurrency ?? "ZAR"}
+            id="purchaseCurrency"
+            maxLength={3}
+            name="purchaseCurrency"
+          />
         </div>
         <div className="field">
           <label htmlFor="purchasePrice">Purchase price</label>
-          <input defaultValue={entry.item.purchasePrice} id="purchasePrice" min={0} name="purchasePrice" step="0.01" type="number" />
+          <input
+            defaultValue={entry.item.purchasePrice ?? ""}
+            id="purchasePrice"
+            min={0}
+            name="purchasePrice"
+            step="0.01"
+            type="number"
+          />
         </div>
         <div className="field">
           <label htmlFor="purchaseDate">Purchase date</label>
-          <input defaultValue={entry.item.purchaseDate?.slice(0, 10)} id="purchaseDate" name="purchaseDate" type="date" />
+          <input defaultValue={entry.item.purchaseDate?.slice(0, 10) ?? ""} id="purchaseDate" name="purchaseDate" type="date" />
         </div>
         <div className="field">
           <label htmlFor="purchaseSource">Purchase source</label>
-          <input defaultValue={entry.item.purchaseSource} id="purchaseSource" name="purchaseSource" />
+          <input defaultValue={entry.item.purchaseSource ?? ""} id="purchaseSource" name="purchaseSource" />
         </div>
         <div className="field full-span">
           <label htmlFor="personalNotes">Personal note</label>
-          <textarea defaultValue={entry.item.personalNotes} id="personalNotes" name="personalNotes" />
+          <textarea defaultValue={entry.item.personalNotes ?? ""} id="personalNotes" name="personalNotes" />
         </div>
 
         <div className="field full-span editor-actions">

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { addTastingEntry } from "@/lib/repository";
 import { tastingSchema } from "@/lib/schemas";
+import type { TastingEntry } from "@/lib/types";
 
 export async function POST(
   request: Request,
@@ -14,7 +15,10 @@ export async function POST(
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const entry = await addTastingEntry(itemId, parsed.data);
+  const entry = await addTastingEntry(itemId, {
+    ...parsed.data,
+    rating: parsed.data.rating as TastingEntry["rating"]
+  });
 
   if (!entry) {
     return NextResponse.json({ error: "Item not found" }, { status: 404 });

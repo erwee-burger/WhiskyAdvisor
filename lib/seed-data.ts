@@ -3,215 +3,144 @@ import type { WhiskyStore } from "@/lib/types";
 const today = "2026-04-05T09:00:00.000Z";
 
 export const seedStore: WhiskyStore = {
-  distilleries: [
-    {
-      id: "dist_lagavulin",
-      name: "Lagavulin",
-      country: "Scotland",
-      region: "Islay",
-      foundedYear: 1816,
-      notes: "Iconic peated malt with maritime smoke and dense sweetness."
-    },
-    {
-      id: "dist_ben_nevis",
-      name: "Ben Nevis",
-      country: "Scotland",
-      region: "Highlands",
-      foundedYear: 1825,
-      notes: "Robust Highland malt that takes independent bottlings beautifully."
-    },
-    {
-      id: "dist_springbank",
-      name: "Springbank",
-      country: "Scotland",
-      region: "Campbeltown",
-      foundedYear: 1828,
-      notes: "Famous for oily, coastal complexity and hands-on production."
-    },
-    {
-      id: "dist_kavalan",
-      name: "Kavalan",
-      country: "Taiwan",
-      region: "Yilan",
-      foundedYear: 2005,
-      notes: "Tropical and cask-driven world whisky distillery."
-    },
-    {
-      id: "dist_bruichladdich",
-      name: "Bruichladdich",
-      country: "Scotland",
-      region: "Islay",
-      foundedYear: 1881,
-      notes: "Unpeated and peated expressions with modern transparency."
-    }
-  ],
-  bottlers: [
-    {
-      id: "bot_lagavulin",
-      name: "Lagavulin",
-      bottlerKind: "official",
-      country: "Scotland"
-    },
-    {
-      id: "bot_signatory",
-      name: "Signatory Vintage",
-      bottlerKind: "independent",
-      country: "Scotland",
-      notes: "Independent bottler known for cask-specific releases."
-    },
-    {
-      id: "bot_springbank",
-      name: "Springbank",
-      bottlerKind: "official",
-      country: "Scotland"
-    },
-    {
-      id: "bot_kavalan",
-      name: "Kavalan",
-      bottlerKind: "official",
-      country: "Taiwan"
-    },
-    {
-      id: "bot_bruichladdich",
-      name: "Bruichladdich",
-      bottlerKind: "official",
-      country: "Scotland"
-    }
-  ],
   expressions: [
     {
       id: "expr_lagavulin_16",
+      distilleryName: "Lagavulin",
+      bottlerName: "Lagavulin",
       brand: "Lagavulin",
       name: "Lagavulin 16 Year Old",
-      distilleryId: "dist_lagavulin",
-      bottlerId: "bot_lagavulin",
-      bottlerKind: "official",
-      whiskyType: "single-malt",
       country: "Scotland",
-      region: "Islay",
       abv: 43,
       ageStatement: 16,
-      isNas: false,
-      volumeMl: 700,
-      peatLevel: "heavily-peated",
-      caskInfluence: "sherry",
-      isChillFiltered: true,
-      isNaturalColor: false,
-      isLimited: false,
-      flavorTags: ["smoke", "sea-salt", "dried-fruit", "iodine", "dark-chocolate"],
       barcode: "5000281005408",
       description: "Benchmark Islay whisky with dense smoke and dried fruit depth.",
       imageUrl:
-        "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=1200&q=80"
+        "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=1200&q=80",
+      tags: [
+        "single-malt",
+        "heavily-peated",
+        "sherry-cask",
+        "chill-filtered",
+        "smoke",
+        "sea-salt",
+        "dried-fruit",
+        "iodine",
+        "dark-chocolate",
+        "16yo"
+      ]
     },
     {
       id: "expr_ben_nevis_signatory",
+      distilleryName: "Ben Nevis",
+      bottlerName: "Signatory Vintage",
       brand: "Signatory Vintage",
       name: "Ben Nevis 2015 Signatory Cask Strength",
-      distilleryId: "dist_ben_nevis",
-      bottlerId: "bot_signatory",
-      bottlerKind: "independent",
-      whiskyType: "single-malt",
-      releaseSeries: "Cask Strength Collection",
       country: "Scotland",
-      region: "Highlands",
       abv: 57.1,
-      vintageYear: 2015,
-      distilledYear: 2015,
-      bottledYear: 2025,
-      volumeMl: 700,
-      caskType: "1st fill oloroso butt",
-      caskNumber: "900182",
-      bottleNumber: 112,
-      outturn: 642,
       ageStatement: undefined,
-      isNas: true,
-      peatLevel: "light",
-      caskInfluence: "sherry",
-      isChillFiltered: false,
-      isNaturalColor: true,
-      isLimited: true,
-      flavorTags: ["walnut", "dark-fruit", "oily", "orange-peel", "leather"],
       barcode: "5021944123488",
       description: "Muscular Highland spirit with deep oloroso character and orange peel lift.",
       imageUrl:
-        "https://images.unsplash.com/photo-1516997121675-4c2d1684aa3e?auto=format&fit=crop&w=1200&q=80"
+        "https://images.unsplash.com/photo-1516997121675-4c2d1684aa3e?auto=format&fit=crop&w=1200&q=80",
+      tags: [
+        "single-malt",
+        "independent-bottler",
+        "peated",
+        "sherry-cask",
+        "natural-colour",
+        "limited",
+        "nas",
+        "walnut",
+        "dark-fruit",
+        "oily",
+        "orange-peel",
+        "leather",
+        "cask-strength",
+        "2015-vintage",
+        "700ml",
+        "642-outturn"
+      ]
     },
     {
       id: "expr_springbank_10",
+      distilleryName: "Springbank",
+      bottlerName: "Springbank",
       brand: "Springbank",
       name: "Springbank 10 Year Old",
-      distilleryId: "dist_springbank",
-      bottlerId: "bot_springbank",
-      bottlerKind: "official",
-      whiskyType: "single-malt",
       country: "Scotland",
-      region: "Campbeltown",
       abv: 46,
       ageStatement: 10,
-      isNas: false,
-      volumeMl: 700,
-      peatLevel: "medium",
-      caskInfluence: "mixed",
-      isChillFiltered: false,
-      isNaturalColor: true,
-      isLimited: false,
-      flavorTags: ["coastal", "toffee", "citrus", "engine-oil", "malt"],
       barcode: "610854001356",
       description: "Coastal, slightly funky, and brilliantly balanced.",
       imageUrl:
-        "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&w=1200&q=80"
+        "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&w=1200&q=80",
+      tags: [
+        "single-malt",
+        "peated",
+        "bourbon-cask",
+        "natural-colour",
+        "coastal",
+        "toffee",
+        "citrus",
+        "engine-oil",
+        "malt",
+        "10yo"
+      ]
     },
     {
       id: "expr_kavalan_vinho",
+      distilleryName: "Kavalan",
+      bottlerName: "Kavalan",
       brand: "Kavalan",
       name: "Kavalan Solist Vinho Barrique",
-      distilleryId: "dist_kavalan",
-      bottlerId: "bot_kavalan",
-      bottlerKind: "official",
-      whiskyType: "world-single-malt",
-      releaseSeries: "Solist",
       country: "Taiwan",
-      region: "Yilan",
       abv: 57.8,
-      isNas: true,
-      volumeMl: 700,
-      peatLevel: "unpeated",
-      caskInfluence: "wine",
-      isChillFiltered: false,
-      isNaturalColor: true,
-      isLimited: true,
-      flavorTags: ["tropical-fruit", "vanilla", "berry-jam", "spice", "chocolate"],
+      ageStatement: undefined,
       barcode: "4710085225318",
       description: "Tropical, wine-cask-forward, and lush.",
       imageUrl:
-        "https://images.unsplash.com/photo-1516997121675-4c2d1684aa3e?auto=format&fit=crop&w=1200&q=80"
+        "https://images.unsplash.com/photo-1516997121675-4c2d1684aa3e?auto=format&fit=crop&w=1200&q=80",
+      tags: [
+        "world-single-malt",
+        "wine-cask",
+        "natural-colour",
+        "limited",
+        "nas",
+        "tropical-fruit",
+        "vanilla",
+        "berry-jam",
+        "spice",
+        "chocolate",
+        "solist"
+      ]
     },
     {
       id: "expr_port_charlotte_10",
+      distilleryName: "Bruichladdich",
+      bottlerName: "Bruichladdich",
       brand: "Port Charlotte",
       name: "Port Charlotte 10 Year Old",
-      distilleryId: "dist_bruichladdich",
-      bottlerId: "bot_bruichladdich",
-      bottlerKind: "official",
-      whiskyType: "single-malt",
-      releaseSeries: "Port Charlotte",
       country: "Scotland",
-      region: "Islay",
       abv: 50,
       ageStatement: 10,
-      isNas: false,
-      volumeMl: 700,
-      peatLevel: "heavily-peated",
-      caskInfluence: "bourbon",
-      isChillFiltered: false,
-      isNaturalColor: true,
-      isLimited: false,
-      flavorTags: ["barbecue", "ash", "lemon", "vanilla", "malt"],
       barcode: "5055807415389",
       description: "Modern smoky Islay whisky with bright citrus and malty sweetness.",
       imageUrl:
-        "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&w=1200&q=80"
+        "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&w=1200&q=80",
+      tags: [
+        "single-malt",
+        "heavily-peated",
+        "bourbon-cask",
+        "natural-colour",
+        "barbecue",
+        "ash",
+        "lemon",
+        "vanilla",
+        "malt",
+        "10yo",
+        "port-charlotte"
+      ]
     }
   ],
   collectionItems: [
@@ -224,7 +153,6 @@ export const seedStore: WhiskyStore = {
       purchaseCurrency: "ZAR",
       purchaseDate: "2025-11-22",
       purchaseSource: "Norman Goodfellows Sandton",
-      openedDate: "2025-12-31",
       personalNotes: "The rainy-evening benchmark.",
       createdAt: today,
       updatedAt: today
@@ -317,220 +245,6 @@ export const seedStore: WhiskyStore = {
       kind: "front",
       url: "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&w=1200&q=80",
       label: "Front label"
-    }
-  ],
-  citations: [
-    {
-      id: "cit_lagavulin_desc",
-      entityType: "expression",
-      entityId: "expr_lagavulin_16",
-      field: "description",
-      label: "Lagavulin official tasting note",
-      url: "https://www.malts.com/en-row/products/single-malt-whisky/lagavulin-16-year-old-single-malt-scotch-whisky",
-      sourceKind: "official",
-      confidence: 0.92,
-      createdAt: today
-    },
-    {
-      id: "cit_ben_nevis_series",
-      entityType: "expression",
-      entityId: "expr_ben_nevis_signatory",
-      field: "releaseSeries",
-      label: "Signatory Vintage release page",
-      url: "https://www.signatoryvintage.com",
-      sourceKind: "official",
-      confidence: 0.88,
-      createdAt: today
-    }
-  ],
-  priceSnapshots: [
-    {
-      id: "price_lagavulin",
-      expressionId: "expr_lagavulin_16",
-      refreshedAt: "2026-04-04T13:20:00.000Z",
-      retail: {
-        sourceKind: "retail",
-        currency: "ZAR",
-        low: 2199,
-        high: 2499,
-        lowZar: 2199,
-        highZar: 2499,
-        confidence: 0.91,
-        refreshedAt: "2026-04-04T13:20:00.000Z",
-        sources: [
-          {
-            label: "WhiskyBrother",
-            url: "https://www.whiskybrother.com",
-            currency: "ZAR",
-            amount: 2199,
-            normalizedZar: 2199,
-            confidence: 0.92
-          },
-          {
-            label: "Norman Goodfellows",
-            url: "https://www.ngf.co.za",
-            currency: "ZAR",
-            amount: 2499,
-            normalizedZar: 2499,
-            confidence: 0.9
-          }
-        ]
-      }
-    },
-    {
-      id: "price_ben_nevis",
-      expressionId: "expr_ben_nevis_signatory",
-      refreshedAt: "2026-04-04T13:20:00.000Z",
-      retail: {
-        sourceKind: "retail",
-        currency: "GBP",
-        low: 92,
-        high: 109,
-        lowZar: 2175.8,
-        highZar: 2577.85,
-        confidence: 0.79,
-        refreshedAt: "2026-04-04T13:20:00.000Z",
-        sources: [
-          {
-            label: "The Whisky Exchange",
-            url: "https://www.thewhiskyexchange.com",
-            currency: "GBP",
-            amount: 92,
-            normalizedZar: 2175.8,
-            confidence: 0.82
-          },
-          {
-            label: "Master of Malt",
-            url: "https://www.masterofmalt.com",
-            currency: "GBP",
-            amount: 109,
-            normalizedZar: 2577.85,
-            confidence: 0.76
-          }
-        ]
-      },
-      auction: {
-        sourceKind: "auction",
-        currency: "GBP",
-        low: 78,
-        high: 95,
-        lowZar: 1844.7,
-        highZar: 2246.75,
-        confidence: 0.68,
-        refreshedAt: "2026-04-04T13:20:00.000Z",
-        sources: [
-          {
-            label: "Whisky Auctioneer",
-            url: "https://whiskyauctioneer.com",
-            currency: "GBP",
-            amount: 78,
-            normalizedZar: 1844.7,
-            confidence: 0.69
-          },
-          {
-            label: "Scotch Whisky Auctions",
-            url: "https://www.scotchwhiskyauctions.com",
-            currency: "GBP",
-            amount: 95,
-            normalizedZar: 2246.75,
-            confidence: 0.67
-          }
-        ]
-      }
-    },
-    {
-      id: "price_springbank",
-      expressionId: "expr_springbank_10",
-      refreshedAt: "2026-04-04T13:20:00.000Z",
-      retail: {
-        sourceKind: "retail",
-        currency: "ZAR",
-        low: 2099,
-        high: 2499,
-        lowZar: 2099,
-        highZar: 2499,
-        confidence: 0.83,
-        refreshedAt: "2026-04-04T13:20:00.000Z",
-        sources: [
-          {
-            label: "WhiskyBrother",
-            url: "https://www.whiskybrother.com",
-            currency: "ZAR",
-            amount: 2099,
-            normalizedZar: 2099,
-            confidence: 0.84
-          },
-          {
-            label: "Mothercity Liquor",
-            url: "https://www.mothercityliquor.co.za",
-            currency: "ZAR",
-            amount: 2499,
-            normalizedZar: 2499,
-            confidence: 0.81
-          }
-        ]
-      },
-      auction: {
-        sourceKind: "auction",
-        currency: "GBP",
-        low: 112,
-        high: 138,
-        lowZar: 2648.8,
-        highZar: 3263.7,
-        confidence: 0.77,
-        refreshedAt: "2026-04-04T13:20:00.000Z",
-        sources: [
-          {
-            label: "Whisky Auctioneer",
-            url: "https://whiskyauctioneer.com",
-            currency: "GBP",
-            amount: 112,
-            normalizedZar: 2648.8,
-            confidence: 0.79
-          },
-          {
-            label: "Scotch Whisky Auctions",
-            url: "https://www.scotchwhiskyauctions.com",
-            currency: "GBP",
-            amount: 138,
-            normalizedZar: 3263.7,
-            confidence: 0.75
-          }
-        ]
-      }
-    },
-    {
-      id: "price_kavalan",
-      expressionId: "expr_kavalan_vinho",
-      refreshedAt: "2026-04-04T13:20:00.000Z",
-      retail: {
-        sourceKind: "retail",
-        currency: "USD",
-        low: 179,
-        high: 225,
-        lowZar: 3302.55,
-        highZar: 4151.25,
-        confidence: 0.8,
-        refreshedAt: "2026-04-04T13:20:00.000Z",
-        sources: [
-          {
-            label: "CaskCartel",
-            url: "https://caskcartel.com",
-            currency: "USD",
-            amount: 179,
-            normalizedZar: 3302.55,
-            confidence: 0.75
-          },
-          {
-            label: "Mission Liquor",
-            url: "https://www.missionliquor.com",
-            currency: "USD",
-            amount: 225,
-            normalizedZar: 4151.25,
-            confidence: 0.84
-          }
-        ]
-      }
     }
   ],
   drafts: []

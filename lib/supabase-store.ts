@@ -2,6 +2,23 @@
 import { createClient } from "@supabase/supabase-js";
 import type { WhiskyStore } from "@/lib/types";
 
+type SupabaseRow = Record<string, unknown>;
+type SupabaseResponse = { data: unknown[] | null; error: Error | null };
+type SupabaseMutationResponse = { error: Error | null };
+type SupabaseDeleteQuery = {
+  not(column: string, operator: string, value: string): Promise<SupabaseMutationResponse>;
+  neq(column: string, value: string): Promise<SupabaseMutationResponse>;
+};
+type SupabaseQuery = {
+  select(columns?: string): Promise<SupabaseResponse>;
+  order(column: string, options?: { ascending?: boolean }): Promise<SupabaseResponse>;
+  upsert(values: unknown, options?: { onConflict?: string }): Promise<SupabaseMutationResponse>;
+  delete(): SupabaseDeleteQuery;
+};
+type SupabaseClientLike = {
+  from(table: string): SupabaseQuery;
+};
+
 function getSupabaseClient(): ReturnType<typeof createClient> | null {
   const url = process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -22,7 +39,7 @@ function quoteIds(ids: string[]) {
 }
 
 async function deleteRowsNotInIds(
-  supabase: NonNullable<ReturnType<typeof getSupabaseClient>>,
+  supabase: SupabaseClientLike,
   table: string,
   ids: string[]
 ) {
@@ -48,7 +65,7 @@ export function isSupabaseStoreEnabled() {
  * @throws Error if Supabase is not configured or read operations fail
  */
 export async function readStoreFromSupabase(): Promise<WhiskyStore> {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseClient() as SupabaseClientLike | null;
   if (!supabase) throw new Error("Supabase is not configured.");
 
   const [expressionsRes, itemsRes, tastingsRes, imagesRes, draftsRes] = await Promise.all([
@@ -56,7 +73,7 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
     supabase.from("collection_items").select("*"),
     supabase.from("tasting_entries").select("*"),
     supabase.from("item_images").select("*"),
-    supabase.from("intake_drafts").select("*").order("created_at", { ascending: false })
+    supabase.from("intake_drafts").select("*")
   ]);
 
   for (const res of [expressionsRes, itemsRes, tastingsRes, imagesRes, draftsRes]) {
@@ -64,58 +81,68 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
   }
 
   return {
-    expressions: (expressionsRes.data ?? []).map((row) => ({
-      id: row.id,
-      name: row.name,
-      distilleryName: row.distillery_name ?? undefined,
-      bottlerName: row.bottler_name ?? undefined,
-      brand: row.brand ?? undefined,
-      country: row.country ?? undefined,
+    expressions: ((expressionsRes.data ?? []) as SupabaseRow[]).map((row) => ({
+      id: String(row.id),
+      name: String(row.name),
+      distilleryName: typeof row.distillery_name === "string" ? row.distillery_name : undefined,
+      bottlerName: typeof row.bottler_name === "string" ? row.bottler_name : undefined,
+      brand: typeof row.brand === "string" ? row.brand : undefined,
+      country: typeof row.country === "string" ? row.country : undefined,
       abv: toNumber(row.abv),
       ageStatement: toNumber(row.age_statement),
-      barcode: row.barcode ?? undefined,
-      description: row.description ?? undefined,
-      imageUrl: row.image_url ?? undefined,
-      tags: Array.isArray(row.tags) ? row.tags : []
+      barcode: typeof row.barcode === "string" ? row.barcode : undefined,
+      description: typeof row.description === "string" ? row.description : undefined,
+      imageUrl: typeof row.image_url === "string" ? row.image_url : undefined,
+      tags: Array.isArray(row.tags) ? row.tags.filter((tag): tag is string => typeof tag === "string") : []
     })),
-    collectionItems: (itemsRes.data ?? []).map((row) => ({
-      id: row.id,
-      expressionId: row.expression_id,
-      status: row.status,
-      fillState: row.fill_state,
+    collectionItems: ((itemsRes.data ?? []) as SupabaseRow[]).map((row) => ({
+      id: String(row.id),
+      expressionId: String(row.expression_id),
+      status: row.status === "wishlist" ? "wishlist" : "owned",
+      fillState:
+        row.fill_state === "open" || row.fill_state === "finished" ? row.fill_state : "sealed",
       purchasePrice: toNumber(row.purchase_price),
-      purchaseCurrency: row.purchase_currency,
-      purchaseDate: row.purchase_date ?? undefined,
-      purchaseSource: row.purchase_source ?? undefined,
-      personalNotes: row.personal_notes ?? undefined,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
+      purchaseCurrency: typeof row.purchase_currency === "string" ? row.purchase_currency : undefined,
+      purchaseDate: typeof row.purchase_date === "string" ? row.purchase_date : undefined,
+      purchaseSource: typeof row.purchase_source === "string" ? row.purchase_source : undefined,
+      personalNotes: typeof row.personal_notes === "string" ? row.personal_notes : undefined,
+      createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
+      updatedAt: typeof row.updated_at === "string" ? row.updated_at : new Date().toISOString()
     })),
-    tastingEntries: (tastingsRes.data ?? []).map((row) => ({
-      id: row.id,
-      collectionItemId: row.collection_item_id,
-      tastedAt: row.tasted_at,
-      nose: row.nose,
-      palate: row.palate,
-      finish: row.finish,
-      overallNote: row.overall_note,
-      rating: row.rating
+    tastingEntries: ((tastingsRes.data ?? []) as SupabaseRow[]).map((row) => ({
+      id: String(row.id),
+      collectionItemId: String(row.collection_item_id),
+      tastedAt: String(row.tasted_at),
+      nose: String(row.nose ?? ""),
+      palate: String(row.palate ?? ""),
+      finish: String(row.finish ?? ""),
+      overallNote: String(row.overall_note ?? ""),
+      rating: Number(row.rating) as 1 | 2 | 3 | 4 | 5
     })),
-    itemImages: (imagesRes.data ?? []).map((row) => ({
-      id: row.id,
-      collectionItemId: row.collection_item_id,
-      kind: row.kind,
-      url: row.url,
-      label: row.label ?? undefined
+    itemImages: ((imagesRes.data ?? []) as SupabaseRow[]).map((row) => ({
+      id: String(row.id),
+      collectionItemId: String(row.collection_item_id),
+      kind: row.kind === "back" || row.kind === "detail" ? row.kind : "front",
+      url: String(row.url ?? ""),
+      label: typeof row.label === "string" ? row.label : undefined
     })),
-    drafts: (draftsRes.data ?? []).map((row) => ({
-      id: row.id,
-      collectionItemId: row.collection_item_id,
-      source: row.source,
-      barcode: row.barcode ?? undefined,
-      rawAiResponse: row.raw_ai_response ?? undefined,
-      expression: row.expression ?? { name: "Unknown", tags: [] },
-      collection: row.collection ?? {}
+    drafts: ((draftsRes.data ?? []) as SupabaseRow[]).map((row) => ({
+      id: String(row.id),
+      collectionItemId: String(row.collection_item_id),
+      source: row.source === "barcode" || row.source === "hybrid" ? row.source : "photo",
+      barcode: typeof row.barcode === "string" ? row.barcode : undefined,
+      rawAiResponse:
+        row.raw_ai_response && typeof row.raw_ai_response === "object"
+          ? (row.raw_ai_response as { identificationText?: string; enrichmentText?: string })
+          : undefined,
+      expression:
+        row.expression && typeof row.expression === "object"
+          ? (row.expression as WhiskyStore["drafts"][number]["expression"])
+          : { name: "Unknown", tags: [] },
+      collection:
+        row.collection && typeof row.collection === "object"
+          ? (row.collection as WhiskyStore["drafts"][number]["collection"])
+          : {}
     }))
   };
 }
@@ -128,7 +155,7 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
  * @note Not transactional - if a write fails partway through, database may be in inconsistent state
  */
 export async function writeStoreToSupabase(store: WhiskyStore) {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseClient() as SupabaseClientLike | null;
   if (!supabase) throw new Error("Supabase is not configured.");
 
   const expressionsUpsert = await supabase.from("expressions").upsert(

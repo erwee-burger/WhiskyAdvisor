@@ -13,9 +13,28 @@ export interface Expression {
   country?: string;
   abv?: number;
   ageStatement?: number;
+  releaseSeries?: string;
+  bottlerKind?: string;
+  whiskyType?: string;
+  region?: string;
+  volumeMl?: number;
+  vintageYear?: number;
+  distilledYear?: number;
+  bottledYear?: number;
+  caskType?: string;
+  caskNumber?: string;
+  bottleNumber?: number;
+  outturn?: number;
   barcode?: string;
   description?: string;
   imageUrl?: string;
+  peatLevel?: string;
+  caskInfluence?: string;
+  isNas?: boolean;
+  isChillFiltered?: boolean;
+  isNaturalColor?: boolean;
+  isLimited?: boolean;
+  flavorTags?: string[];
   tags: string[];
 }
 
@@ -77,6 +96,12 @@ export interface CollectionViewItem {
   tastingEntries: TastingEntry[];
   latestTasting?: TastingEntry;
   images: ItemImage[];
+  priceSnapshot?: {
+    retail?: { low: number; high: number; currency: string };
+    auction?: { low: number; high: number; currency: string };
+  };
+  distillery?: { name: string };
+  bottler?: { name: string };
 }
 
 /**
@@ -97,12 +122,19 @@ export interface CollectionAnalytics {
     limited: number;
     chillFiltered: number;
     naturalColor: number;
+    averageVolumeMl?: number | null;
+    withVolume?: number;
   };
   ratingDistribution: Array<{ rating: number; count: number }>;
   regionSplit: Array<{ region: string; count: number }>;
-  peatProfile: Array<{ tag: string; count: number }>;
+  peatProfile: Array<{ tag: string; count: number; peatLevel?: string }>;
   topDistilleries: Array<{ name: string; count: number }>;
   topBottlers: Array<{ name: string; count: number }>;
+  marketValue?: {
+    paidTotalZar: number;
+    marketLowZar: number;
+    marketHighZar: number;
+  };
 }
 
 export interface PalateCard {
@@ -170,4 +202,8 @@ export interface WhiskyStore {
   tastingEntries: TastingEntry[];
   itemImages: ItemImage[];
   drafts: IntakeDraft[];
+  distilleries?: { id: string; name: string }[];
+  bottlers?: { id: string; name: string }[];
+  priceSnapshots?: unknown[];
+  citations?: unknown[];
 }

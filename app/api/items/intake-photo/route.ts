@@ -1,34 +1,41 @@
 import { NextResponse } from "next/server";
 
+import { intakePhotoSchema } from "@/lib/schemas";
 import { createDraftFromPhoto, getDraftViewById } from "@/lib/repository";
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { fileName?: string; imageBase64?: string; imageMimeType?: string };
+    const parsed = intakePhotoSchema.safeParse(await request.json());
 
-    if (!body.fileName) {
-      return NextResponse.json({ error: "A file name or label description is required." }, { status: 400 });
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
 
-    const draft = await createDraftFromPhoto(body.fileName, body.imageBase64, body.imageMimeType);
-    const view = await getDraftViewById(draft.id);
-
-    return NextResponse.json(
-      view ?? {
-        draftId: draft.id,
-        matchedExpressionId: draft.matchedExpressionId,
-        source: draft.source,
-        barcode: draft.barcode,
-        identification: draft.identification,
-        rawExpression: draft.rawExpression,
-        distilleryName: draft.rawExpression?.distilleryName ?? draft.identification?.distilleryName,
-        bottlerName: draft.rawExpression?.bottlerName ?? draft.identification?.bottlerName,
-        expression: draft.expression,
-        suggestions: draft.suggestions,
-        reviewItems: draft.reviewItems,
-        citations: draft.citations
-      }
+    const draft = await createDraftFromPhoto(
+      parsed.data.fileName,
+      parsed.data.imageBase64,
+      parsed.data.imageMimeType
     );
+    const view = await getDraftViewById(draft.id);
+    const response = view
+      ? {
+          ...view,
+          collectionItemId: draft.collectionItemId,
+          distilleryName: view.expression.distilleryName,
+          bottlerName: view.expression.bottlerName
+        }
+      : {
+          draftId: draft.id,
+          collectionItemId: draft.collectionItemId,
+          source: draft.source,
+          barcode: draft.barcode,
+          distilleryName: draft.expression.distilleryName,
+          bottlerName: draft.expression.bottlerName,
+          expression: draft.expression,
+          collection: draft.collection
+        };
+
+    return NextResponse.json(response);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Photo intake failed." },

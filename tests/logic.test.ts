@@ -10,20 +10,15 @@ import type { CollectionViewItem } from "@/lib/types";
 function buildView(): CollectionViewItem[] {
   return seedStore.collectionItems.map((item) => {
     const expression = seedStore.expressions.find((entry) => entry.id === item.expressionId)!;
-    const distillery = seedStore.distilleries.find((entry) => entry.id === expression.distilleryId)!;
-    const bottler = seedStore.bottlers.find((entry) => entry.id === expression.bottlerId)!;
-    const tastingEntries = seedStore.tastingEntries.filter(
-      (entry) => entry.collectionItemId === item.id
-    );
+    const tastingEntries = seedStore.tastingEntries
+      .filter((entry) => entry.collectionItemId === item.id)
+      .sort((left, right) => new Date(right.tastedAt).getTime() - new Date(left.tastedAt).getTime());
 
     return {
       item,
       expression,
-      distillery,
-      bottler,
       tastingEntries,
       latestTasting: tastingEntries[0],
-      priceSnapshot: seedStore.priceSnapshots.find((entry) => entry.expressionId === expression.id),
       images: seedStore.itemImages.filter((entry) => entry.collectionItemId === item.id)
     };
   });

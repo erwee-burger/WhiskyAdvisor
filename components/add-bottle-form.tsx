@@ -14,12 +14,8 @@ type DraftResponse = {
     brand: string | null;
     distilleryName: string | null;
     bottlerName: string | null;
-    bottlerKind: string | null;
     country: string | null;
     ageStatement: number | null;
-    releaseSeries: string | null;
-    caskType: string | null;
-    whiskyType: string | null;
     productMatchConfidence: number | null;
     internetLookupUsed: boolean | null;
     matchNotes: string | null;
@@ -27,29 +23,13 @@ type DraftResponse = {
   rawExpression?: {
     brand?: string;
     name: string;
-    releaseSeries?: string;
-    bottlerKind?: string;
-    whiskyType?: string;
+    distilleryName?: string;
+    bottlerName?: string;
     country?: string;
-    region?: string;
     abv?: number;
     ageStatement?: number;
-    vintageYear?: number;
-    distilledYear?: number;
-    bottledYear?: number;
-    volumeMl?: number;
-    caskType?: string;
-    caskNumber?: string;
-    bottleNumber?: number;
-    outturn?: number;
     barcode?: string;
-    peatLevel?: string;
-    caskInfluence?: string;
-    isNas?: boolean;
-    isChillFiltered?: boolean;
-    isNaturalColor?: boolean;
-    isLimited?: boolean;
-    flavorTags?: string[];
+    tags?: string[];
     description?: string;
   };
   distilleryName?: string;
@@ -62,34 +42,13 @@ type DraftResponse = {
   expression: {
     brand?: string;
     name: string;
-    releaseSeries?: string;
-    bottlerKind?: "official" | "independent";
-    whiskyType?:
-      | "single-malt"
-      | "blended-malt"
-      | "blended-scotch"
-      | "single-grain"
-      | "world-single-malt";
+    distilleryName?: string;
+    bottlerName?: string;
     country?: string;
-    region?: string;
     abv?: number;
     ageStatement?: number;
-    vintageYear?: number;
-    distilledYear?: number;
-    bottledYear?: number;
-    volumeMl?: number;
-    caskType?: string;
-    caskNumber?: string;
-    bottleNumber?: number;
-    outturn?: number;
     barcode?: string;
-    peatLevel?: "unpeated" | "light" | "medium" | "heavily-peated";
-    caskInfluence?: "bourbon" | "sherry" | "wine" | "rum" | "virgin-oak" | "mixed" | "refill";
-    isNas?: boolean;
-    isChillFiltered?: boolean;
-    isNaturalColor?: boolean;
-    isLimited?: boolean;
-    flavorTags?: string[];
+    tags?: string[];
     description?: string;
   };
   suggestions: Array<{
@@ -125,10 +84,6 @@ function parseFlavorTags(value: FormDataEntryValue | null) {
     .split(",")
     .map((tag) => tag.trim())
     .filter(Boolean);
-}
-
-function parseToggle(value: FormDataEntryValue | null) {
-  return value !== null;
 }
 
 async function readResponseMessage(response: Response, fallback: string) {
@@ -241,7 +196,7 @@ export function AddBottleForm() {
       setDraft(payload);
       setNotice({
         tone: "success",
-        text: "Barcode lookup finished. Review the detected release fields and save when ready."
+        text: "Barcode lookup finished. Review the detected bottle and save when ready."
       });
     } catch (error) {
       setNotice({
@@ -260,9 +215,7 @@ export function AddBottleForm() {
     const formData = new FormData(event.currentTarget);
     const file = formData.get("photo");
     const fileName =
-      file instanceof File && file.size > 0
-        ? file.name
-        : String(formData.get("fileName") ?? "").trim();
+      file instanceof File && file.size > 0 ? file.name : String(formData.get("fileName") ?? "").trim();
 
     if (!fileName) {
       setNotice({
@@ -278,9 +231,7 @@ export function AddBottleForm() {
       const imageMimeType =
         file instanceof File && file.size > 0 ? file.type || "image/jpeg" : previewMimeType;
       const imageDataUrl =
-        file instanceof File && file.size > 0
-          ? await fileToDataUrl(file)
-          : previewUrl || undefined;
+        file instanceof File && file.size > 0 ? await fileToDataUrl(file) : previewUrl || undefined;
 
       if (imageDataUrl) {
         setPreviewUrl(imageDataUrl);
@@ -312,7 +263,7 @@ export function AddBottleForm() {
       setDraft(payload);
       setNotice({
         tone: "success",
-        text: "Photo intake finished. All detected bottle fields are now editable below."
+        text: "Photo intake finished. The detected bottle fields are now editable below."
       });
     } catch (error) {
       setNotice({
@@ -339,35 +290,15 @@ export function AddBottleForm() {
       bottlerName: String(formData.get("bottlerName") ?? "").trim(),
       brand: String(formData.get("brand") ?? "").trim() || undefined,
       name: String(formData.get("name") ?? "").trim(),
-      releaseSeries: String(formData.get("releaseSeries") ?? "").trim() || undefined,
-      bottlerKind: String(formData.get("bottlerKind") ?? "") || undefined,
-      whiskyType: String(formData.get("whiskyType") ?? "") || undefined,
       country: String(formData.get("country") ?? "").trim(),
-      region: String(formData.get("region") ?? "").trim(),
       abv: parseNumber(formData.get("abv")),
       ageStatement: parseNumber(formData.get("ageStatement")),
-      vintageYear: parseNumber(formData.get("vintageYear")),
-      distilledYear: parseNumber(formData.get("distilledYear")),
-      bottledYear: parseNumber(formData.get("bottledYear")),
-      volumeMl: parseNumber(formData.get("volumeMl")),
-      caskType: String(formData.get("caskType") ?? "").trim() || undefined,
-      caskNumber: String(formData.get("caskNumber") ?? "").trim() || undefined,
-      bottleNumber: parseNumber(formData.get("bottleNumber")),
-      outturn: parseNumber(formData.get("outturn")),
       barcode: String(formData.get("barcode") ?? "").trim() || undefined,
-      peatLevel: String(formData.get("peatLevel") ?? "") || undefined,
-      caskInfluence: String(formData.get("caskInfluence") ?? "") || undefined,
-      isNas: parseToggle(formData.get("isNas")) || parseNumber(formData.get("ageStatement")) === undefined,
-      isChillFiltered: parseToggle(formData.get("isChillFiltered")),
-      isNaturalColor: parseToggle(formData.get("isNaturalColor")),
-      isLimited: parseToggle(formData.get("isLimited")),
-      flavorTags: parseFlavorTags(formData.get("flavorTags")),
+      tags: parseFlavorTags(formData.get("tags")),
       description: String(formData.get("description") ?? "").trim() || undefined,
       status: String(formData.get("status") ?? "owned"),
       fillState: String(formData.get("fillState") ?? "sealed"),
-      purchaseCurrency: String(formData.get("purchaseCurrency") ?? "ZAR")
-        .trim()
-        .toUpperCase(),
+      purchaseCurrency: String(formData.get("purchaseCurrency") ?? "ZAR").trim().toUpperCase(),
       purchasePrice: parseNumber(formData.get("purchasePrice")),
       purchaseDate: String(formData.get("purchaseDate") ?? "") || undefined,
       purchaseSource: String(formData.get("purchaseSource") ?? "").trim() || undefined,
@@ -508,10 +439,11 @@ export function AddBottleForm() {
 
         {draft ? (
           <>
-              <div className="status-note status-note-info">
-                Source: {draft.source}
-                {draft.barcode ? ` | Barcode ${draft.barcode}` : ""}
-              </div>
+            <div className="status-note status-note-info">
+              Source: {draft.source}
+              {draft.barcode ? ` | Barcode ${draft.barcode}` : ""}
+            </div>
+
             {draft.identification ? (
               <div className="review-panel">
                 <div className="section-title">
@@ -532,21 +464,15 @@ export function AddBottleForm() {
                     </div>
                     <p className="muted">
                       {draft.identification.brand ?? "Brand not confirmed"}
-                      {draft.identification.distilleryName ? ` · ${draft.identification.distilleryName}` : ""}
-                      {draft.identification.bottlerName ? ` · ${draft.identification.bottlerName}` : ""}
+                      {draft.identification.distilleryName ? ` - ${draft.identification.distilleryName}` : ""}
+                      {draft.identification.bottlerName ? ` - ${draft.identification.bottlerName}` : ""}
                     </p>
                     {draft.identification.matchNotes ? <p>{draft.identification.matchNotes}</p> : null}
-                    <div className="pill-row">
-                      {draft.identification.releaseSeries ? (
-                        <span className="pill">{draft.identification.releaseSeries}</span>
-                      ) : null}
-                      {draft.identification.caskType ? <span className="pill">{draft.identification.caskType}</span> : null}
-                      {draft.identification.whiskyType ? <span className="pill">{draft.identification.whiskyType}</span> : null}
-                    </div>
                   </article>
                 </div>
               </div>
             ) : null}
+
             <div className="pill-row">
               {draft.suggestions.map((suggestion) => (
                 <span className="pill" key={suggestion.field}>
@@ -576,8 +502,7 @@ export function AddBottleForm() {
                           Raw: <span className="review-value">{String(item.rawValue ?? "Not set")}</span>
                         </p>
                         <p>
-                          Suggested:{" "}
-                          <span className="review-value">{String(item.suggestedValue ?? "Not set")}</span>
+                          Suggested: <span className="review-value">{String(item.suggestedValue ?? "Not set")}</span>
                         </p>
                         {item.note ? <p className="muted">{item.note}</p> : null}
                       </article>
@@ -593,7 +518,7 @@ export function AddBottleForm() {
             <form className="form-grid" key={draft.draftId} onSubmit={handleSave}>
               <div className="field full-span form-section-title">
                 <label>Identity</label>
-                <p>Core release fields that define the bottle and its bottling context.</p>
+                <p>Flat bottle identity fields that remain editable before save.</p>
               </div>
               <div className="field">
                 <label htmlFor="distilleryName">Distillery</label>
@@ -606,10 +531,10 @@ export function AddBottleForm() {
               <div className="field">
                 <label htmlFor="brand">Brand</label>
                 <input
-                  defaultValue={draft.expression.brand}
+                  defaultValue={draft.expression.brand ?? ""}
                   id="brand"
                   name="brand"
-                  placeholder="Label brand or series name"
+                  placeholder="Label brand or house name"
                 />
               </div>
               <div className="field full-span">
@@ -617,49 +542,17 @@ export function AddBottleForm() {
                 <input defaultValue={draft.expression.name} id="name" name="name" required />
               </div>
               <div className="field">
-                <label htmlFor="bottlerKind">Bottler kind</label>
-                <select defaultValue={draft.expression.bottlerKind ?? ""} id="bottlerKind" name="bottlerKind">
-                  <option value="">Select bottler kind</option>
-                  <option value="official">Official bottler</option>
-                  <option value="independent">Independent bottler</option>
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor="releaseSeries">Release series</label>
-                <input
-                  defaultValue={draft.expression.releaseSeries}
-                  id="releaseSeries"
-                  name="releaseSeries"
-                  placeholder="Solist, Cask Strength Collection, Special Release"
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="whiskyType">Whisky type</label>
-                <select defaultValue={draft.expression.whiskyType ?? ""} id="whiskyType" name="whiskyType">
-                  <option value="">Select whisky type</option>
-                  <option value="single-malt">Single malt</option>
-                  <option value="blended-malt">Blended malt</option>
-                  <option value="blended-scotch">Blended Scotch</option>
-                  <option value="single-grain">Single grain</option>
-                  <option value="world-single-malt">World single malt</option>
-                </select>
-              </div>
-              <div className="field">
                 <label htmlFor="barcode">Barcode</label>
-                <input defaultValue={draft.expression.barcode ?? draft.barcode} id="barcode" name="barcode" />
+                <input defaultValue={draft.expression.barcode ?? draft.barcode ?? ""} id="barcode" name="barcode" />
               </div>
 
               <div className="field full-span form-section-title">
                 <label>Specs</label>
-                <p>Collector fields for region, maturation, vintage, and batch details.</p>
+                <p>Collector fields for country, strength, tags, and short description.</p>
               </div>
               <div className="field">
                 <label htmlFor="country">Country</label>
-                <input defaultValue={draft.expression.country} id="country" name="country" required />
-              </div>
-              <div className="field">
-                <label htmlFor="region">Region</label>
-                <input defaultValue={draft.expression.region} id="region" name="region" />
+                <input defaultValue={draft.expression.country ?? ""} id="country" name="country" required />
               </div>
               <div className="field">
                 <label htmlFor="abv">ABV</label>
@@ -676,115 +569,20 @@ export function AddBottleForm() {
                   type="number"
                 />
               </div>
-              <div className="field">
-                <label htmlFor="volumeMl">Bottle size (ml)</label>
-                <input
-                  defaultValue={draft.expression.volumeMl}
-                  id="volumeMl"
-                  min={0}
-                  name="volumeMl"
-                  placeholder="700"
-                  type="number"
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="vintageYear">Vintage year</label>
-                <input defaultValue={draft.expression.vintageYear} id="vintageYear" name="vintageYear" type="number" />
-              </div>
-              <div className="field">
-                <label htmlFor="distilledYear">Distilled year</label>
-                <input defaultValue={draft.expression.distilledYear} id="distilledYear" name="distilledYear" type="number" />
-              </div>
-              <div className="field">
-                <label htmlFor="bottledYear">Bottled year</label>
-                <input defaultValue={draft.expression.bottledYear} id="bottledYear" name="bottledYear" type="number" />
-              </div>
-              <div className="field">
-                <label htmlFor="outturn">Outturn</label>
-                <input defaultValue={draft.expression.outturn} id="outturn" min={0} name="outturn" placeholder="642" type="number" />
-              </div>
-              <div className="field">
-                <label htmlFor="caskType">Cask type</label>
-                <input defaultValue={draft.expression.caskType} id="caskType" name="caskType" />
-              </div>
-              <div className="field">
-                <label htmlFor="caskNumber">Cask number</label>
-                <input defaultValue={draft.expression.caskNumber} id="caskNumber" name="caskNumber" />
-              </div>
-              <div className="field">
-                <label htmlFor="bottleNumber">Bottle number</label>
-                <input defaultValue={draft.expression.bottleNumber} id="bottleNumber" min={0} name="bottleNumber" type="number" />
-              </div>
-              <div className="field">
-                <label htmlFor="peatLevel">Peat level</label>
-                <select defaultValue={draft.expression.peatLevel ?? ""} id="peatLevel" name="peatLevel">
-                  <option value="">Select a peat level</option>
-                  <option value="unpeated">Unpeated</option>
-                  <option value="light">Light</option>
-                  <option value="medium">Medium</option>
-                  <option value="heavily-peated">Heavily peated</option>
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor="caskInfluence">Cask influence</label>
-                <select defaultValue={draft.expression.caskInfluence ?? ""} id="caskInfluence" name="caskInfluence">
-                  <option value="">Select a cask influence</option>
-                  <option value="bourbon">Bourbon</option>
-                  <option value="sherry">Sherry</option>
-                  <option value="wine">Wine</option>
-                  <option value="rum">Rum</option>
-                  <option value="virgin-oak">Virgin oak</option>
-                  <option value="mixed">Mixed</option>
-                  <option value="refill">Refill</option>
-                </select>
-              </div>
-              <div className="field">
-                <label className="checkbox-label" htmlFor="isNas">
-                  <input defaultChecked={draft.expression.isNas} id="isNas" name="isNas" type="checkbox" />
-                  NAS
-                </label>
-              </div>
-              <div className="field">
-                <label className="checkbox-label" htmlFor="isChillFiltered">
-                  <input
-                    defaultChecked={draft.expression.isChillFiltered}
-                    id="isChillFiltered"
-                    name="isChillFiltered"
-                    type="checkbox"
-                  />
-                  Chill filtered
-                </label>
-              </div>
-              <div className="field">
-                <label className="checkbox-label" htmlFor="isNaturalColor">
-                  <input
-                    defaultChecked={draft.expression.isNaturalColor}
-                    id="isNaturalColor"
-                    name="isNaturalColor"
-                    type="checkbox"
-                  />
-                  Natural color
-                </label>
-              </div>
-              <div className="field">
-                <label className="checkbox-label" htmlFor="isLimited">
-                  <input defaultChecked={draft.expression.isLimited} id="isLimited" name="isLimited" type="checkbox" />
-                  Limited release
-                </label>
-              </div>
               <div className="field full-span">
-                <label htmlFor="flavorTags">Flavor tags</label>
+                <label htmlFor="tags">Tags</label>
                 <input
-                  defaultValue={(draft.expression.flavorTags ?? []).join(", ")}
-                  id="flavorTags"
-                  name="flavorTags"
-                  placeholder="smoke, citrus, malt, dried-fruit"
+                  defaultValue={(draft.expression.tags ?? []).join(", ")}
+                  id="tags"
+                  name="tags"
+                  placeholder="single-malt, sherry-cask, peated, limited, spicy, dried-fruit"
                 />
+                <p className="muted">Comma-separated. AI fills these automatically, and you can adjust them before save.</p>
               </div>
               <div className="field full-span">
                 <label htmlFor="description">Bottle description</label>
                 <textarea
-                  defaultValue={draft.expression.description}
+                  defaultValue={draft.expression.description ?? ""}
                   id="description"
                   name="description"
                   placeholder="Short summary of the release or what stands out."
@@ -833,14 +631,14 @@ export function AddBottleForm() {
               </div>
               <div className="field full-span">
                 <label htmlFor="personalNotes">Personal note</label>
-                <textarea
-                  id="personalNotes"
-                  name="personalNotes"
-                  placeholder="Why this bottle matters to you"
-                />
+                <textarea id="personalNotes" name="personalNotes" placeholder="Why this bottle matters to you" />
               </div>
               <div className="field full-span">
-                <button className={`button${busyAction === "save" ? " button-active" : ""}`} disabled={isBusy} type="submit">
+                <button
+                  className={`button${busyAction === "save" ? " button-active" : ""}`}
+                  disabled={isBusy}
+                  type="submit"
+                >
                   {renderButtonLabel("Save bottle", busyAction === "save")}
                 </button>
               </div>

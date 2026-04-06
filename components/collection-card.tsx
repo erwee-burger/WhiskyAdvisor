@@ -2,6 +2,7 @@ import Image from "next/image";
 
 import { PendingLink } from "@/components/navigation-feedback";
 import { getBottleDisplayImage } from "@/lib/bottle-image";
+import { getCaskStyleTags, getPeatTag, isIndependentBottler, isLimited, isNas } from "@/lib/tags";
 import type { CollectionViewItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -12,15 +13,20 @@ export function CollectionCard({
   entry: CollectionViewItem;
   interactive?: boolean;
 }) {
-  const currentPrice = entry.priceSnapshot?.retail;
-  const subtitleParts = [entry.expression.brand, entry.distillery.name, entry.bottler.name]
+  const subtitleParts = [entry.expression.brand, entry.expression.distilleryName, entry.expression.bottlerName]
     .filter(Boolean)
     .map((value) => String(value).trim());
   const subtitle = Array.from(new Set(subtitleParts)).join(" / ");
-  const retailRange = currentPrice
-    ? `${formatCurrency(currentPrice.low, currentPrice.currency)} - ${formatCurrency(currentPrice.high, currentPrice.currency)}`
-    : "No web pricing yet";
   const bottleImage = getBottleDisplayImage(entry.expression.name, entry.images);
+  const highlightTags = [
+    getPeatTag(entry.expression.tags),
+    ...getCaskStyleTags(entry.expression.tags).slice(0, 2),
+    isIndependentBottler(entry.expression.tags) ? "independent-bottler" : null,
+    isNas(entry.expression.tags) ? "nas" : null,
+    isLimited(entry.expression.tags) ? "limited" : null
+  ]
+    .filter(Boolean)
+    .map((tag) => String(tag));
 
   return (
     <PendingLink
@@ -53,19 +59,21 @@ export function CollectionCard({
           <span className="shelf-popup-status">{entry.item.fillState}</span>
         </div>
         <div className="pill-row">
-          <span className="pill">Peat {entry.expression.peatLevel}</span>
-          <span className="pill">Cask {entry.expression.caskInfluence}</span>
-          <span className="pill">{entry.expression.bottlerKind}</span>
-          {entry.expression.volumeMl ? <span className="pill">{entry.expression.volumeMl}ml</span> : null}
-          {entry.expression.isLimited ? <span className="pill">Limited</span> : null}
-          {entry.expression.releaseSeries ? <span className="pill">{entry.expression.releaseSeries}</span> : null}
+          {highlightTags.length > 0 ? (
+            highlightTags.map((tag) => (
+              <span className="pill" key={tag}>
+                {tag}
+              </span>
+            ))
+          ) : (
+            <span className="pill">No tags yet</span>
+          )}
         </div>
         <p className="shelf-popup-text">
           {entry.item.purchasePrice
             ? `Paid ${formatCurrency(entry.item.purchasePrice, entry.item.purchaseCurrency)}`
             : "Purchase price not saved"}
         </p>
-        <p className="shelf-popup-text">Retail now {retailRange}</p>
         <p className="shelf-popup-link">Open bottle record</p>
       </div>
     </PendingLink>

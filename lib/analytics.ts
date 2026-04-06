@@ -1,6 +1,5 @@
 import type { CollectionAnalytics, CollectionViewItem } from "@/lib/types";
 import { convertToZar } from "@/lib/currency";
-import { sum } from "@/lib/utils";
 import {
   getPeatTag,
   isNas,
@@ -25,6 +24,15 @@ export function buildCollectionAnalytics(items: CollectionViewItem[]): Collectio
   const distilleryCounts = countBy(ownedItems.map(({ expression }) => expression.distilleryName ?? "Unknown").filter((d): d is string => Boolean(d)));
   const bottlerCounts = countBy(ownedItems.map(({ expression }) => expression.bottlerName ?? "Unknown").filter((b): b is string => Boolean(b)));
   const ratings = countBy(tastingEntries.map((entry) => String(entry.rating)));
+  const volumeEntries = ownedItems
+    .map(({ expression }) => expression.volumeMl)
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  const paidTotal = ownedItems.reduce(
+    (sumValue, entry) => sumValue + convertToZar(entry.item.purchasePrice ?? 0, entry.item.purchaseCurrency ?? "ZAR"),
+    0
+  );
+  const marketLow = paidTotal;
+  const marketHigh = paidTotal;
 
   return {
     totals: {
@@ -39,7 +47,9 @@ export function buildCollectionAnalytics(items: CollectionViewItem[]): Collectio
       nas: ownedItems.filter(({ expression }) => isNas(expression.tags)).length,
       limited: ownedItems.filter(({ expression }) => isLimited(expression.tags)).length,
       chillFiltered: ownedItems.filter(({ expression }) => isChillFiltered(expression.tags)).length,
-      naturalColor: ownedItems.filter(({ expression }) => isNaturalColour(expression.tags)).length
+      naturalColor: ownedItems.filter(({ expression }) => isNaturalColour(expression.tags)).length,
+      averageVolumeMl: volumeEntries.length > 0 ? Math.round(volumeEntries.reduce((sumValue, value) => sumValue + value, 0) / volumeEntries.length) : null,
+      withVolume: volumeEntries.length
     },
     ratingDistribution: [1, 2, 3, 4, 5].map((rating) => ({
       rating,
@@ -61,6 +71,11 @@ export function buildCollectionAnalytics(items: CollectionViewItem[]): Collectio
     topBottlers: Object.entries(bottlerCounts)
       .map(([name, count]) => ({ name, count }))
       .sort((left, right) => right.count - left.count)
-      .slice(0, 5)
+      .slice(0, 5),
+    marketValue: {
+      paidTotalZar: paidTotal,
+      marketLowZar: marketLow,
+      marketHighZar: marketHigh
+    }
   };
 }

@@ -13,21 +13,25 @@ export async function POST(request: Request) {
 
     const draft = await createDraftFromBarcode(parsed.data.barcode);
     const view = await getDraftViewById(draft.id);
+    const response = view
+      ? {
+          ...view,
+          collectionItemId: draft.collectionItemId,
+          distilleryName: view.expression.distilleryName,
+          bottlerName: view.expression.bottlerName
+        }
+      : {
+          draftId: draft.id,
+          collectionItemId: draft.collectionItemId,
+          source: draft.source,
+          barcode: draft.barcode,
+          distilleryName: draft.expression.distilleryName,
+          bottlerName: draft.expression.bottlerName,
+          expression: draft.expression,
+          collection: draft.collection
+        };
 
-    return NextResponse.json(
-      view ?? {
-        draftId: draft.id,
-        matchedExpressionId: draft.matchedExpressionId,
-        source: draft.source,
-        barcode: draft.barcode,
-        identification: draft.identification,
-        rawExpression: draft.rawExpression,
-        expression: draft.expression,
-        suggestions: draft.suggestions,
-        reviewItems: draft.reviewItems,
-        citations: draft.citations
-      }
-    );
+    return NextResponse.json(response);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Barcode lookup failed." },

@@ -1,11 +1,11 @@
 import { StatCard } from "@/components/stat-card";
 import { getAnalytics } from "@/lib/repository";
-import { formatCurrency } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
   const analytics = await getAnalytics();
+  const tastingNotesCount = analytics.ratingDistribution.reduce((total, entry) => total + entry.count, 0);
 
   return (
     <div className="page">
@@ -14,7 +14,7 @@ export default async function AnalyticsPage() {
         <h1>See the shape of your whisky collection.</h1>
         <p>
           Understand where your shelf leans, how much smoke dominates it, who your favorite bottlers
-          are, and how your paid prices compare to the market.
+          are, and which tags and regions keep surfacing in your collection.
         </p>
       </section>
 
@@ -40,10 +40,7 @@ export default async function AnalyticsPage() {
           <StatCard label="Limited" value={String(analytics.bottleProfile.limited)} />
           <StatCard label="Chill filtered" value={String(analytics.bottleProfile.chillFiltered)} />
           <StatCard label="Natural color" value={String(analytics.bottleProfile.naturalColor)} />
-          <StatCard
-            label="Avg bottle size"
-            value={analytics.bottleProfile.averageVolumeMl ? `${analytics.bottleProfile.averageVolumeMl} ml` : "Not set"}
-          />
+          <StatCard label="Tasting notes" value={String(tastingNotesCount)} />
         </div>
       </section>
 
@@ -73,8 +70,8 @@ export default async function AnalyticsPage() {
           </div>
           <div className="card-list">
             {analytics.peatProfile.map((entry) => (
-              <div className="advisor-card" key={entry.peatLevel}>
-                <strong>{entry.peatLevel}</strong>
+              <div className="advisor-card" key={entry.tag}>
+                <strong>{entry.tag}</strong>
                 <p className="muted">{entry.count} bottles</p>
               </div>
             ))}
@@ -136,18 +133,15 @@ export default async function AnalyticsPage() {
       <section className="panel">
         <div className="section-title">
           <div>
-            <h2>Value view</h2>
-            <p>High-level spend and market range in ZAR.</p>
+            <h2>Shelf leaders</h2>
+            <p>The most common anchors in your current collection.</p>
           </div>
         </div>
         <div className="stats-grid">
-          <StatCard label="Paid total" value={formatCurrency(analytics.marketValue.paidTotalZar)} />
-          <StatCard label="Market low" value={formatCurrency(analytics.marketValue.marketLowZar)} />
-          <StatCard label="Market high" value={formatCurrency(analytics.marketValue.marketHighZar)} />
-          <StatCard
-            label="Potential swing"
-            value={formatCurrency(analytics.marketValue.marketHighZar - analytics.marketValue.paidTotalZar)}
-          />
+          <StatCard label="Top region" value={analytics.regionSplit[0]?.region ?? "None yet"} />
+          <StatCard label="Top peat" value={analytics.peatProfile[0]?.tag ?? "None yet"} />
+          <StatCard label="Top distillery" value={analytics.topDistilleries[0]?.name ?? "None yet"} />
+          <StatCard label="Top bottler" value={analytics.topBottlers[0]?.name ?? "None yet"} />
         </div>
       </section>
     </div>

@@ -4,7 +4,6 @@ import { ProfileCard } from "@/components/profile-card";
 import { PendingLink } from "@/components/navigation-feedback";
 import { StatCard } from "@/components/stat-card";
 import { getDashboardData } from "@/lib/repository";
-import { formatCurrency } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +16,8 @@ export default async function DashboardPage() {
         <p className="eyebrow">Whisky Collection Intelligence</p>
         <h1>Your cellar, your palate, your own advisor.</h1>
         <p>
-          Capture bottles, track official and independent releases, compare what you paid to what the
-          market says now, and build a profile that actually reflects how you drink whisky.
+          Capture bottles, track official and independent releases, and build a profile that actually
+          reflects how you drink whisky.
         </p>
         <div className="hero-actions">
           <PendingLink className="button" href="/add">
@@ -34,18 +33,14 @@ export default async function DashboardPage() {
         <div className="section-title">
           <div>
             <h2>Collection snapshot</h2>
-            <p>Quick signal on your shelf, wishlist, and current market range.</p>
+            <p>Quick signal on your shelf, wishlist, and current bottle state.</p>
           </div>
         </div>
         <div className="stats-grid">
           <StatCard label="Owned" value={String(analytics.totals.owned)} hint="Bottles currently on your shelf." />
           <StatCard label="Wishlist" value={String(analytics.totals.wishlist)} hint="Future targets to hunt down." />
-          <StatCard label="Paid total" value={formatCurrency(analytics.marketValue.paidTotalZar)} hint="Normalized to ZAR." />
-          <StatCard
-            label="Market range"
-            value={`${formatCurrency(analytics.marketValue.marketLowZar)} - ${formatCurrency(analytics.marketValue.marketHighZar)}`}
-            hint="Retail range across owned bottles."
-          />
+          <StatCard label="Open" value={String(analytics.totals.open)} hint="Bottles ready to pour." />
+          <StatCard label="Finished" value={String(analytics.totals.finished)} hint="Bottles that have already run dry." />
         </div>
       </section>
 
@@ -69,11 +64,9 @@ export default async function DashboardPage() {
             hint="Bottles flagged as limited releases."
           />
           <StatCard
-            label="Avg bottle size"
-            value={
-              analytics.bottleProfile.averageVolumeMl ? `${analytics.bottleProfile.averageVolumeMl} ml` : "Not set"
-            }
-            hint={`${analytics.bottleProfile.withVolume} owned bottles have volume recorded.`}
+            label="Chill filtered"
+            value={String(analytics.bottleProfile.chillFiltered)}
+            hint="Owned bottles marked as chill filtered."
           />
         </div>
       </section>

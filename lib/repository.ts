@@ -19,22 +19,6 @@ import type {
   WhiskyStore
 } from "@/lib/types";
 
-type DraftView = {
-  draftId: string;
-  source: string;
-  barcode?: string;
-  rawAiResponse?: {
-    identificationText?: string;
-    enrichmentText?: string;
-  };
-  expression: Partial<Expression> & Pick<Expression, "name">;
-  collection: {
-    status: CollectionStatus;
-    fillState: FillState;
-    purchaseCurrency: string;
-  };
-};
-
 type BottleRecordPayload = {
   name: string;
   distilleryName?: string;
@@ -43,7 +27,26 @@ type BottleRecordPayload = {
   country?: string;
   abv?: number;
   ageStatement?: number;
+  releaseSeries?: string;
+  bottlerKind?: string;
+  whiskyType?: string;
+  region?: string;
+  volumeMl?: number;
+  vintageYear?: number;
+  distilledYear?: number;
+  bottledYear?: number;
+  caskType?: string;
+  caskNumber?: string;
+  bottleNumber?: number;
+  outturn?: number;
   barcode?: string;
+  peatLevel?: string;
+  caskInfluence?: string;
+  isNas?: boolean;
+  isChillFiltered?: boolean;
+  isNaturalColor?: boolean;
+  isLimited?: boolean;
+  flavorTags?: string[];
   description?: string;
   tags: string[];
   status: CollectionStatus;
@@ -115,7 +118,26 @@ function buildExpressionRecord(
     country: payload.country ?? baseExpression?.country,
     abv: payload.abv ?? baseExpression?.abv,
     ageStatement: payload.ageStatement ?? baseExpression?.ageStatement,
+    releaseSeries: payload.releaseSeries ?? baseExpression?.releaseSeries,
+    bottlerKind: payload.bottlerKind ?? baseExpression?.bottlerKind,
+    whiskyType: payload.whiskyType ?? baseExpression?.whiskyType,
+    region: payload.region ?? baseExpression?.region,
+    volumeMl: payload.volumeMl ?? baseExpression?.volumeMl,
+    vintageYear: payload.vintageYear ?? baseExpression?.vintageYear,
+    distilledYear: payload.distilledYear ?? baseExpression?.distilledYear,
+    bottledYear: payload.bottledYear ?? baseExpression?.bottledYear,
+    caskType: payload.caskType ?? baseExpression?.caskType,
+    caskNumber: payload.caskNumber ?? baseExpression?.caskNumber,
+    bottleNumber: payload.bottleNumber ?? baseExpression?.bottleNumber,
+    outturn: payload.outturn ?? baseExpression?.outturn,
     barcode: payload.barcode ?? baseExpression?.barcode,
+    peatLevel: payload.peatLevel ?? baseExpression?.peatLevel,
+    caskInfluence: payload.caskInfluence ?? baseExpression?.caskInfluence,
+    isNas: payload.isNas ?? baseExpression?.isNas,
+    isChillFiltered: payload.isChillFiltered ?? baseExpression?.isChillFiltered,
+    isNaturalColor: payload.isNaturalColor ?? baseExpression?.isNaturalColor,
+    isLimited: payload.isLimited ?? baseExpression?.isLimited,
+    flavorTags: payload.flavorTags ?? baseExpression?.flavorTags,
     description: payload.description ?? baseExpression?.description,
     imageUrl: baseExpression?.imageUrl,
     tags: payload.tags.length > 0 ? payload.tags : (baseExpression?.tags ?? [])
@@ -172,7 +194,24 @@ export async function getCollectionView(): Promise<CollectionViewItem[]> {
           t.tastedAt > latest.tastedAt ? t : latest
         )
       : undefined;
-    return { item, expression, tastingEntries, latestTasting, images };
+    return {
+      item,
+      expression,
+      tastingEntries,
+      latestTasting,
+      images,
+      distillery: expression.distilleryName ? { name: expression.distilleryName } : undefined,
+      bottler: expression.bottlerName ? { name: expression.bottlerName } : undefined,
+      priceSnapshot: item.purchasePrice
+        ? {
+            retail: {
+              low: item.purchasePrice,
+              high: item.purchasePrice,
+              currency: item.purchaseCurrency ?? "ZAR"
+            }
+          }
+        : undefined
+    };
   });
 }
 
@@ -404,6 +443,29 @@ export async function addTastingEntry(
   item.updatedAt = new Date().toISOString();
   await writeStore(store);
   return entry;
+}
+
+export async function getPricing(itemId: string) {
+  const item = await getItemById(itemId);
+  if (!item) return null;
+
+  const price = item.item.purchasePrice ?? 0;
+  const currency = item.item.purchaseCurrency ?? "ZAR";
+
+  return {
+    itemId,
+    cachedAt: new Date().toISOString(),
+    retail: price
+      ? { low: price, high: price, currency }
+      : null,
+    auction: price
+      ? { low: price, high: price, currency }
+      : null
+  };
+}
+
+export async function refreshPricing(itemId: string) {
+  return getPricing(itemId);
 }
 
 export async function getAnalytics() {

@@ -7,16 +7,347 @@ import {
   readStoreFromSupabase,
   writeStoreToSupabase
 } from "@/lib/supabase-store";
-import type { WhiskyStore } from "@/lib/types";
+import type { CollectionItem, Expression, IntakeDraft, WhiskyStore } from "@/lib/types";
 
 const dataDir = path.join(process.cwd(), "data");
 const storePath = path.join(dataDir, "mock-store.json");
+const fallbackTimestamp = "2026-04-05T09:00:00.000Z";
+
+function normalizeTag(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function toLegacyTags(expression: Record<string, unknown>, flavorTags: unknown) {
+  const tags = new Set<string>();
+  const add = (value?: string | null) => {
+    if (!value) return;
+    const normalized = normalizeTag(value);
+    if (normalized) {
+      tags.add(normalized);
+    }
+  };
+
+  add(typeof expression.whiskyType === "string" ? expression.whiskyType : null);
+  add(typeof expression.peatLevel === "string" ? expression.peatLevel : null);
+
+  const caskInfluence = typeof expression.caskInfluence === "string" ? expression.caskInfluence : null;
+  if (caskInfluence === "bourbon") add("bourbon-cask");
+  if (caskInfluence === "sherry") add("sherry-cask");
+  if (caskInfluence === "wine") add("wine-cask");
+  if (caskInfluence === "rum") add("rum-cask");
+  if (caskInfluence === "virgin-oak") add("virgin-oak");
+  if (caskInfluence === "mixed") add("mixed-cask");
+  if (caskInfluence === "refill") add("refill-cask");
+
+  if (expression.bottlerKind === "independent") add("independent-bottler");
+  if (expression.isNas === true) add("nas");
+  if (expression.isLimited === true) add("limited");
+  if (expression.isNaturalColor === true) add("natural-colour");
+  if (expression.isChillFiltered === true) add("chill-filtered");
+
+  add(typeof expression.releaseSeries === "string" ? expression.releaseSeries : null);
+  add(typeof expression.caskType === "string" ? expression.caskType : null);
+  add(
+    typeof expression.vintageYear === "number" || typeof expression.vintageYear === "string"
+      ? `${expression.vintageYear}-vintage`
+      : null
+  );
+  add(
+    typeof expression.distilledYear === "number" || typeof expression.distilledYear === "string"
+      ? `${expression.distilledYear}-distilled`
+      : null
+  );
+  add(
+    typeof expression.bottledYear === "number" || typeof expression.bottledYear === "string"
+      ? `${expression.bottledYear}-bottled`
+      : null
+  );
+  add(
+    typeof expression.volumeMl === "number" || typeof expression.volumeMl === "string"
+      ? `${expression.volumeMl}ml`
+      : null
+  );
+  add(
+    typeof expression.bottleNumber === "number" || typeof expression.bottleNumber === "string"
+      ? `bottle-${expression.bottleNumber}`
+      : null
+  );
+  add(
+    typeof expression.outturn === "number" || typeof expression.outturn === "string"
+      ? `outturn-${expression.outturn}`
+      : null
+  );
+  add(
+    typeof expression.caskNumber === "string" && expression.caskNumber
+      ? `cask-${expression.caskNumber}`
+      : null
+  );
+
+  if (Array.isArray(flavorTags)) {
+    for (const tag of flavorTags) {
+      add(typeof tag === "string" ? tag : null);
+    }
+  }
+
+  return [...tags];
+}
+
+function toNumber(value: unknown) {
+  if (typeof value === "number") {
+    return Number.isNaN(value) ? undefined : value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }
+
+  return undefined;
+}
+
+function legacyExpressionToFlat(
+  expression: Record<string, unknown>,
+  distilleryName?: string,
+  bottlerName?: string
+): Expression {
+  const tags = toLegacyTags(expression, expression.flavorTags);
+
+  return {
+    id: String(expression.id),
+    name: String(expression.name ?? "Unknown whisky"),
+    distilleryName: distilleryName ?? (typeof expression.distilleryName === "string" ? expression.distilleryName : undefined),
+    bottlerName: bottlerName ?? (typeof expression.bottlerName === "string" ? expression.bottlerName : undefined),
+    brand: typeof expression.brand === "string" ? expression.brand : undefined,
+    country: typeof expression.country === "string" ? expression.country : undefined,
+    abv: typeof expression.abv === "number" ? expression.abv : Number(expression.abv ?? undefined) || undefined,
+    ageStatement:
+      typeof expression.ageStatement === "number"
+        ? expression.ageStatement
+        : Number(expression.ageStatement ?? undefined) || undefined,
+    barcode: typeof expression.barcode === "string" ? expression.barcode : undefined,
+    description: typeof expression.description === "string" ? expression.description : undefined,
+    imageUrl: typeof expression.imageUrl === "string" ? expression.imageUrl : undefined,
+    tags
+  };
+}
+
+function legacyDraftToFlat(
+  draft: Record<string, unknown>,
+  distilleryNames: Map<string, string>,
+  bottlerNames: Map<string, string>
+): IntakeDraft {
+  const legacyExpression = (draft.expression ?? {}) as Record<string, unknown>;
+  const legacyAiResponse =
+    draft["rawAiResponse"] && typeof draft["rawAiResponse"] === "object"
+      ? (draft["rawAiResponse"] as Record<string, unknown>)
+      : {};
+  const legacyCollection =
+    draft["collection"] && typeof draft["collection"] === "object" ? (draft["collection"] as Record<string, unknown>) : {};
+  const distilleryName =
+    typeof draft.distilleryName === "string"
+      ? draft.distilleryName
+      : typeof legacyExpression.distilleryName === "string"
+        ? legacyExpression.distilleryName
+        : typeof legacyExpression.distilleryId === "string"
+          ? distilleryNames.get(legacyExpression.distilleryId) ?? undefined
+          : undefined;
+  const bottlerName =
+    typeof draft.bottlerName === "string"
+      ? draft.bottlerName
+      : typeof legacyExpression.bottlerName === "string"
+        ? legacyExpression.bottlerName
+        : typeof legacyExpression.bottlerId === "string"
+          ? bottlerNames.get(legacyExpression.bottlerId) ?? undefined
+          : undefined;
+
+  return {
+    id: String(draft.id),
+    collectionItemId: String(draft.collectionItemId ?? draft.collection_item_id ?? `item_${draft.id}`),
+    source: (draft.source as IntakeDraft["source"]) ?? "photo",
+    barcode: typeof draft.barcode === "string" ? draft.barcode : undefined,
+    rawAiResponse: {
+      identificationText:
+        typeof legacyAiResponse["identificationText"] === "string"
+          ? legacyAiResponse["identificationText"]
+          : typeof draft["identification"] === "string"
+            ? String(draft["identification"])
+            : draft["identification"] && typeof draft["identification"] === "object"
+              ? JSON.stringify(draft["identification"])
+              : undefined,
+      enrichmentText:
+        typeof legacyAiResponse["enrichmentText"] === "string"
+          ? legacyAiResponse["enrichmentText"]
+          : draft["raw_expression"]
+            ? JSON.stringify(draft["raw_expression"])
+            : undefined
+    },
+    expression: {
+      name: String(legacyExpression.name ?? "Unknown whisky"),
+      distilleryName,
+      bottlerName,
+      brand: typeof legacyExpression.brand === "string" ? legacyExpression.brand : undefined,
+      country: typeof legacyExpression.country === "string" ? legacyExpression.country : undefined,
+      abv: typeof legacyExpression.abv === "number" ? legacyExpression.abv : Number(legacyExpression.abv ?? undefined) || undefined,
+      ageStatement:
+        typeof legacyExpression.ageStatement === "number"
+          ? legacyExpression.ageStatement
+          : Number(legacyExpression.ageStatement ?? undefined) || undefined,
+      barcode: typeof legacyExpression.barcode === "string" ? legacyExpression.barcode : undefined,
+      description: typeof legacyExpression.description === "string" ? legacyExpression.description : undefined,
+      tags: toLegacyTags(legacyExpression, legacyExpression.flavorTags)
+    },
+    collection: {
+      status: legacyCollection["status"] === "wishlist" ? "wishlist" : "owned",
+      fillState:
+        legacyCollection["fillState"] === "open" || legacyCollection["fillState"] === "finished"
+          ? (legacyCollection["fillState"] as CollectionItem["fillState"])
+          : "sealed",
+      purchaseCurrency: typeof legacyCollection["purchaseCurrency"] === "string" ? String(legacyCollection["purchaseCurrency"]) : "ZAR"
+    }
+  };
+}
+
+function isLegacyStore(store: Record<string, unknown>) {
+  return (
+    Array.isArray(store.distilleries) ||
+    Array.isArray(store.bottlers) ||
+    Array.isArray(store.citations) ||
+    Array.isArray(store.priceSnapshots) ||
+    (Array.isArray(store.expressions) &&
+      store.expressions.some((entry) => entry && typeof entry === "object" && "distilleryId" in entry))
+  );
+}
+
+function migrateLegacyStore(store: Record<string, unknown>): WhiskyStore {
+  const distilleries = Array.isArray(store.distilleries) ? store.distilleries : [];
+  const bottlers = Array.isArray(store.bottlers) ? store.bottlers : [];
+  const distilleryNames = new Map<string, string>();
+  const bottlerNames = new Map<string, string>();
+
+  for (const entry of distilleries) {
+    if (entry && typeof entry === "object" && typeof entry.id === "string" && typeof entry.name === "string") {
+      distilleryNames.set(entry.id, entry.name);
+    }
+  }
+
+  for (const entry of bottlers) {
+    if (entry && typeof entry === "object" && typeof entry.id === "string" && typeof entry.name === "string") {
+      bottlerNames.set(entry.id, entry.name);
+    }
+  }
+
+  const expressions = Array.isArray(store.expressions)
+    ? store.expressions.map((entry) => {
+        const legacyExpression = (entry ?? {}) as Record<string, unknown>;
+        const distilleryName =
+          typeof legacyExpression.distilleryName === "string"
+            ? legacyExpression.distilleryName
+            : typeof legacyExpression.distilleryId === "string"
+              ? distilleryNames.get(legacyExpression.distilleryId)
+              : undefined;
+        const bottlerName =
+          typeof legacyExpression.bottlerName === "string"
+            ? legacyExpression.bottlerName
+            : typeof legacyExpression.bottlerId === "string"
+              ? bottlerNames.get(legacyExpression.bottlerId)
+              : undefined;
+
+        return legacyExpressionToFlat(legacyExpression, distilleryName, bottlerName);
+      })
+    : [];
+
+  const collectionItems = Array.isArray(store.collectionItems)
+    ? store.collectionItems.map((entry): CollectionItem => ({
+        id: String(entry.id),
+        expressionId: String(entry.expressionId ?? entry.expression_id),
+        status: entry.status === "wishlist" ? "wishlist" : "owned",
+        fillState:
+          entry.fillState === "open" || entry.fill_state === "open"
+            ? "open"
+            : entry.fillState === "finished" || entry.fill_state === "finished"
+              ? "finished"
+              : "sealed",
+        purchasePrice: toNumber(entry.purchasePrice ?? entry.purchase_price),
+        purchaseCurrency:
+          typeof entry.purchaseCurrency === "string"
+            ? entry.purchaseCurrency
+            : typeof entry.purchase_currency === "string"
+              ? entry.purchase_currency
+              : "ZAR",
+        purchaseDate:
+          typeof entry.purchaseDate === "string"
+            ? entry.purchaseDate
+            : typeof entry.purchase_date === "string"
+              ? entry.purchase_date
+              : undefined,
+        purchaseSource:
+          typeof entry.purchaseSource === "string"
+            ? entry.purchaseSource
+            : typeof entry.purchase_source === "string"
+              ? entry.purchase_source
+              : undefined,
+        personalNotes:
+          typeof entry.personalNotes === "string"
+            ? entry.personalNotes
+            : typeof entry.personal_notes === "string"
+              ? entry.personal_notes
+              : undefined,
+        createdAt: typeof entry.createdAt === "string" ? entry.createdAt : fallbackTimestamp,
+        updatedAt: typeof entry.updatedAt === "string" ? entry.updatedAt : fallbackTimestamp
+      }))
+    : [];
+
+  const tastingEntries = Array.isArray(store.tastingEntries)
+    ? store.tastingEntries.map((entry) => ({
+        id: String(entry.id),
+        collectionItemId: String(entry.collectionItemId ?? entry.collection_item_id),
+        tastedAt: String(entry.tastedAt ?? entry.tasted_at ?? fallbackTimestamp),
+        nose: String(entry.nose ?? ""),
+        palate: String(entry.palate ?? ""),
+        finish: String(entry.finish ?? ""),
+        overallNote: String(entry.overallNote ?? entry.overall_note ?? ""),
+        rating: Number(entry.rating) as 1 | 2 | 3 | 4 | 5
+      }))
+    : [];
+
+  const itemImages = Array.isArray(store.itemImages)
+    ? store.itemImages.map((entry) => ({
+        id: String(entry.id),
+        collectionItemId: String(entry.collectionItemId ?? entry.collection_item_id),
+        kind: entry.kind === "back" || entry.kind === "detail" ? entry.kind : "front",
+        url: String(entry.url ?? ""),
+        label: typeof entry.label === "string" ? entry.label : undefined
+      }))
+    : [];
+
+  const drafts = Array.isArray(store.drafts)
+    ? store.drafts.map((draft) => legacyDraftToFlat((draft ?? {}) as Record<string, unknown>, distilleryNames, bottlerNames))
+    : [];
+
+  return {
+    expressions,
+    collectionItems,
+    tastingEntries,
+    itemImages,
+    drafts
+  };
+}
 
 async function ensureStoreFile() {
   await mkdir(dataDir, { recursive: true });
 
   try {
-    await readFile(storePath, "utf8");
+    const raw = await readFile(storePath, "utf8");
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+
+    if (isLegacyStore(parsed)) {
+      const migrated = migrateLegacyStore(parsed);
+      await writeFile(storePath, JSON.stringify(migrated, null, 2), "utf8");
+    }
   } catch {
     await writeStore(seedStore);
   }
@@ -29,7 +360,15 @@ export async function readStore() {
 
   await ensureStoreFile();
   const contents = await readFile(storePath, "utf8");
-  return JSON.parse(contents) as WhiskyStore;
+  const parsed = JSON.parse(contents) as Record<string, unknown>;
+
+  if (isLegacyStore(parsed)) {
+    const migrated = migrateLegacyStore(parsed);
+    await writeFile(storePath, JSON.stringify(migrated, null, 2), "utf8");
+    return migrated;
+  }
+
+  return parsed as unknown as WhiskyStore;
 }
 
 export async function writeStore(store: WhiskyStore) {
