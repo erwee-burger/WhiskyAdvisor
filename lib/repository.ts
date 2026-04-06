@@ -302,9 +302,20 @@ export async function saveDraftAsItem(draftId: string, payload: BottleRecordPayl
     });
   }
 
-  store.drafts.splice(draftIndex, 1);
-  await writeStore(store);
-  return collectionItem;
+  try {
+    // Write the new data first
+    await writeStore(store);
+
+    // Only remove the draft after write succeeds
+    store.drafts.splice(draftIndex, 1);
+
+    // Write again to persist the draft removal
+    await writeStore(store);
+
+    return collectionItem;
+  } catch (error) {
+    throw new Error(`Failed to save draft as item: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 export async function updateItem(itemId: string, payload: BottleRecordPayload) {
