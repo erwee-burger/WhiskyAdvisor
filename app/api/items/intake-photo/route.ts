@@ -21,6 +21,8 @@ export async function POST(request: Request) {
         barcode: draft.barcode,
         identification: draft.identification,
         rawExpression: draft.rawExpression,
+        distilleryName: draft.rawExpression?.distilleryName ?? draft.identification?.distilleryName,
+        bottlerName: draft.rawExpression?.bottlerName ?? draft.identification?.bottlerName,
         expression: draft.expression,
         suggestions: draft.suggestions,
         reviewItems: draft.reviewItems,

@@ -340,7 +340,7 @@ function normalizeEnumValue<T extends string>(
   return partialMatch?.mapped ?? fallback;
 }
 
-function toRawExpression(payload: ExtractedBottlePayload, fileName: string): IntakeRawExpression {
+function toRawExpression(payload: ExtractedBottlePayload, fileName: string, openAiRaw?: IntakeRawExpression["openAiRaw"]): IntakeRawExpression {
   return {
     distilleryName: normalizeText(payload.distilleryName),
     bottlerName: normalizeText(payload.bottlerName),
@@ -369,7 +369,8 @@ function toRawExpression(payload: ExtractedBottlePayload, fileName: string): Int
     isLimited: normalizeBoolean(payload.isLimited),
     isNas: normalizeBoolean(payload.isNas),
     flavorTags: normalizeFlavorTags(payload.flavorTags),
-    description: normalizeText(payload.description)
+    description: normalizeText(payload.description),
+    openAiRaw
   };
 }
 
@@ -379,8 +380,10 @@ function buildReviewItems(
 ): IntakeReviewItem[] {
   const items: IntakeReviewItem[] = [];
 
+  type ReviewableField = Exclude<keyof IntakeRawExpression, "openAiRaw">;
+
   const pushItem = (
-    field: keyof IntakeRawExpression,
+    field: ReviewableField,
     label: string,
     confidence: number,
     note?: string
@@ -437,8 +440,8 @@ function buildReviewItems(
   return items;
 }
 
-function normalizeAnalyzedBottle(payload: ExtractedBottlePayload, fileName: string) {
-  const rawExpression = toRawExpression(payload, fileName);
+function normalizeAnalyzedBottle(payload: ExtractedBottlePayload, fileName: string, openAiRaw?: IntakeRawExpression["openAiRaw"]) {
+  const rawExpression = toRawExpression(payload, fileName, openAiRaw);
   const mappedExpression = {
     distilleryName: rawExpression.distilleryName,
     bottlerName: rawExpression.bottlerName,
@@ -501,6 +504,7 @@ export async function identifyBottleImage(
     'Output format: {"identifiedName":null,"brand":null,"distilleryName":null,"bottlerName":null,"bottlerKind":null,"country":null,"ageStatement":null,"releaseSeries":null,"caskType":null,"whiskyType":null,"productMatchConfidence":null,"internetLookupUsed":null,"matchNotes":null}'
   ].join(" ");
 
+  void fileName;
   const payload = await callOpenAi(prompt, imageBase64, mimeType);
   const text = getResponseText(payload);
   const parsed = extractJson<BottleIdentificationPayload>(text);
@@ -509,7 +513,7 @@ export async function identifyBottleImage(
     return null;
   }
 
-  return normalizeIdentification(parsed);
+  return { identification: normalizeIdentification(parsed), identificationText: text };
 }
 
 function buildEnrichmentPrompt(identification: BottleIdentification | null) {
@@ -536,6 +540,7 @@ async function enrichBottleImage(
   fileName: string,
   imageBase64?: string,
   identification?: BottleIdentification | null,
+  identificationText?: string,
   mimeType = "image/jpeg"
 ) {
   if (!process.env.OPENAI_API_KEY || !imageBase64) {
@@ -551,7 +556,7 @@ async function enrichBottleImage(
     return null;
   }
 
-  return normalizeAnalyzedBottle(parsed, fileName);
+  return normalizeAnalyzedBottle(parsed, fileName, { identificationText, enrichmentText: text });
 }
 
 export async function analyzeBottleImage(
@@ -563,15 +568,21 @@ export async function analyzeBottleImage(
     return null;
   }
 
-  const identification = await identifyBottleImage(fileName, imageBase64, mimeType);
-  const payload = await enrichBottleImage(fileName, imageBase64, identification, mimeType);
+  const identifyResult = await identifyBottleImage(fileName, imageBase64, mimeType);
+  const payload = await enrichBottleImage(
+    fileName,
+    imageBase64,
+    identifyResult?.identification ?? null,
+    identifyResult?.identificationText,
+    mimeType
+  );
 
   if (!payload) {
     return null;
   }
 
   return {
-    identification,
+    identification: identifyResult?.identification ?? null,
     ...payload
   };
 }

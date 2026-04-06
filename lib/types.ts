@@ -217,6 +217,10 @@ export interface IntakeRawExpression {
   isNas?: boolean;
   flavorTags?: string[];
   description?: string;
+  openAiRaw?: {
+    identificationText?: string;
+    enrichmentText?: string;
+  };
 }
 
 export interface IntakeDraft {

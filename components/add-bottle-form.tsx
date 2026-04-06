@@ -597,11 +597,11 @@ export function AddBottleForm() {
               </div>
               <div className="field">
                 <label htmlFor="distilleryName">Distillery</label>
-                <input defaultValue={draft.distilleryName ?? ""} id="distilleryName" name="distilleryName" required />
+                <input defaultValue={draft.distilleryName ?? ""} id="distilleryName" name="distilleryName" />
               </div>
               <div className="field">
                 <label htmlFor="bottlerName">Bottler</label>
-                <input defaultValue={draft.bottlerName ?? ""} id="bottlerName" name="bottlerName" required />
+                <input defaultValue={draft.bottlerName ?? ""} id="bottlerName" name="bottlerName" />
               </div>
               <div className="field">
                 <label htmlFor="brand">Brand</label>
@@ -659,7 +659,7 @@ export function AddBottleForm() {
               </div>
               <div className="field">
                 <label htmlFor="region">Region</label>
-                <input defaultValue={draft.expression.region} id="region" name="region" required />
+                <input defaultValue={draft.expression.region} id="region" name="region" />
               </div>
               <div className="field">
                 <label htmlFor="abv">ABV</label>
