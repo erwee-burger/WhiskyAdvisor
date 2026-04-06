@@ -61,27 +61,41 @@ export default function NewsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   async function loadNews() {
     setLoading(true);
-    const res = await fetch("/api/news");
-    const data: NewsResponse = await res.json();
-    setSpecials(data.specials.map(toScoredItem));
-    setNewReleases(data.newReleases.map(toScoredItem));
-    setFetchedAt(data.fetchedAt);
-    setStale(data.stale);
-    setLoading(false);
+    setError(null);
+    try {
+      const res = await fetch("/api/news");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: NewsResponse = await res.json();
+      setSpecials(data.specials.map(toScoredItem));
+      setNewReleases(data.newReleases.map(toScoredItem));
+      setFetchedAt(data.fetchedAt);
+      setStale(data.stale);
+    } catch (err) {
+      setError("Couldn't load news right now. Try refreshing.");
+      console.error("[news page] loadNews failed:", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleRefresh() {
     setRefreshing(true);
     setRefreshMessage("");
     const timer = setTimeout(() => setRefreshMessage("Still fetching…"), 10000);
-    await fetch("/api/news/refresh", { method: "POST" });
-    clearTimeout(timer);
-    await loadNews();
-    setRefreshing(false);
-    setRefreshMessage("");
+    try {
+      await fetch("/api/news/refresh", { method: "POST" });
+      await loadNews();
+    } catch (err) {
+      console.error("[news page] refresh failed:", err);
+    } finally {
+      clearTimeout(timer);
+      setRefreshing(false);
+      setRefreshMessage("");
+    }
   }
 
   useEffect(() => { loadNews(); }, []);
@@ -115,6 +129,8 @@ export default function NewsPage() {
           {refreshMessage && <p>{refreshMessage}</p>}
         </div>
       </section>
+
+      {error && <p className="news-page__error">{error}</p>}
 
       <NewsFeed
         title="What's on special"

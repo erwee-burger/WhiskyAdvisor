@@ -1,16 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NewsItem } from "@/components/news-item";
 import type { ScoredNewsItem } from "@/lib/types";
-
-const SOURCE_LABELS: Record<string, string> = {
-  whiskybrother: "Whisky Brother",
-  bottegawhiskey: "Bottega Whiskey",
-  mothercityliquor: "Mother City Liquor",
-  whiskyemporium: "Whisky Emporium",
-  normangoodfellows: "Norman Goodfellows"
-};
+import { SOURCE_LABELS } from "@/lib/news-sources";
 
 interface Props {
   title: string;
@@ -21,6 +14,10 @@ interface Props {
 export function NewsFeed({ title, items, emptyMessage }: Props) {
   const allSources = [...new Set(items.map(i => i.source))];
   const [activeSources, setActiveSources] = useState<Set<string>>(new Set(allSources));
+
+  useEffect(() => {
+    setActiveSources(new Set(items.map(i => i.source)));
+  }, [items]);
 
   function toggleSource(source: string) {
     setActiveSources(prev => {

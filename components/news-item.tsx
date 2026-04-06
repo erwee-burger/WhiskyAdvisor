@@ -1,3 +1,5 @@
+import { SOURCE_LABELS } from "@/lib/news-sources";
+
 interface Props {
   name: string;
   price: number;
@@ -19,13 +21,6 @@ function formatPrice(price: number) {
   return `R${price.toLocaleString("en-ZA")}`;
 }
 
-const SOURCE_LABELS: Record<string, string> = {
-  whiskybrother: "Whisky Brother",
-  bottegawhiskey: "Bottega Whiskey",
-  mothercityliquor: "Mother City Liquor",
-  whiskyemporium: "Whisky Emporium",
-  normangoodfellows: "Norman Goodfellows"
-};
 
 export function NewsItem({ name, price, originalPrice, discountPct, url, imageUrl, kind, palateStars, source }: Props) {
   return (
