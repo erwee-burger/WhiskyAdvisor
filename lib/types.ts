@@ -207,3 +207,22 @@ export interface WhiskyStore {
   priceSnapshots?: unknown[];
   citations?: unknown[];
 }
+
+export interface NewsItem {
+  source: string;
+  kind: "special" | "new_release";
+  name: string;
+  price: number;
+  originalPrice?: number;
+  discountPct?: number;
+  url: string;
+  imageUrl?: string;
+  inStock: boolean;
+}
+
+export interface ScoredNewsItem extends NewsItem {
+  id: string;
+  fetchedAt: string;
+  palateScore: number;
+  palateStars: 0 | 1 | 2 | 3;
+}
