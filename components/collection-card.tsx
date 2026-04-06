@@ -13,7 +13,10 @@ export function CollectionCard({
   interactive?: boolean;
 }) {
   const currentPrice = entry.priceSnapshot?.retail;
-  const subtitle = `${entry.distillery.name} / ${entry.bottler.name}`;
+  const subtitleParts = [entry.expression.brand, entry.distillery.name, entry.bottler.name]
+    .filter(Boolean)
+    .map((value) => String(value).trim());
+  const subtitle = Array.from(new Set(subtitleParts)).join(" / ");
   const retailRange = currentPrice
     ? `${formatCurrency(currentPrice.low, currentPrice.currency)} - ${formatCurrency(currentPrice.high, currentPrice.currency)}`
     : "No web pricing yet";
@@ -53,6 +56,8 @@ export function CollectionCard({
           <span className="pill">Peat {entry.expression.peatLevel}</span>
           <span className="pill">Cask {entry.expression.caskInfluence}</span>
           <span className="pill">{entry.expression.bottlerKind}</span>
+          {entry.expression.volumeMl ? <span className="pill">{entry.expression.volumeMl}ml</span> : null}
+          {entry.expression.isLimited ? <span className="pill">Limited</span> : null}
           {entry.expression.releaseSeries ? <span className="pill">{entry.expression.releaseSeries}</span> : null}
         </div>
         <p className="shelf-popup-text">

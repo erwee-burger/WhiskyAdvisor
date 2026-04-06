@@ -20,9 +20,16 @@ export function buildComparison(left: CollectionViewItem, right: CollectionViewI
       title: "Left bottle",
       expressionId: left.expression.id,
       displayName: left.expression.name,
+      brand: left.expression.brand,
       distillery: left.distillery.name,
       bottler: left.bottler.name,
       releaseSeries: left.expression.releaseSeries,
+      ageStatement: left.expression.ageStatement,
+      volumeMl: left.expression.volumeMl,
+      isNas: left.expression.isNas,
+      isChillFiltered: left.expression.isChillFiltered,
+      isNaturalColor: left.expression.isNaturalColor,
+      isLimited: left.expression.isLimited,
       priceSnapshot: left.priceSnapshot,
       latestTasting: left.latestTasting,
       flavorTags: left.expression.flavorTags
@@ -31,14 +38,22 @@ export function buildComparison(left: CollectionViewItem, right: CollectionViewI
       title: "Right bottle",
       expressionId: right.expression.id,
       displayName: right.expression.name,
+      brand: right.expression.brand,
       distillery: right.distillery.name,
       bottler: right.bottler.name,
       releaseSeries: right.expression.releaseSeries,
+      ageStatement: right.expression.ageStatement,
+      volumeMl: right.expression.volumeMl,
+      isNas: right.expression.isNas,
+      isChillFiltered: right.expression.isChillFiltered,
+      isNaturalColor: right.expression.isNaturalColor,
+      isLimited: right.expression.isLimited,
       priceSnapshot: right.priceSnapshot,
       latestTasting: right.latestTasting,
       flavorTags: right.expression.flavorTags
     },
     rows: [
+      { label: "Brand", left: left.expression.brand ?? "Not set", right: right.expression.brand ?? "Not set" },
       { label: "Distillery", left: left.distillery.name, right: right.distillery.name },
       {
         label: "Bottler",
@@ -50,6 +65,16 @@ export function buildComparison(left: CollectionViewItem, right: CollectionViewI
         left: left.expression.releaseSeries ?? "Standard release",
         right: right.expression.releaseSeries ?? "Standard release"
       },
+      {
+        label: "Age statement",
+        left: left.expression.ageStatement?.toString() ?? (left.expression.isNas ? "NAS" : "Not set"),
+        right: right.expression.ageStatement?.toString() ?? (right.expression.isNas ? "NAS" : "Not set")
+      },
+      {
+        label: "Bottle size",
+        left: left.expression.volumeMl ? `${left.expression.volumeMl} ml` : "Not set",
+        right: right.expression.volumeMl ? `${right.expression.volumeMl} ml` : "Not set"
+      },
       { label: "ABV", left: `${left.expression.abv}%`, right: `${right.expression.abv}%` },
       {
         label: "Cask",
@@ -57,6 +82,26 @@ export function buildComparison(left: CollectionViewItem, right: CollectionViewI
         right: right.expression.caskType ?? right.expression.caskInfluence
       },
       { label: "Peat level", left: left.expression.peatLevel, right: right.expression.peatLevel },
+      {
+        label: "NAS",
+        left: left.expression.isNas ? "Yes" : "No",
+        right: right.expression.isNas ? "Yes" : "No"
+      },
+      {
+        label: "Chill filtered",
+        left: left.expression.isChillFiltered ? "Yes" : "No",
+        right: right.expression.isChillFiltered ? "Yes" : "No"
+      },
+      {
+        label: "Natural color",
+        left: left.expression.isNaturalColor ? "Yes" : "No",
+        right: right.expression.isNaturalColor ? "Yes" : "No"
+      },
+      {
+        label: "Limited",
+        left: left.expression.isLimited ? "Yes" : "No",
+        right: right.expression.isLimited ? "Yes" : "No"
+      },
       {
         label: "Flavor tags",
         left: left.expression.flavorTags.join(", "),

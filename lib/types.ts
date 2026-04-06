@@ -46,6 +46,7 @@ export interface Bottler {
 export interface Expression {
   id: string;
   name: string;
+  brand?: string;
   distilleryId: string;
   bottlerId: string;
   bottlerKind: BottlerKind;
@@ -54,16 +55,21 @@ export interface Expression {
   country: string;
   region: string;
   abv: number;
-  ageStatement?: string;
+  ageStatement?: number;
+  isNas: boolean;
   vintageYear?: number;
   distilledYear?: number;
   bottledYear?: number;
+  volumeMl?: number;
   caskType?: string;
   caskNumber?: string;
-  bottleNumber?: string;
-  outturn?: string;
+  bottleNumber?: number;
+  outturn?: number;
   peatLevel: PeatLevel;
   caskInfluence: CaskInfluence;
+  isChillFiltered: boolean;
+  isNaturalColor: boolean;
+  isLimited: boolean;
   flavorTags: string[];
   barcode?: string;
   description?: string;
@@ -151,7 +157,7 @@ export interface PriceSnapshot {
 export interface FieldSuggestion {
   field: string;
   label: string;
-  value: string | number | string[] | undefined;
+  value: string | number | string[] | boolean | undefined;
   confidence: number;
   citationIds: string[];
 }
@@ -244,9 +250,16 @@ export interface ComparisonColumn {
   title: string;
   expressionId?: string;
   displayName: string;
+  brand?: string;
   distillery: string;
   bottler: string;
   releaseSeries?: string;
+  ageStatement?: number;
+  volumeMl?: number;
+  isNas: boolean;
+  isChillFiltered: boolean;
+  isNaturalColor: boolean;
+  isLimited: boolean;
   priceSnapshot?: PriceSnapshot;
   latestTasting?: TastingEntry;
   flavorTags: string[];

@@ -39,6 +39,7 @@ type DraftView = {
     purchaseCurrency: string;
   };
   expression: {
+    brand?: string;
     name: string;
     releaseSeries?: string;
     bottlerKind: Expression["bottlerKind"];
@@ -46,17 +47,22 @@ type DraftView = {
     country: string;
     region: string;
     abv: number;
-    ageStatement?: string;
+    ageStatement?: number;
     vintageYear?: number;
     distilledYear?: number;
     bottledYear?: number;
+    volumeMl?: number;
     caskType?: string;
     caskNumber?: string;
-    bottleNumber?: string;
-    outturn?: string;
+    bottleNumber?: number;
+    outturn?: number;
     barcode?: string;
     peatLevel: Expression["peatLevel"];
     caskInfluence: Expression["caskInfluence"];
+    isNas: boolean;
+    isChillFiltered: boolean;
+    isNaturalColor: boolean;
+    isLimited: boolean;
     flavorTags: string[];
     description?: string;
   };
@@ -70,6 +76,7 @@ type DraftView = {
 type BottleRecordPayload = {
   distilleryName: string;
   bottlerName: string;
+  brand?: string;
   name: string;
   releaseSeries?: string;
   bottlerKind: Expression["bottlerKind"];
@@ -77,17 +84,22 @@ type BottleRecordPayload = {
   country: string;
   region: string;
   abv?: number;
-  ageStatement?: string;
+  ageStatement?: number;
   vintageYear?: number;
   distilledYear?: number;
   bottledYear?: number;
+  volumeMl?: number;
   caskType?: string;
   caskNumber?: string;
-  bottleNumber?: string;
-  outturn?: string;
+  bottleNumber?: number;
+  outturn?: number;
   barcode?: string;
   peatLevel: Expression["peatLevel"];
   caskInfluence: Expression["caskInfluence"];
+  isNas: boolean;
+  isChillFiltered: boolean;
+  isNaturalColor: boolean;
+  isLimited: boolean;
   flavorTags: string[];
   description?: string;
   status: CollectionStatus;
@@ -181,6 +193,7 @@ function buildFallbackExpression(name: string, barcode?: string): Expression {
   return {
     id: createId("expr"),
     name,
+    brand: undefined,
     distilleryId: createId("dist"),
     bottlerId: createId("bot"),
     bottlerKind: "official",
@@ -189,15 +202,20 @@ function buildFallbackExpression(name: string, barcode?: string): Expression {
     region: "Unknown",
     abv: 46,
     ageStatement: undefined,
+    isNas: true,
     vintageYear: undefined,
     distilledYear: undefined,
     bottledYear: undefined,
+    volumeMl: undefined,
     caskType: undefined,
     caskNumber: undefined,
     bottleNumber: undefined,
     outturn: undefined,
     peatLevel: "medium",
     caskInfluence: "mixed",
+    isChillFiltered: false,
+    isNaturalColor: false,
+    isLimited: false,
     flavorTags: ["malt"],
     barcode,
     description: undefined
@@ -211,6 +229,14 @@ function normalizeText(value?: string | null) {
 
 function normalizeNumber(value?: number | null) {
   if (value === undefined || value === null || Number.isNaN(value)) {
+    return undefined;
+  }
+
+  return value;
+}
+
+function normalizeBoolean(value?: boolean | null) {
+  if (value === undefined || value === null) {
     return undefined;
   }
 
@@ -318,6 +344,7 @@ function buildDraftView(store: WhiskyStore, draft: Awaited<ReturnType<typeof get
       purchaseCurrency: draft.collection.purchaseCurrency ?? "ZAR"
     },
     expression: {
+      brand: normalizeText(draft.expression.brand) ?? baseExpression?.brand,
       name: draft.expression.name,
       releaseSeries: normalizeText(draft.expression.releaseSeries) ?? baseExpression?.releaseSeries,
       bottlerKind: draft.expression.bottlerKind ?? baseExpression?.bottlerKind ?? "official",
@@ -325,19 +352,26 @@ function buildDraftView(store: WhiskyStore, draft: Awaited<ReturnType<typeof get
       country: normalizeText(draft.expression.country) ?? baseExpression?.country ?? "Unknown",
       region: normalizeText(draft.expression.region) ?? baseExpression?.region ?? "Unknown",
       abv: normalizeNumber(draft.expression.abv) ?? baseExpression?.abv ?? 46,
-      ageStatement: normalizeText(draft.expression.ageStatement) ?? baseExpression?.ageStatement,
+      ageStatement: normalizeNumber(draft.expression.ageStatement) ?? baseExpression?.ageStatement,
       vintageYear: normalizeNumber(draft.expression.vintageYear) ?? baseExpression?.vintageYear,
       distilledYear:
         normalizeNumber(draft.expression.distilledYear) ?? baseExpression?.distilledYear,
       bottledYear: normalizeNumber(draft.expression.bottledYear) ?? baseExpression?.bottledYear,
+      volumeMl: normalizeNumber(draft.expression.volumeMl) ?? baseExpression?.volumeMl,
       caskType: normalizeText(draft.expression.caskType) ?? baseExpression?.caskType,
       caskNumber: normalizeText(draft.expression.caskNumber) ?? baseExpression?.caskNumber,
-      bottleNumber: normalizeText(draft.expression.bottleNumber) ?? baseExpression?.bottleNumber,
-      outturn: normalizeText(draft.expression.outturn) ?? baseExpression?.outturn,
+      bottleNumber: normalizeNumber(draft.expression.bottleNumber) ?? baseExpression?.bottleNumber,
+      outturn: normalizeNumber(draft.expression.outturn) ?? baseExpression?.outturn,
       barcode: normalizeText(draft.expression.barcode) ?? draft.barcode ?? baseExpression?.barcode,
       peatLevel: draft.expression.peatLevel ?? baseExpression?.peatLevel ?? "medium",
       caskInfluence:
         draft.expression.caskInfluence ?? baseExpression?.caskInfluence ?? "mixed",
+      isNas: draft.expression.isNas ?? baseExpression?.isNas ?? false,
+      isChillFiltered:
+        normalizeBoolean(draft.expression.isChillFiltered) ?? baseExpression?.isChillFiltered ?? false,
+      isNaturalColor:
+        normalizeBoolean(draft.expression.isNaturalColor) ?? baseExpression?.isNaturalColor ?? false,
+      isLimited: normalizeBoolean(draft.expression.isLimited) ?? baseExpression?.isLimited ?? false,
       flavorTags: normalizeFlavorTags(draft.expression.flavorTags ?? baseExpression?.flavorTags),
       description: normalizeText(draft.expression.description) ?? baseExpression?.description
     },
@@ -374,6 +408,7 @@ function buildExpressionRecord(
 ): Expression {
   return {
     id: expressionId,
+    brand: normalizeText(payload.brand) ?? baseExpression?.brand,
     name: payload.name,
     distilleryId,
     bottlerId,
@@ -383,17 +418,22 @@ function buildExpressionRecord(
     country: normalizeText(payload.country) ?? "Unknown",
     region: normalizeText(payload.region) ?? "Unknown",
     abv: normalizeNumber(payload.abv) ?? baseExpression?.abv ?? 46,
-    ageStatement: normalizeText(payload.ageStatement),
+    ageStatement: normalizeNumber(payload.ageStatement),
     vintageYear: normalizeNumber(payload.vintageYear),
     distilledYear: normalizeNumber(payload.distilledYear),
     bottledYear: normalizeNumber(payload.bottledYear),
+    volumeMl: normalizeNumber(payload.volumeMl),
     caskType: normalizeText(payload.caskType),
     caskNumber: normalizeText(payload.caskNumber),
-    bottleNumber: normalizeText(payload.bottleNumber),
-    outturn: normalizeText(payload.outturn),
+    bottleNumber: normalizeNumber(payload.bottleNumber),
+    outturn: normalizeNumber(payload.outturn),
     barcode: normalizeText(payload.barcode),
     peatLevel: payload.peatLevel,
     caskInfluence: payload.caskInfluence,
+    isNas: payload.isNas || normalizeNumber(payload.ageStatement) === undefined,
+    isChillFiltered: payload.isChillFiltered,
+    isNaturalColor: payload.isNaturalColor,
+    isLimited: payload.isLimited,
     flavorTags: normalizeFlavorTags(payload.flavorTags),
     description: normalizeText(payload.description),
     imageUrl: baseExpression?.imageUrl
@@ -870,10 +910,17 @@ export async function exportCollection(format: "csv" | "json") {
   const rows = collection.map(
     ({ item, expression, distillery, bottler, latestTasting, priceSnapshot }) => ({
       expression: expression.name,
+      brand: expression.brand ?? "",
       distillery: distillery.name,
       bottler: bottler.name,
       bottlerKind: expression.bottlerKind,
       releaseSeries: expression.releaseSeries ?? "",
+      ageStatement: expression.ageStatement ?? "",
+      volumeMl: expression.volumeMl ?? "",
+      isNas: expression.isNas ? "yes" : "no",
+      isChillFiltered: expression.isChillFiltered ? "yes" : "no",
+      isNaturalColor: expression.isNaturalColor ? "yes" : "no",
+      isLimited: expression.isLimited ? "yes" : "no",
       status: item.status,
       fillState: item.fillState,
       purchasePrice: item.purchasePrice ?? "",

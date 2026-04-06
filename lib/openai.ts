@@ -94,6 +94,7 @@ async function callOpenAi(prompt: string, imageBase64?: string) {
 type ExtractedBottlePayload = {
   distilleryName?: string | null;
   bottlerName?: string | null;
+  brand?: string | null;
   name?: string | null;
   releaseSeries?: string | null;
   bottlerKind?: Expression["bottlerKind"] | null;
@@ -105,13 +106,18 @@ type ExtractedBottlePayload = {
   vintageYear?: number | string | null;
   distilledYear?: number | string | null;
   bottledYear?: number | string | null;
+  volumeMl?: number | string | null;
   caskType?: string | null;
   caskNumber?: string | null;
-  bottleNumber?: string | number | null;
-  outturn?: string | number | null;
+  bottleNumber?: number | string | null;
+  outturn?: number | string | null;
   barcode?: string | null;
   peatLevel?: Expression["peatLevel"] | null;
   caskInfluence?: Expression["caskInfluence"] | null;
+  isChillFiltered?: boolean | null;
+  isNaturalColor?: boolean | null;
+  isLimited?: boolean | null;
+  isNas?: boolean | null;
   flavorTags?: string[] | null;
   description?: string | null;
 };
@@ -134,6 +140,30 @@ function normalizeNumber(value: string | number | null | undefined) {
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
+function normalizeBoolean(value: boolean | string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return undefined;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (["true", "yes", "1"].includes(normalized)) {
+    return true;
+  }
+  if (["false", "no", "0"].includes(normalized)) {
+    return false;
+  }
+
+  return undefined;
+}
+
 function normalizeFlavorTags(value: string[] | null | undefined) {
   return (value ?? [])
     .map((tag) => tag.trim().toLowerCase().replace(/\s+/g, "-"))
@@ -146,10 +176,12 @@ function normalizeEnumValue<T extends string>(value: T | null | undefined) {
 }
 
 function normalizeAnalyzedBottle(payload: ExtractedBottlePayload, fileName: string) {
+  const ageStatement = normalizeNumber(payload.ageStatement);
   return {
     expression: {
       distilleryName: normalizeText(payload.distilleryName),
       bottlerName: normalizeText(payload.bottlerName),
+      brand: normalizeText(payload.brand),
       name: normalizeText(payload.name) ?? fileName.replace(/\.[^.]+$/, ""),
       releaseSeries: normalizeText(payload.releaseSeries),
       bottlerKind: normalizeEnumValue(payload.bottlerKind),
@@ -157,17 +189,22 @@ function normalizeAnalyzedBottle(payload: ExtractedBottlePayload, fileName: stri
       country: normalizeText(payload.country),
       region: normalizeText(payload.region),
       abv: normalizeNumber(payload.abv),
-      ageStatement: normalizeText(payload.ageStatement),
+      ageStatement,
       vintageYear: normalizeNumber(payload.vintageYear),
       distilledYear: normalizeNumber(payload.distilledYear),
       bottledYear: normalizeNumber(payload.bottledYear),
+      volumeMl: normalizeNumber(payload.volumeMl),
       caskType: normalizeText(payload.caskType),
       caskNumber: normalizeText(payload.caskNumber),
-      bottleNumber: normalizeText(payload.bottleNumber),
-      outturn: normalizeText(payload.outturn),
+      bottleNumber: normalizeNumber(payload.bottleNumber),
+      outturn: normalizeNumber(payload.outturn),
       barcode: normalizeText(payload.barcode),
       peatLevel: normalizeEnumValue(payload.peatLevel),
       caskInfluence: normalizeEnumValue(payload.caskInfluence),
+      isChillFiltered: normalizeBoolean(payload.isChillFiltered),
+      isNaturalColor: normalizeBoolean(payload.isNaturalColor),
+      isLimited: normalizeBoolean(payload.isLimited),
+      isNas: normalizeBoolean(payload.isNas) ?? ageStatement === undefined,
       flavorTags: normalizeFlavorTags(payload.flavorTags),
       description: normalizeText(payload.description)
     }
@@ -184,14 +221,16 @@ export async function analyzeBottleImage(fileName: string, imageBase64?: string)
     "Your task is to analyze the provided image of a whisky bottle and extract structured information for a whisky collection app.",
     "Return ONLY a valid JSON object. Do not include markdown, explanations, or extra text.",
     "If a field is not visible or cannot be determined with reasonable confidence, return null.",
-    "Be conservative. Prefer the label. Use well-known product knowledge only for widely known whiskies, and never invent rare release details.",
+    "Prefer the label. Do an internet search if a field is not visible or cannot be determined with reasonable confidence, and never invent rare release details or any other details that are not confirmed by the internet or the label.",
     `Use these exact enum values where needed: bottlerKind in [${BOTTLER_KIND_VALUES.join(", ")}], whiskyType in [${WHISKY_TYPE_VALUES.join(", ")}], peatLevel in [${PEAT_LEVEL_VALUES.join(", ")}], caskInfluence in [${CASK_INFLUENCE_VALUES.join(", ")}].`,
     "Keep distilleryName and bottlerName separate. For official bottlings, bottlerName is often the same house as the distillery if no separate bottler is shown. For independent bottlings, keep them distinct whenever the label indicates both.",
-    "For ageStatement, return digits only as a string, for example \"12\", not \"12 years old\".",
-    "For bottleNumber and outturn, preserve the label text if present, for example \"123 of 300\" or \"1/258\".",
+    "For ageStatement, return the numeric age as an integer, or null if the whisky is NAS.",
+    "For bottleNumber and outturn, return integers only. If the label shows a fraction like 112/642, use 112 for bottleNumber and 642 for outturn if both are visible.",
+    "For volumeMl, return the bottle size in millilitres if visible, such as 700 or 750.",
+    "For the production flags, return booleans when the label clearly states them: isChillFiltered, isNaturalColor, isLimited, and isNas.",
     "For flavorTags, return up to 6 concise lowercase tags and use hyphens for multi-word tags, for example \"dark-chocolate\".",
-    "Fields to extract: distilleryName, bottlerName, name, releaseSeries, bottlerKind, whiskyType, country, region, abv, ageStatement, vintageYear, distilledYear, bottledYear, caskType, caskNumber, bottleNumber, outturn, barcode, peatLevel, caskInfluence, flavorTags, description.",
-    'Output format: {"distilleryName":null,"bottlerName":null,"name":null,"releaseSeries":null,"bottlerKind":null,"whiskyType":null,"country":null,"region":null,"abv":null,"ageStatement":null,"vintageYear":null,"distilledYear":null,"bottledYear":null,"caskType":null,"caskNumber":null,"bottleNumber":null,"outturn":null,"barcode":null,"peatLevel":null,"caskInfluence":null,"flavorTags":null,"description":null}'
+    "Fields to extract: distilleryName, bottlerName, brand, name, releaseSeries, bottlerKind, whiskyType, country, region, abv, ageStatement, vintageYear, distilledYear, bottledYear, volumeMl, caskType, caskNumber, bottleNumber, outturn, barcode, peatLevel, caskInfluence, isChillFiltered, isNaturalColor, isLimited, isNas, flavorTags, description.",
+    'Output format: {"distilleryName":null,"bottlerName":null,"brand":null,"name":null,"releaseSeries":null,"bottlerKind":null,"whiskyType":null,"country":null,"region":null,"abv":null,"ageStatement":null,"vintageYear":null,"distilledYear":null,"bottledYear":null,"volumeMl":null,"caskType":null,"caskNumber":null,"bottleNumber":null,"outturn":null,"barcode":null,"peatLevel":null,"caskInfluence":null,"isChillFiltered":null,"isNaturalColor":null,"isLimited":null,"isNas":null,"flavorTags":null,"description":null}'
   ].join(" ");
 
   const payload = await callOpenAi(prompt, imageBase64);
@@ -327,6 +366,13 @@ export function buildDraftFromMatchedExpression(
         citationIds: citations.map((citation) => citation.id)
       },
       {
+        field: "brand",
+        label: "Brand",
+        value: expression.brand,
+        confidence: expression.brand ? 0.8 : 0.5,
+        citationIds: citations.map((citation) => citation.id)
+      },
+      {
         field: "releaseSeries",
         label: "Release series",
         value: expression.releaseSeries,
@@ -334,10 +380,24 @@ export function buildDraftFromMatchedExpression(
         citationIds: citations.map((citation) => citation.id)
       },
       {
+        field: "volumeMl",
+        label: "Bottle size",
+        value: expression.volumeMl,
+        confidence: expression.volumeMl ? 0.76 : 0.45,
+        citationIds: citations.map((citation) => citation.id)
+      },
+      {
         field: "bottlerKind",
         label: "Official vs independent",
         value: expression.bottlerKind,
         confidence: 0.9,
+        citationIds: citations.map((citation) => citation.id)
+      },
+      {
+        field: "isLimited",
+        label: "Limited release",
+        value: expression.isLimited,
+        confidence: expression.isLimited ? 0.8 : 0.55,
         citationIds: citations.map((citation) => citation.id)
       }
     ],

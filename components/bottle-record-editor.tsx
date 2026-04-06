@@ -25,6 +25,10 @@ function parseFlavorTags(value: FormDataEntryValue | null) {
     .filter(Boolean);
 }
 
+function parseToggle(value: FormDataEntryValue | null) {
+  return value !== null;
+}
+
 async function readResponseMessage(response: Response, fallback: string) {
   try {
     const payload = (await response.json()) as {
@@ -111,6 +115,7 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
     const payload = {
       distilleryName: String(formData.get("distilleryName") ?? "").trim(),
       bottlerName: String(formData.get("bottlerName") ?? "").trim(),
+      brand: String(formData.get("brand") ?? "").trim() || undefined,
       name: String(formData.get("name") ?? "").trim(),
       releaseSeries: String(formData.get("releaseSeries") ?? "").trim() || undefined,
       bottlerKind: String(formData.get("bottlerKind") ?? "official"),
@@ -118,17 +123,22 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
       country: String(formData.get("country") ?? "").trim(),
       region: String(formData.get("region") ?? "").trim(),
       abv: parseNumber(formData.get("abv")),
-      ageStatement: String(formData.get("ageStatement") ?? "").trim() || undefined,
+      ageStatement: parseNumber(formData.get("ageStatement")),
       vintageYear: parseNumber(formData.get("vintageYear")),
       distilledYear: parseNumber(formData.get("distilledYear")),
       bottledYear: parseNumber(formData.get("bottledYear")),
+      volumeMl: parseNumber(formData.get("volumeMl")),
       caskType: String(formData.get("caskType") ?? "").trim() || undefined,
       caskNumber: String(formData.get("caskNumber") ?? "").trim() || undefined,
-      bottleNumber: String(formData.get("bottleNumber") ?? "").trim() || undefined,
-      outturn: String(formData.get("outturn") ?? "").trim() || undefined,
+      bottleNumber: parseNumber(formData.get("bottleNumber")),
+      outturn: parseNumber(formData.get("outturn")),
       barcode: String(formData.get("barcode") ?? "").trim() || undefined,
       peatLevel: String(formData.get("peatLevel") ?? "medium"),
       caskInfluence: String(formData.get("caskInfluence") ?? "mixed"),
+      isNas: parseToggle(formData.get("isNas")) || parseNumber(formData.get("ageStatement")) === undefined,
+      isChillFiltered: parseToggle(formData.get("isChillFiltered")),
+      isNaturalColor: parseToggle(formData.get("isNaturalColor")),
+      isLimited: parseToggle(formData.get("isLimited")),
       flavorTags: parseFlavorTags(formData.get("flavorTags")),
       description: String(formData.get("description") ?? "").trim() || undefined,
       status: String(formData.get("status") ?? "owned"),
@@ -265,6 +275,10 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
           <label htmlFor="bottlerName">Bottler</label>
           <input defaultValue={entry.bottler.name} id="bottlerName" name="bottlerName" required />
         </div>
+        <div className="field">
+          <label htmlFor="brand">Brand</label>
+          <input defaultValue={entry.expression.brand} id="brand" name="brand" placeholder="Label brand or series name" />
+        </div>
         <div className="field full-span">
           <label htmlFor="name">Bottle name</label>
           <input defaultValue={entry.expression.name} id="name" name="name" required />
@@ -313,7 +327,11 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
         </div>
         <div className="field">
           <label htmlFor="ageStatement">Age statement</label>
-          <input defaultValue={entry.expression.ageStatement} id="ageStatement" name="ageStatement" />
+          <input defaultValue={entry.expression.ageStatement} id="ageStatement" min={0} name="ageStatement" type="number" />
+        </div>
+        <div className="field">
+          <label htmlFor="volumeMl">Bottle size (ml)</label>
+          <input defaultValue={entry.expression.volumeMl} id="volumeMl" min={0} name="volumeMl" placeholder="700" type="number" />
         </div>
         <div className="field">
           <label htmlFor="vintageYear">Vintage year</label>
@@ -329,7 +347,7 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
         </div>
         <div className="field">
           <label htmlFor="outturn">Outturn</label>
-          <input defaultValue={entry.expression.outturn} id="outturn" name="outturn" />
+          <input defaultValue={entry.expression.outturn} id="outturn" min={0} name="outturn" type="number" />
         </div>
         <div className="field">
           <label htmlFor="caskType">Cask type</label>
@@ -341,7 +359,7 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
         </div>
         <div className="field">
           <label htmlFor="bottleNumber">Bottle number</label>
-          <input defaultValue={entry.expression.bottleNumber} id="bottleNumber" name="bottleNumber" />
+          <input defaultValue={entry.expression.bottleNumber} id="bottleNumber" min={0} name="bottleNumber" type="number" />
         </div>
         <div className="field">
           <label htmlFor="peatLevel">Peat level</label>
@@ -363,6 +381,40 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
             <option value="mixed">Mixed</option>
             <option value="refill">Refill</option>
           </select>
+        </div>
+        <div className="field">
+          <label className="checkbox-label" htmlFor="isNas">
+            <input defaultChecked={entry.expression.isNas} id="isNas" name="isNas" type="checkbox" />
+            NAS
+          </label>
+        </div>
+        <div className="field">
+          <label className="checkbox-label" htmlFor="isChillFiltered">
+            <input
+              defaultChecked={entry.expression.isChillFiltered}
+              id="isChillFiltered"
+              name="isChillFiltered"
+              type="checkbox"
+            />
+            Chill filtered
+          </label>
+        </div>
+        <div className="field">
+          <label className="checkbox-label" htmlFor="isNaturalColor">
+            <input
+              defaultChecked={entry.expression.isNaturalColor}
+              id="isNaturalColor"
+              name="isNaturalColor"
+              type="checkbox"
+            />
+            Natural color
+          </label>
+        </div>
+        <div className="field">
+          <label className="checkbox-label" htmlFor="isLimited">
+            <input defaultChecked={entry.expression.isLimited} id="isLimited" name="isLimited" type="checkbox" />
+            Limited release
+          </label>
         </div>
         <div className="field full-span">
           <label htmlFor="flavorTags">Flavor tags</label>

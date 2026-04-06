@@ -8,16 +8,23 @@ import type { CollectionViewItem } from "@/lib/types";
 function buildSearchHaystack(entry: CollectionViewItem) {
   return [
     entry.expression.name,
+    entry.expression.brand,
     entry.distillery.name,
     entry.bottler.name,
     entry.expression.region,
     entry.expression.country,
     entry.expression.releaseSeries,
+    entry.expression.volumeMl?.toString(),
+    entry.expression.ageStatement?.toString(),
     entry.expression.peatLevel,
     entry.expression.caskInfluence,
     entry.expression.bottlerKind,
     entry.item.status,
     entry.item.fillState,
+    entry.expression.isNas ? "nas" : null,
+    entry.expression.isLimited ? "limited" : null,
+    entry.expression.isChillFiltered ? "chill-filtered" : null,
+    entry.expression.isNaturalColor ? "natural-color" : null,
     ...entry.expression.flavorTags
   ]
     .filter(Boolean)

@@ -37,14 +37,22 @@ export default async function ItemDetailPage({
           <p className="eyebrow">Bottle Detail</p>
           <h1>{entry.expression.name}</h1>
           <p>
+            {entry.expression.brand &&
+            entry.expression.brand !== entry.distillery.name &&
+            entry.expression.brand !== entry.bottler.name
+              ? `${entry.expression.brand}. `
+              : ""}
             {entry.distillery.name} distilled it. {entry.bottler.name} released it. This bottle is tracked
             as an {entry.expression.bottlerKind} bottling in your cellar.
           </p>
           <div className="pill-row">
             <span className="pill">{entry.expression.region}</span>
             <span className="pill">{entry.expression.abv}% ABV</span>
+            {entry.expression.volumeMl ? <span className="pill">{entry.expression.volumeMl} ml</span> : null}
             <span className="pill">{entry.item.status}</span>
             <span className="pill">{entry.item.fillState}</span>
+            <span className="pill">{entry.expression.isNas ? "NAS" : `${entry.expression.ageStatement ?? "Unknown"} years`}</span>
+            {entry.expression.isLimited ? <span className="pill">Limited</span> : null}
             {entry.expression.releaseSeries ? <span className="pill">{entry.expression.releaseSeries}</span> : null}
           </div>
           <div className="grid columns-2" style={{ marginTop: "16px" }}>
@@ -74,6 +82,10 @@ export default async function ItemDetailPage({
             <table>
               <tbody>
                 <tr>
+                  <th>Brand</th>
+                  <td>{entry.expression.brand ?? "Not set"}</td>
+                </tr>
+                <tr>
                   <th>Distillery</th>
                   <td>{entry.distillery.name}</td>
                 </tr>
@@ -90,6 +102,14 @@ export default async function ItemDetailPage({
                   <td>{entry.expression.releaseSeries ?? "Standard release"}</td>
                 </tr>
                 <tr>
+                  <th>Age statement</th>
+                  <td>{entry.expression.isNas ? "NAS" : `${entry.expression.ageStatement ?? "Not set"}`}</td>
+                </tr>
+                <tr>
+                  <th>Bottle size</th>
+                  <td>{entry.expression.volumeMl ? `${entry.expression.volumeMl} ml` : "Not set"}</td>
+                </tr>
+                <tr>
                   <th>Cask</th>
                   <td>{entry.expression.caskType ?? entry.expression.caskInfluence}</td>
                 </tr>
@@ -104,6 +124,18 @@ export default async function ItemDetailPage({
                 <tr>
                   <th>Outturn</th>
                   <td>{entry.expression.outturn ?? "Not set"}</td>
+                </tr>
+                <tr>
+                  <th>Production flags</th>
+                  <td>
+                    {[
+                      entry.expression.isChillFiltered ? "Chill filtered" : null,
+                      entry.expression.isNaturalColor ? "Natural color" : null,
+                      entry.expression.isLimited ? "Limited" : null
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || "None marked"}
+                  </td>
                 </tr>
                 <tr>
                   <th>Purchase source</th>
