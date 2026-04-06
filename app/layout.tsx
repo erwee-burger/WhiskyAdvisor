@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import "@/app/globals.css";
+import { NavigationFeedbackProvider } from "@/components/navigation-feedback";
 import { TopNav } from "@/components/top-nav";
 import { assertProductionEnv } from "@/lib/env";
 
@@ -25,10 +26,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
-        <div className="app-shell">
-          <TopNav items={navItems} />
-          <main className="main-content">{children}</main>
-        </div>
+        <NavigationFeedbackProvider>
+          <div className="app-shell">
+            <TopNav items={navItems} />
+            <main className="main-content">{children}</main>
+          </div>
+        </NavigationFeedbackProvider>
       </body>
     </html>
   );

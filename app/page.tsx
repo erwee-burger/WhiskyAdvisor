@@ -1,8 +1,7 @@
-import Link from "next/link";
-
 import { AdvisorCard } from "@/components/advisor-card";
 import { CollectionCard } from "@/components/collection-card";
 import { ProfileCard } from "@/components/profile-card";
+import { PendingLink } from "@/components/navigation-feedback";
 import { StatCard } from "@/components/stat-card";
 import { getDashboardData } from "@/lib/repository";
 import { formatCurrency } from "@/lib/utils";
@@ -20,12 +19,12 @@ export default async function DashboardPage() {
           market says now, and build a profile that actually reflects how you drink whisky.
         </p>
         <div className="hero-actions">
-          <Link className="button" href="/add">
+          <PendingLink className="button" href="/add">
             Add a bottle
-          </Link>
-          <Link className="button-subtle" href="/compare">
+          </PendingLink>
+          <PendingLink className="button-subtle" href="/compare">
             Compare whiskies
-          </Link>
+          </PendingLink>
         </div>
       </section>
 
@@ -126,9 +125,9 @@ export default async function DashboardPage() {
               <h2>Recently tracked bottles</h2>
               <p>Your most recent collection entries and cached pricing context.</p>
             </div>
-            <Link className="button-subtle" href="/collection">
+            <PendingLink className="button-subtle" href="/collection">
               See all
-            </Link>
+            </PendingLink>
           </div>
           <div className="card-list">
             {collection.slice(0, 3).map((entry) => (

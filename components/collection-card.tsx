@@ -1,6 +1,6 @@
-import Link from "next/link";
 import Image from "next/image";
 
+import { PendingLink } from "@/components/navigation-feedback";
 import { getBottleDisplayImage } from "@/lib/bottle-image";
 import type { CollectionViewItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
@@ -23,7 +23,7 @@ export function CollectionCard({
   const bottleImage = getBottleDisplayImage(entry.expression.name, entry.images);
 
   return (
-    <Link
+    <PendingLink
       className={`shelf-bottle${interactive ? " shelf-bottle-interactive" : ""}`}
       href={`/collection/${entry.item.id}`}
     >
@@ -68,6 +68,6 @@ export function CollectionCard({
         <p className="shelf-popup-text">Retail now {retailRange}</p>
         <p className="shelf-popup-link">Open bottle record</p>
       </div>
-    </Link>
+    </PendingLink>
   );
 }

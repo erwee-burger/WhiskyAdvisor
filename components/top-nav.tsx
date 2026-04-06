@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+
+import { PendingLink } from "@/components/navigation-feedback";
 
 type NavItem = {
   href: string;
@@ -18,9 +19,9 @@ export function TopNav({ items }: { items: NavItem[] }) {
       <div className="top-nav-inner">
         <div className="top-nav-brand-block">
           <p className="eyebrow">Private Cellar</p>
-          <Link className="top-nav-brand" href="/" onClick={() => setIsOpen(false)}>
+          <PendingLink className="top-nav-brand" href="/" onClick={() => setIsOpen(false)}>
             Whisky Advisor
-          </Link>
+          </PendingLink>
         </div>
 
         <div className="top-nav-menu-wrap">
@@ -43,14 +44,14 @@ export function TopNav({ items }: { items: NavItem[] }) {
             </p>
             <div className="menu-links">
               {items.map((item) => (
-                <Link
+                <PendingLink
                   className={`menu-link${pathname === item.href ? " menu-link-active" : ""}`}
                   href={item.href}
                   key={item.href}
                   onClick={() => setIsOpen(false)}
                 >
                   {item.label}
-                </Link>
+                </PendingLink>
               ))}
             </div>
           </nav>
