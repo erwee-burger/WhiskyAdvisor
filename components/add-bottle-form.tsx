@@ -9,6 +9,21 @@ type DraftResponse = {
   matchedExpressionId?: string;
   source: string;
   barcode?: string;
+  identification?: {
+    identifiedName: string | null;
+    brand: string | null;
+    distilleryName: string | null;
+    bottlerName: string | null;
+    bottlerKind: string | null;
+    country: string | null;
+    ageStatement: number | null;
+    releaseSeries: string | null;
+    caskType: string | null;
+    whiskyType: string | null;
+    productMatchConfidence: number | null;
+    internetLookupUsed: boolean | null;
+    matchNotes: string | null;
+  };
   rawExpression?: {
     brand?: string;
     name: string;
@@ -37,8 +52,8 @@ type DraftResponse = {
     flavorTags?: string[];
     description?: string;
   };
-  distilleryName: string;
-  bottlerName: string;
+  distilleryName?: string;
+  bottlerName?: string;
   collection: {
     status: "owned" | "wishlist";
     fillState: "sealed" | "open" | "finished";
@@ -48,16 +63,16 @@ type DraftResponse = {
     brand?: string;
     name: string;
     releaseSeries?: string;
-    bottlerKind: "official" | "independent";
-    whiskyType:
+    bottlerKind?: "official" | "independent";
+    whiskyType?:
       | "single-malt"
       | "blended-malt"
       | "blended-scotch"
       | "single-grain"
       | "world-single-malt";
-    country: string;
-    region: string;
-    abv: number;
+    country?: string;
+    region?: string;
+    abv?: number;
     ageStatement?: number;
     vintageYear?: number;
     distilledYear?: number;
@@ -68,13 +83,13 @@ type DraftResponse = {
     bottleNumber?: number;
     outturn?: number;
     barcode?: string;
-    peatLevel: "unpeated" | "light" | "medium" | "heavily-peated";
-    caskInfluence: "bourbon" | "sherry" | "wine" | "rum" | "virgin-oak" | "mixed" | "refill";
-    isNas: boolean;
-    isChillFiltered: boolean;
-    isNaturalColor: boolean;
-    isLimited: boolean;
-    flavorTags: string[];
+    peatLevel?: "unpeated" | "light" | "medium" | "heavily-peated";
+    caskInfluence?: "bourbon" | "sherry" | "wine" | "rum" | "virgin-oak" | "mixed" | "refill";
+    isNas?: boolean;
+    isChillFiltered?: boolean;
+    isNaturalColor?: boolean;
+    isLimited?: boolean;
+    flavorTags?: string[];
     description?: string;
   };
   suggestions: Array<{
@@ -316,8 +331,8 @@ export function AddBottleForm() {
       brand: String(formData.get("brand") ?? "").trim() || undefined,
       name: String(formData.get("name") ?? "").trim(),
       releaseSeries: String(formData.get("releaseSeries") ?? "").trim() || undefined,
-      bottlerKind: String(formData.get("bottlerKind") ?? "official"),
-      whiskyType: String(formData.get("whiskyType") ?? "single-malt"),
+      bottlerKind: String(formData.get("bottlerKind") ?? "") || undefined,
+      whiskyType: String(formData.get("whiskyType") ?? "") || undefined,
       country: String(formData.get("country") ?? "").trim(),
       region: String(formData.get("region") ?? "").trim(),
       abv: parseNumber(formData.get("abv")),
@@ -331,8 +346,8 @@ export function AddBottleForm() {
       bottleNumber: parseNumber(formData.get("bottleNumber")),
       outturn: parseNumber(formData.get("outturn")),
       barcode: String(formData.get("barcode") ?? "").trim() || undefined,
-      peatLevel: String(formData.get("peatLevel") ?? "medium"),
-      caskInfluence: String(formData.get("caskInfluence") ?? "mixed"),
+      peatLevel: String(formData.get("peatLevel") ?? "") || undefined,
+      caskInfluence: String(formData.get("caskInfluence") ?? "") || undefined,
       isNas: parseToggle(formData.get("isNas")) || parseNumber(formData.get("ageStatement")) === undefined,
       isChillFiltered: parseToggle(formData.get("isChillFiltered")),
       isNaturalColor: parseToggle(formData.get("isNaturalColor")),
@@ -484,10 +499,45 @@ export function AddBottleForm() {
 
         {draft ? (
           <>
-            <div className="status-note status-note-info">
-              Source: {draft.source}
-              {draft.barcode ? ` | Barcode ${draft.barcode}` : ""}
-            </div>
+              <div className="status-note status-note-info">
+                Source: {draft.source}
+                {draft.barcode ? ` | Barcode ${draft.barcode}` : ""}
+              </div>
+            {draft.identification ? (
+              <div className="review-panel">
+                <div className="section-title">
+                  <div>
+                    <h3>Step 1: Identification</h3>
+                    <p>What the first pass believes this bottle is.</p>
+                  </div>
+                </div>
+                <div className="review-list">
+                  <article className="review-item">
+                    <div className="review-item-head">
+                      <strong>{draft.identification.identifiedName ?? "Unidentified"}</strong>
+                      <span className="pill">
+                        {draft.identification.productMatchConfidence === null
+                          ? "No confidence"
+                          : `${Math.round(draft.identification.productMatchConfidence * 100)}%`}
+                      </span>
+                    </div>
+                    <p className="muted">
+                      {draft.identification.brand ?? "Brand not confirmed"}
+                      {draft.identification.distilleryName ? ` · ${draft.identification.distilleryName}` : ""}
+                      {draft.identification.bottlerName ? ` · ${draft.identification.bottlerName}` : ""}
+                    </p>
+                    {draft.identification.matchNotes ? <p>{draft.identification.matchNotes}</p> : null}
+                    <div className="pill-row">
+                      {draft.identification.releaseSeries ? (
+                        <span className="pill">{draft.identification.releaseSeries}</span>
+                      ) : null}
+                      {draft.identification.caskType ? <span className="pill">{draft.identification.caskType}</span> : null}
+                      {draft.identification.whiskyType ? <span className="pill">{draft.identification.whiskyType}</span> : null}
+                    </div>
+                  </article>
+                </div>
+              </div>
+            ) : null}
             <div className="pill-row">
               {draft.suggestions.map((suggestion) => (
                 <span className="pill" key={suggestion.field}>
@@ -538,11 +588,11 @@ export function AddBottleForm() {
               </div>
               <div className="field">
                 <label htmlFor="distilleryName">Distillery</label>
-                <input defaultValue={draft.distilleryName} id="distilleryName" name="distilleryName" required />
+                <input defaultValue={draft.distilleryName ?? ""} id="distilleryName" name="distilleryName" required />
               </div>
               <div className="field">
                 <label htmlFor="bottlerName">Bottler</label>
-                <input defaultValue={draft.bottlerName} id="bottlerName" name="bottlerName" required />
+                <input defaultValue={draft.bottlerName ?? ""} id="bottlerName" name="bottlerName" required />
               </div>
               <div className="field">
                 <label htmlFor="brand">Brand</label>
@@ -559,7 +609,8 @@ export function AddBottleForm() {
               </div>
               <div className="field">
                 <label htmlFor="bottlerKind">Bottler kind</label>
-                <select defaultValue={draft.expression.bottlerKind} id="bottlerKind" name="bottlerKind">
+                <select defaultValue={draft.expression.bottlerKind ?? ""} id="bottlerKind" name="bottlerKind">
+                  <option value="">Select bottler kind</option>
                   <option value="official">Official bottler</option>
                   <option value="independent">Independent bottler</option>
                 </select>
@@ -575,7 +626,8 @@ export function AddBottleForm() {
               </div>
               <div className="field">
                 <label htmlFor="whiskyType">Whisky type</label>
-                <select defaultValue={draft.expression.whiskyType} id="whiskyType" name="whiskyType">
+                <select defaultValue={draft.expression.whiskyType ?? ""} id="whiskyType" name="whiskyType">
+                  <option value="">Select whisky type</option>
                   <option value="single-malt">Single malt</option>
                   <option value="blended-malt">Blended malt</option>
                   <option value="blended-scotch">Blended Scotch</option>
@@ -714,7 +766,7 @@ export function AddBottleForm() {
               <div className="field full-span">
                 <label htmlFor="flavorTags">Flavor tags</label>
                 <input
-                  defaultValue={draft.expression.flavorTags.join(", ")}
+                  defaultValue={(draft.expression.flavorTags ?? []).join(", ")}
                   id="flavorTags"
                   name="flavorTags"
                   placeholder="smoke, citrus, malt, dried-fruit"

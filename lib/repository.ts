@@ -34,8 +34,23 @@ type DraftView = {
   source: string;
   barcode?: string;
   rawExpression?: IntakeRawExpression;
-  distilleryName: string;
-  bottlerName: string;
+  identification?: {
+    identifiedName: string | null;
+    brand: string | null;
+    distilleryName: string | null;
+    bottlerName: string | null;
+    bottlerKind: string | null;
+    country: string | null;
+    ageStatement: number | null;
+    releaseSeries: string | null;
+    caskType: string | null;
+    whiskyType: string | null;
+    productMatchConfidence: number | null;
+    internetLookupUsed: boolean | null;
+    matchNotes: string | null;
+  };
+  distilleryName?: string;
+  bottlerName?: string;
   collection: {
     status: CollectionStatus;
     fillState: FillState;
@@ -45,11 +60,11 @@ type DraftView = {
     brand?: string;
     name: string;
     releaseSeries?: string;
-    bottlerKind: Expression["bottlerKind"];
-    whiskyType: Expression["whiskyType"];
-    country: string;
-    region: string;
-    abv: number;
+    bottlerKind?: Expression["bottlerKind"];
+    whiskyType?: Expression["whiskyType"];
+    country?: string;
+    region?: string;
+    abv?: number;
     ageStatement?: number;
     vintageYear?: number;
     distilledYear?: number;
@@ -60,13 +75,13 @@ type DraftView = {
     bottleNumber?: number;
     outturn?: number;
     barcode?: string;
-    peatLevel: Expression["peatLevel"];
-    caskInfluence: Expression["caskInfluence"];
-    isNas: boolean;
-    isChillFiltered: boolean;
-    isNaturalColor: boolean;
-    isLimited: boolean;
-    flavorTags: string[];
+    peatLevel?: Expression["peatLevel"];
+    caskInfluence?: Expression["caskInfluence"];
+    isNas?: boolean;
+    isChillFiltered?: boolean;
+    isNaturalColor?: boolean;
+    isLimited?: boolean;
+    flavorTags?: string[];
     description?: string;
   };
   suggestions: Array<{
@@ -332,53 +347,68 @@ function buildDraftView(store: WhiskyStore, draft: Awaited<ReturnType<typeof get
   const bottler = baseExpression
     ? store.bottlers.find((entry) => entry.id === baseExpression.bottlerId)
     : undefined;
-  const extractedDistilleryName = normalizeText(draft.expression.distilleryName);
-  const extractedBottlerName = normalizeText(draft.expression.bottlerName);
+  const extractedDistilleryName = normalizeText(draft.rawExpression?.distilleryName);
+  const extractedBottlerName = normalizeText(draft.rawExpression?.bottlerName);
 
   return {
     draftId: draft.id,
     matchedExpressionId: draft.matchedExpressionId,
     source: draft.source,
     barcode: draft.barcode,
+    identification:
+      draft.identification ??
+      (draft.rawExpression?.name
+        ? {
+            identifiedName: draft.rawExpression.name,
+            brand: draft.rawExpression.brand ?? null,
+            distilleryName: draft.rawExpression.distilleryName ?? null,
+            bottlerName: draft.rawExpression.bottlerName ?? null,
+            bottlerKind: draft.expression.bottlerKind ?? null,
+            country: draft.expression.country ?? null,
+            ageStatement: draft.expression.ageStatement ?? null,
+            releaseSeries: draft.expression.releaseSeries ?? null,
+            caskType: draft.expression.caskType ?? null,
+            whiskyType: draft.expression.whiskyType ?? null,
+            productMatchConfidence: null,
+            internetLookupUsed: null,
+            matchNotes: null
+          }
+        : undefined),
     rawExpression: draft.rawExpression,
-    distilleryName: distillery?.name ?? extractedDistilleryName ?? "Unknown Distillery",
-    bottlerName: bottler?.name ?? extractedBottlerName ?? "Unknown Bottler",
+    distilleryName: distillery?.name ?? extractedDistilleryName,
+    bottlerName: bottler?.name ?? extractedBottlerName,
     collection: {
       status: draft.collection.status ?? "owned",
       fillState: draft.collection.fillState ?? "sealed",
       purchaseCurrency: draft.collection.purchaseCurrency ?? "ZAR"
     },
     expression: {
-      brand: normalizeText(draft.expression.brand) ?? baseExpression?.brand,
+      brand: normalizeText(draft.expression.brand),
       name: draft.expression.name,
-      releaseSeries: normalizeText(draft.expression.releaseSeries) ?? baseExpression?.releaseSeries,
-      bottlerKind: draft.expression.bottlerKind ?? baseExpression?.bottlerKind ?? "official",
-      whiskyType: draft.expression.whiskyType ?? baseExpression?.whiskyType ?? "single-malt",
-      country: normalizeText(draft.expression.country) ?? baseExpression?.country ?? "Unknown",
-      region: normalizeText(draft.expression.region) ?? baseExpression?.region ?? "Unknown",
-      abv: normalizeNumber(draft.expression.abv) ?? baseExpression?.abv ?? 46,
-      ageStatement: normalizeNumber(draft.expression.ageStatement) ?? baseExpression?.ageStatement,
-      vintageYear: normalizeNumber(draft.expression.vintageYear) ?? baseExpression?.vintageYear,
-      distilledYear:
-        normalizeNumber(draft.expression.distilledYear) ?? baseExpression?.distilledYear,
-      bottledYear: normalizeNumber(draft.expression.bottledYear) ?? baseExpression?.bottledYear,
-      volumeMl: normalizeNumber(draft.expression.volumeMl) ?? baseExpression?.volumeMl,
-      caskType: normalizeText(draft.expression.caskType) ?? baseExpression?.caskType,
-      caskNumber: normalizeText(draft.expression.caskNumber) ?? baseExpression?.caskNumber,
-      bottleNumber: normalizeNumber(draft.expression.bottleNumber) ?? baseExpression?.bottleNumber,
-      outturn: normalizeNumber(draft.expression.outturn) ?? baseExpression?.outturn,
-      barcode: normalizeText(draft.expression.barcode) ?? draft.barcode ?? baseExpression?.barcode,
-      peatLevel: draft.expression.peatLevel ?? baseExpression?.peatLevel ?? "medium",
-      caskInfluence:
-        draft.expression.caskInfluence ?? baseExpression?.caskInfluence ?? "mixed",
-      isNas: draft.expression.isNas ?? baseExpression?.isNas ?? false,
-      isChillFiltered:
-        normalizeBoolean(draft.expression.isChillFiltered) ?? baseExpression?.isChillFiltered ?? false,
-      isNaturalColor:
-        normalizeBoolean(draft.expression.isNaturalColor) ?? baseExpression?.isNaturalColor ?? false,
-      isLimited: normalizeBoolean(draft.expression.isLimited) ?? baseExpression?.isLimited ?? false,
-      flavorTags: normalizeFlavorTags(draft.expression.flavorTags ?? baseExpression?.flavorTags),
-      description: normalizeText(draft.expression.description) ?? baseExpression?.description
+      releaseSeries: normalizeText(draft.expression.releaseSeries),
+      bottlerKind: draft.expression.bottlerKind,
+      whiskyType: draft.expression.whiskyType,
+      country: normalizeText(draft.expression.country),
+      region: normalizeText(draft.expression.region),
+      abv: normalizeNumber(draft.expression.abv),
+      ageStatement: normalizeNumber(draft.expression.ageStatement),
+      vintageYear: normalizeNumber(draft.expression.vintageYear),
+      distilledYear: normalizeNumber(draft.expression.distilledYear),
+      bottledYear: normalizeNumber(draft.expression.bottledYear),
+      volumeMl: normalizeNumber(draft.expression.volumeMl),
+      caskType: normalizeText(draft.expression.caskType),
+      caskNumber: normalizeText(draft.expression.caskNumber),
+      bottleNumber: normalizeNumber(draft.expression.bottleNumber),
+      outturn: normalizeNumber(draft.expression.outturn),
+      barcode: normalizeText(draft.expression.barcode) ?? draft.barcode,
+      peatLevel: draft.expression.peatLevel,
+      caskInfluence: draft.expression.caskInfluence,
+      isNas: draft.expression.isNas,
+      isChillFiltered: normalizeBoolean(draft.expression.isChillFiltered),
+      isNaturalColor: normalizeBoolean(draft.expression.isNaturalColor),
+      isLimited: normalizeBoolean(draft.expression.isLimited),
+      flavorTags: normalizeFlavorTags(draft.expression.flavorTags),
+      description: normalizeText(draft.expression.description)
     },
     suggestions: draft.suggestions.map((suggestion) => ({
       field: suggestion.field,
@@ -600,7 +630,32 @@ export async function createDraftFromPhoto(fileName: string, imageBase64?: strin
   if (aiResult?.expression) {
     draft.expression = {
       ...draft.expression,
-      ...aiResult.expression
+      brand: aiResult.expression.brand,
+      name: aiResult.expression.name ?? draft.expression.name,
+      releaseSeries: aiResult.expression.releaseSeries,
+      bottlerKind: aiResult.expression.bottlerKind,
+      whiskyType: aiResult.expression.whiskyType,
+      country: aiResult.expression.country,
+      region: aiResult.expression.region,
+      abv: aiResult.expression.abv,
+      ageStatement: aiResult.expression.ageStatement,
+      vintageYear: aiResult.expression.vintageYear,
+      distilledYear: aiResult.expression.distilledYear,
+      bottledYear: aiResult.expression.bottledYear,
+      volumeMl: aiResult.expression.volumeMl,
+      caskType: aiResult.expression.caskType,
+      caskNumber: aiResult.expression.caskNumber,
+      bottleNumber: aiResult.expression.bottleNumber,
+      outturn: aiResult.expression.outturn,
+      barcode: aiResult.expression.barcode,
+      peatLevel: aiResult.expression.peatLevel,
+      caskInfluence: aiResult.expression.caskInfluence,
+      isNas: aiResult.expression.isNas,
+      isChillFiltered: aiResult.expression.isChillFiltered,
+      isNaturalColor: aiResult.expression.isNaturalColor,
+      isLimited: aiResult.expression.isLimited,
+      flavorTags: aiResult.expression.flavorTags,
+      description: aiResult.expression.description
     };
   }
 
@@ -610,6 +665,10 @@ export async function createDraftFromPhoto(fileName: string, imageBase64?: strin
 
   if (aiResult?.reviewItems) {
     draft.reviewItems = aiResult.reviewItems;
+  }
+
+  if (aiResult?.identification) {
+    draft.identification = aiResult.identification;
   }
 
   store.drafts.unshift(draft);

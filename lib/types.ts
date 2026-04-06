@@ -172,6 +172,22 @@ export interface IntakeReviewItem {
   note?: string;
 }
 
+export interface BottleIdentification {
+  identifiedName: string | null;
+  brand: string | null;
+  distilleryName: string | null;
+  bottlerName: string | null;
+  bottlerKind: string | null;
+  country: string | null;
+  ageStatement: number | null;
+  releaseSeries: string | null;
+  caskType: string | null;
+  whiskyType: string | null;
+  productMatchConfidence: number | null;
+  internetLookupUsed: boolean | null;
+  matchNotes: string | null;
+}
+
 export interface IntakeRawExpression {
   distilleryName?: string;
   bottlerName?: string;
@@ -209,6 +225,7 @@ export interface IntakeDraft {
   matchedExpressionId?: string;
   source: IntakeSource;
   barcode?: string;
+  identification?: BottleIdentification;
   rawExpression?: IntakeRawExpression;
   expression: (Partial<Expression> & Pick<Expression, "name">) & {
     distilleryName?: string;

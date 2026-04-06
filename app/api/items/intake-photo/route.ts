@@ -19,8 +19,11 @@ export async function POST(request: Request) {
         matchedExpressionId: draft.matchedExpressionId,
         source: draft.source,
         barcode: draft.barcode,
+        identification: draft.identification,
+        rawExpression: draft.rawExpression,
         expression: draft.expression,
-        suggestions: draft.suggestions
+        suggestions: draft.suggestions,
+        reviewItems: draft.reviewItems
       }
     );
   } catch (error) {

@@ -1,6 +1,7 @@
 import { createId } from "@/lib/id";
 import type {
   Citation,
+  BottleIdentification,
   CollectionItem,
   Expression,
   IntakeRawExpression,
@@ -123,6 +124,22 @@ type DraftExpression = (Partial<Expression> & Pick<Expression, "name">) & {
   bottlerName?: string;
 };
 
+type BottleIdentificationPayload = {
+  identifiedName?: string | null;
+  brand?: string | null;
+  distilleryName?: string | null;
+  bottlerName?: string | null;
+  bottlerKind?: string | null;
+  country?: string | null;
+  ageStatement?: number | string | null;
+  releaseSeries?: string | null;
+  caskType?: string | null;
+  whiskyType?: string | null;
+  productMatchConfidence?: number | string | null;
+  internetLookupUsed?: boolean | string | number | null;
+  matchNotes?: string | null;
+};
+
 const BOTTLER_KIND_LOOKUP: Array<{ raw: string; mapped: Expression["bottlerKind"] }> = [
   { raw: "official", mapped: "official" },
   { raw: "official bottler", mapped: "official" },
@@ -218,6 +235,26 @@ function normalizeFlavorTags(value: string[] | null | undefined) {
     .map((tag) => tag.trim().toLowerCase().replace(/\s+/g, "-"))
     .filter(Boolean)
     .slice(0, 6);
+}
+
+function normalizeIdentification(payload: BottleIdentificationPayload): BottleIdentification {
+  const confidence = normalizeNumber(payload.productMatchConfidence);
+
+  return {
+    identifiedName: normalizeText(payload.identifiedName) ?? null,
+    brand: normalizeText(payload.brand) ?? null,
+    distilleryName: normalizeText(payload.distilleryName) ?? null,
+    bottlerName: normalizeText(payload.bottlerName) ?? null,
+    bottlerKind: normalizeText(payload.bottlerKind) ?? null,
+    country: normalizeText(payload.country) ?? null,
+    ageStatement: normalizeNumber(payload.ageStatement) ?? null,
+    releaseSeries: normalizeText(payload.releaseSeries) ?? null,
+    caskType: normalizeText(payload.caskType) ?? null,
+    whiskyType: normalizeText(payload.whiskyType) ?? null,
+    productMatchConfidence: confidence ?? null,
+    internetLookupUsed: normalizeBoolean(payload.internetLookupUsed) ?? null,
+    matchNotes: normalizeText(payload.matchNotes) ?? null
+  };
 }
 
 function normalizeEnumValue<T extends string>(
@@ -377,28 +414,67 @@ function normalizeAnalyzedBottle(payload: ExtractedBottlePayload, fileName: stri
   };
 }
 
-export async function analyzeBottleImage(fileName: string, imageBase64?: string) {
+export async function identifyBottleImage(fileName: string, imageBase64?: string) {
   if (!process.env.OPENAI_API_KEY || !imageBase64) {
     return null;
   }
 
   const prompt = [
-    "You are a whisky expert and data extraction assistant.",
-    "Your task is to analyze the provided image of a whisky bottle and extract structured information for a whisky collection app.",
+    "You are a whisky bottle identification assistant.",
+    "Your task is to identify the exact whisky bottle shown in the provided image.",
     "Return ONLY a valid JSON object. Do not include markdown, explanations, or extra text.",
-    "If a field is not visible or cannot be determined with reasonable confidence, return null.",
-    "Prefer the label. Do an internet search if a field is not visible or cannot be determined with reasonable confidence, and never invent rare release details or any other details that are not confirmed by the internet or the label.",
-    "Return raw values for categorical fields rather than forcing a taxonomy. For example, return the label wording you can see for bottlerKind, whiskyType, peatLevel, and caskInfluence.",
-    "Keep distilleryName and bottlerName separate. For official bottlings, bottlerName is often the same house as the distillery if no separate bottler is shown. For independent bottlings, keep them distinct whenever the label indicates both.",
-    "For ageStatement, return the numeric age as an integer, or null if the whisky is NAS.",
-    "For bottleNumber and outturn, return integers only. If the label shows a fraction like 112/642, use 112 for bottleNumber and 642 for outturn if both are visible.",
-    "For volumeMl, return the bottle size in millilitres if visible, such as 700 or 750.",
-    "For the production flags, return booleans when the label clearly states them: isChillFiltered, isNaturalColor, isLimited, and isNas.",
-    "For flavorTags, return up to 6 concise lowercase tags and use hyphens for multi-word tags, for example \"dark-chocolate\".",
+    "Primary goal: identify the exact product variant as conservatively as possible.",
+    "Strict source priority: 1. Visible label text in the image 2. Other visible packaging cues in the image (shape, closures, medallions, age marks, series wording) 3. Internet sources, but only if the visible bottle can already be matched with high confidence",
+    "Do not guess. Do not use knowledge from similar bottles unless the exact variant match is highly confident.",
+    "If multiple similar variants exist and the image does not clearly distinguish them, return null for uncertain fields.",
+    "Do not invent release details. Prefer exact wording from the label.",
+    "If the bottle cannot be identified with high confidence, say so in the confidence fields and leave variant-specific fields null.",
+    "Identify using these cues where possible: brand, product name, age statement, release wording, cask wording, bottler wording, country, bottle size, any visible serial or batch text.",
+    "Output fields: identifiedName, brand, distilleryName, bottlerName, bottlerKind, country, ageStatement, releaseSeries, caskType, whiskyType, productMatchConfidence, internetLookupUsed, matchNotes.",
+    'Output format: {"identifiedName":null,"brand":null,"distilleryName":null,"bottlerName":null,"bottlerKind":null,"country":null,"ageStatement":null,"releaseSeries":null,"caskType":null,"whiskyType":null,"productMatchConfidence":null,"internetLookupUsed":null,"matchNotes":null}'
+  ].join(" ");
+
+  const payload = await callOpenAi(prompt, imageBase64);
+  const text = getResponseText(payload);
+  const parsed = extractJson<BottleIdentificationPayload>(text);
+
+  if (!parsed) {
+    return null;
+  }
+
+  return normalizeIdentification(parsed);
+}
+
+function buildEnrichmentPrompt(identification: BottleIdentification | null) {
+  const identificationContext = identification
+    ? JSON.stringify(identification)
+    : "null";
+
+  return [
+    "You are a whisky expert and data extraction assistant.",
+    "Your task is to analyze the provided whisky bottle image and the identified product candidate, then extract structured information for a whisky collection app.",
+    "Return ONLY a valid JSON object. Do not include markdown, explanations, or extra text.",
+    "Strict source priority: 1. Visible label text in the image 2. Visible packaging cues in the image 3. Internet sources for the exact same bottle variant only, and only when the variant match is already highly confident",
+    "Variant safety rules: Use internet sources only for the exact identified variant. Never infer values from similar bottles, adjacent releases, same-age bottles, or same-brand bottles. If there is any uncertainty that the internet result refers to the exact same variant, return null for that field. If label data conflicts with internet data, prefer the label unless the label is unreadable and the exact internet match is highly confident. If multiple internet sources disagree for a field, return null for that field. Never invent rare release details or any other details not confirmed by the label or reliable sources.",
+    "Confidence rule: Internally assess confidence per field. If confidence for a field is below 0.8, return null for that field.",
+    `Identified candidate: ${identificationContext}`,
+    "Field-specific rules: Keep distilleryName and bottlerName separate. For official bottlings, bottlerName is often the same house as the distillery if no separate bottler is shown or reliably confirmed. For independent bottlings, keep distilleryName and bottlerName distinct whenever the label or reliable source indicates both. Return raw values for categorical fields rather than forcing a taxonomy. Use the wording shown on the label or confirmed for the exact variant. For ageStatement, return the numeric age as an integer, or null if the whisky is NAS. For bottleNumber and outturn, return integers only. If the label shows a fraction like 112/642, use 112 for bottleNumber and 642 for outturn. For volumeMl, return the bottle size in millilitres if visible or reliably confirmed for the exact variant. For the production flags, return booleans only when clearly stated or reliably confirmed for the exact variant: isChillFiltered, isNaturalColor, isLimited, isNas. For ABV: return a value only if clearly visible on the label or confirmed by multiple reliable sources for the exact same variant. If the variant is unclear, or if sources conflict, return null. For whiskyType: prefer explicit label wording; do not assume single malt unless clearly stated. If “blend” appears on the label, preserve that wording rather than upgrading it to a more specific category unless confirmed. For flavorTags: return up to 6 concise lowercase tags, use hyphens for multi-word tags, use label text first, then exact-variant consensus tasting descriptors if reliably available; if not confident, return null. For description: write a short neutral summary based only on confirmed information; do not include unverified tasting claims.",
+    "Precondition: If the identified product candidate is not highly confident, return null for fields that depend on exact variant matching.",
     "Fields to extract: distilleryName, bottlerName, brand, name, releaseSeries, bottlerKind, whiskyType, country, region, abv, ageStatement, vintageYear, distilledYear, bottledYear, volumeMl, caskType, caskNumber, bottleNumber, outturn, barcode, peatLevel, caskInfluence, isChillFiltered, isNaturalColor, isLimited, isNas, flavorTags, description.",
     'Output format: {"distilleryName":null,"bottlerName":null,"brand":null,"name":null,"releaseSeries":null,"bottlerKind":null,"whiskyType":null,"country":null,"region":null,"abv":null,"ageStatement":null,"vintageYear":null,"distilledYear":null,"bottledYear":null,"volumeMl":null,"caskType":null,"caskNumber":null,"bottleNumber":null,"outturn":null,"barcode":null,"peatLevel":null,"caskInfluence":null,"isChillFiltered":null,"isNaturalColor":null,"isLimited":null,"isNas":null,"flavorTags":null,"description":null}'
   ].join(" ");
+}
 
+async function enrichBottleImage(
+  fileName: string,
+  imageBase64?: string,
+  identification?: BottleIdentification | null
+) {
+  if (!process.env.OPENAI_API_KEY || !imageBase64) {
+    return null;
+  }
+
+  const prompt = buildEnrichmentPrompt(identification ?? null);
   const payload = await callOpenAi(prompt, imageBase64);
   const text = getResponseText(payload);
   const parsed = extractJson<ExtractedBottlePayload>(text);
@@ -408,6 +484,24 @@ export async function analyzeBottleImage(fileName: string, imageBase64?: string)
   }
 
   return normalizeAnalyzedBottle(parsed, fileName);
+}
+
+export async function analyzeBottleImage(fileName: string, imageBase64?: string) {
+  if (!process.env.OPENAI_API_KEY || !imageBase64) {
+    return null;
+  }
+
+  const identification = await identifyBottleImage(fileName, imageBase64);
+  const payload = await enrichBottleImage(fileName, imageBase64, identification);
+
+  if (!payload) {
+    return null;
+  }
+
+  return {
+    identification,
+    ...payload
+  };
 }
 
 export async function refreshPricingWithAi(expression: Expression): Promise<PriceSnapshot | null> {
