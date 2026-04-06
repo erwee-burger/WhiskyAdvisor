@@ -14,6 +14,7 @@ import {
 import { buildPalateProfile } from "@/lib/profile";
 import type {
   Bottler,
+  BottlerKind,
   CollectionItem,
   CollectionStatus,
   CollectionViewItem,
@@ -93,15 +94,15 @@ type DraftView = {
 };
 
 type BottleRecordPayload = {
-  distilleryName: string;
-  bottlerName: string;
+  distilleryName?: string;
+  bottlerName?: string;
   brand?: string;
   name: string;
   releaseSeries?: string;
-  bottlerKind: Expression["bottlerKind"];
-  whiskyType: Expression["whiskyType"];
+  bottlerKind?: Expression["bottlerKind"];
+  whiskyType?: Expression["whiskyType"];
   country: string;
-  region: string;
+  region?: string;
   abv?: number;
   ageStatement?: number;
   vintageYear?: number;
@@ -113,8 +114,8 @@ type BottleRecordPayload = {
   bottleNumber?: number;
   outturn?: number;
   barcode?: string;
-  peatLevel: Expression["peatLevel"];
-  caskInfluence: Expression["caskInfluence"];
+  peatLevel?: Expression["peatLevel"];
+  caskInfluence?: Expression["caskInfluence"];
   isNas: boolean;
   isChillFiltered: boolean;
   isNaturalColor: boolean;
@@ -303,9 +304,10 @@ function ensureDistillery(
 function ensureBottler(
   store: WhiskyStore,
   name: string | undefined,
-  bottlerKind: Expression["bottlerKind"],
+  bottlerKind: Expression["bottlerKind"] | undefined,
   country?: string
 ) {
+  const resolvedBottlerKind: BottlerKind = bottlerKind ?? "official";
   const bottlerName = normalizeText(name) ?? "Unknown Bottler";
   const bottlerCountry = normalizeText(country);
   const existingIndex = store.bottlers.findIndex(
@@ -316,7 +318,7 @@ function ensureBottler(
     const existing = store.bottlers[existingIndex];
     const updated: Bottler = {
       ...existing,
-      bottlerKind,
+      bottlerKind: resolvedBottlerKind,
       country: bottlerCountry ?? existing.country
     };
     store.bottlers[existingIndex] = updated;
@@ -326,7 +328,7 @@ function ensureBottler(
   const created: Bottler = {
     id: createId("bot"),
     name: bottlerName,
-    bottlerKind,
+    bottlerKind: resolvedBottlerKind,
     country: bottlerCountry
   };
   store.bottlers.unshift(created);
@@ -456,11 +458,11 @@ function buildExpressionRecord(
     name: payload.name,
     distilleryId,
     bottlerId,
-    bottlerKind: payload.bottlerKind,
-    whiskyType: payload.whiskyType,
+    bottlerKind: payload.bottlerKind ?? baseExpression?.bottlerKind ?? "official",
+    whiskyType: payload.whiskyType ?? baseExpression?.whiskyType ?? "single-malt",
     releaseSeries: normalizeText(payload.releaseSeries),
     country: normalizeText(payload.country) ?? "Unknown",
-    region: normalizeText(payload.region) ?? "Unknown",
+    region: normalizeText(payload.region) ?? baseExpression?.region ?? "Unknown",
     abv: normalizeNumber(payload.abv) ?? baseExpression?.abv ?? 46,
     ageStatement: normalizeNumber(payload.ageStatement),
     vintageYear: normalizeNumber(payload.vintageYear),
@@ -472,8 +474,8 @@ function buildExpressionRecord(
     bottleNumber: normalizeNumber(payload.bottleNumber),
     outturn: normalizeNumber(payload.outturn),
     barcode: normalizeText(payload.barcode),
-    peatLevel: payload.peatLevel,
-    caskInfluence: payload.caskInfluence,
+    peatLevel: payload.peatLevel ?? baseExpression?.peatLevel ?? "unpeated",
+    caskInfluence: payload.caskInfluence ?? baseExpression?.caskInfluence ?? "refill",
     isNas: payload.isNas || normalizeNumber(payload.ageStatement) === undefined,
     isChillFiltered: payload.isChillFiltered,
     isNaturalColor: payload.isNaturalColor,
