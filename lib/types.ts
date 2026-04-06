@@ -25,7 +25,7 @@ export interface CollectionItem {
   status: CollectionStatus;
   fillState: FillState;
   purchasePrice?: number;
-  purchaseCurrency: string;
+  purchaseCurrency?: string;
   purchaseDate?: string;
   purchaseSource?: string;
   personalNotes?: string;
@@ -52,6 +52,12 @@ export interface ItemImage {
   label?: string;
 }
 
+/**
+ * Represents a bottle entry being drafted during photo/barcode intake.
+ * @property rawAiResponse - Raw text outputs from OpenAI identification and enrichment passes
+ * @property expression - Partial expression fields; name is required, others optional
+ * @property collection - Partial collection metadata (status, fill state, purchase info)
+ */
 export interface IntakeDraft {
   id: string;
   collectionItemId: string;
@@ -73,6 +79,10 @@ export interface CollectionViewItem {
   images: ItemImage[];
 }
 
+/**
+ * Aggregated analytics across the collection.
+ * Includes counts, distributions, and top items by category.
+ */
 export interface CollectionAnalytics {
   totals: {
     owned: number;
@@ -101,6 +111,10 @@ export interface PalateCard {
   supporting: string;
 }
 
+/**
+ * User's detected taste profile based on collection and tasting history.
+ * @property favoredPeatTag - Most favored peat style tag, or null if insufficient data
+ */
 export interface PalateProfile {
   cards: PalateCard[];
   favoredFlavorTags: string[];
@@ -118,6 +132,11 @@ export interface AdvisorSuggestion {
   supportingTags: string[];
 }
 
+/**
+ * A single expression in a side-by-side comparison.
+ * @property distilleryName - Required: the distillery name for display (cannot be inferred)
+ * @property bottlerName - Required: the bottler name for display (cannot be inferred)
+ */
 export interface ComparisonColumn {
   title: string;
   expressionId?: string;
