@@ -36,10 +36,13 @@ export async function PATCH(
 
     return NextResponse.json({ itemId: item.id });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Could not save the bottle." },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error
+        ? error.message
+        : typeof error === "object" && error !== null && "message" in error
+          ? String((error as { message: unknown }).message)
+          : "Could not save the bottle.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -57,9 +60,12 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Could not delete the bottle." },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error
+        ? error.message
+        : typeof error === "object" && error !== null && "message" in error
+          ? String((error as { message: unknown }).message)
+          : "Could not delete the bottle.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
