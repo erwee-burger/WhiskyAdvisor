@@ -9,7 +9,7 @@ const bottleRecordSchema = z.object({
   country: z.string().optional(),
   abv: z.number().optional(),
   ageStatement: z.number().int().positive().optional(),
-  barcode: z.string().optional(),
+  barcode: z.string().min(3).optional(),
   description: z.string().optional(),
   tags: z.array(z.string()).default([]),
   status: z.enum(["owned", "wishlist"]),
