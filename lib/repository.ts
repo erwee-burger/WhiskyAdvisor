@@ -608,6 +608,7 @@ export async function createDraftFromBarcode(barcode: string) {
 export async function createDraftFromPhoto(fileName: string, imageBase64?: string) {
   const store = await readStore();
   const aiResult = await analyzeBottleImage(fileName, imageBase64);
+  const evidenceUrl = imageBase64 ? `data:image/jpeg;base64,${imageBase64}` : undefined;
   const matched =
     store.expressions.find(
       (entry) => entry.name.toLowerCase() === aiResult?.expression.name?.toLowerCase()
@@ -622,7 +623,10 @@ export async function createDraftFromPhoto(fileName: string, imageBase64?: strin
       aiResult?.expression.name ?? fileName.replace(/\.[^.]+$/, ""),
       undefined
     );
-  const draft = buildDraftFromMatchedExpression(expression, aiResult ? "hybrid" : "photo");
+  const draft = buildDraftFromMatchedExpression(expression, aiResult ? "hybrid" : "photo", undefined, {
+    url: evidenceUrl,
+    label: fileName
+  });
   if (!matched) {
     draft.matchedExpressionId = undefined;
   }

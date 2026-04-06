@@ -22,7 +22,7 @@ export const CASK_INFLUENCE_VALUES = [
   "refill"
 ] as const;
 export type CaskInfluence = (typeof CASK_INFLUENCE_VALUES)[number];
-export type SourceKind = "official" | "retail" | "auction" | "editorial" | "ai";
+export type SourceKind = "official" | "retail" | "auction" | "editorial" | "ai" | "user-upload";
 export type PriceSourceKind = "retail" | "auction";
 export type IntakeSource = "photo" | "barcode" | "hybrid";
 

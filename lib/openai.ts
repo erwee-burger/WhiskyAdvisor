@@ -585,7 +585,11 @@ export async function refreshPricingWithAi(expression: Expression): Promise<Pric
 export function buildDraftFromMatchedExpression(
   expression: Expression,
   source: IntakeDraft["source"],
-  barcode?: string
+  barcode?: string,
+  evidence?: {
+    url?: string;
+    label?: string;
+  }
 ): IntakeDraft {
   const now = new Date().toISOString();
   const rawExpression: IntakeRawExpression = {
@@ -616,20 +620,22 @@ export function buildDraftFromMatchedExpression(
     flavorTags: expression.flavorTags,
     description: expression.description
   };
-  const citations: Citation[] = [
-    {
-      id: createId("citation"),
-      entityType: "expression",
-      entityId: expression.id,
-      field: "name",
-      label: "Mock enrichment source",
-      url: "https://example.com/mock-source",
-      sourceKind: "ai",
-      confidence: 0.74,
-      snippet: "Fallback mock enrichment based on your label or barcode input.",
-      createdAt: now
-    }
-  ];
+  const citations: Citation[] = evidence?.url
+    ? [
+        {
+          id: createId("citation"),
+          entityType: "expression",
+          entityId: expression.id,
+          field: "name",
+          label: evidence.label ?? "Uploaded front label",
+          url: evidence.url,
+          sourceKind: "user-upload",
+          confidence: 1,
+          snippet: "Uploaded bottle image used during intake.",
+          createdAt: now
+        }
+      ]
+    : [];
   const reviewItems: IntakeReviewItem[] = [
     {
       field: "name",
