@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import type { NewsItem, ScoredNewsItem } from "@/lib/types";
+import type { NewsItem } from "@/lib/types";
 
 function getSupabaseClient() {
   const url = process.env.SUPABASE_URL;
@@ -63,7 +63,7 @@ export async function getNewsItems(): Promise<Array<{
     .order("fetched_at", { ascending: false });
 
   if (error) throw error;
-  return (data ?? []) as any;
+  return data ?? [];
 }
 
 export function isStale(fetchedAt: string): boolean {

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { SOURCE_LABELS } from "@/lib/news-sources";
 
 interface Props {
@@ -32,7 +33,7 @@ export function NewsItem({ name, price, originalPrice, discountPct, url, imageUr
     >
       {imageUrl && (
         <div className="news-item__image">
-          <img src={imageUrl} alt={name} loading="lazy" />
+          <Image src={imageUrl} alt={name} fill style={{ objectFit: "contain" }} unoptimized />
         </div>
       )}
       <div className="news-item__body">
