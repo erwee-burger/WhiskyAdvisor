@@ -338,15 +338,6 @@ function buildDraftView(store: WhiskyStore, draft: Awaited<ReturnType<typeof get
     return null;
   }
 
-  const baseExpression = draft.matchedExpressionId
-    ? store.expressions.find((entry) => entry.id === draft.matchedExpressionId)
-    : undefined;
-  const distillery = baseExpression
-    ? store.distilleries.find((entry) => entry.id === baseExpression.distilleryId)
-    : undefined;
-  const bottler = baseExpression
-    ? store.bottlers.find((entry) => entry.id === baseExpression.bottlerId)
-    : undefined;
   const extractedDistilleryName = normalizeText(draft.rawExpression?.distilleryName);
   const extractedBottlerName = normalizeText(draft.rawExpression?.bottlerName);
 
@@ -363,20 +354,20 @@ function buildDraftView(store: WhiskyStore, draft: Awaited<ReturnType<typeof get
             brand: draft.rawExpression.brand ?? null,
             distilleryName: draft.rawExpression.distilleryName ?? null,
             bottlerName: draft.rawExpression.bottlerName ?? null,
-            bottlerKind: draft.expression.bottlerKind ?? null,
-            country: draft.expression.country ?? null,
-            ageStatement: draft.expression.ageStatement ?? null,
-            releaseSeries: draft.expression.releaseSeries ?? null,
-            caskType: draft.expression.caskType ?? null,
-            whiskyType: draft.expression.whiskyType ?? null,
+            bottlerKind: draft.rawExpression.bottlerKind ?? null,
+            country: draft.rawExpression.country ?? null,
+            ageStatement: draft.rawExpression.ageStatement ?? null,
+            releaseSeries: draft.rawExpression.releaseSeries ?? null,
+            caskType: draft.rawExpression.caskType ?? null,
+            whiskyType: draft.rawExpression.whiskyType ?? null,
             productMatchConfidence: null,
             internetLookupUsed: null,
             matchNotes: null
           }
         : undefined),
     rawExpression: draft.rawExpression,
-    distilleryName: distillery?.name ?? extractedDistilleryName,
-    bottlerName: bottler?.name ?? extractedBottlerName,
+    distilleryName: extractedDistilleryName ?? draft.identification?.distilleryName ?? undefined,
+    bottlerName: extractedBottlerName ?? draft.identification?.bottlerName ?? undefined,
     collection: {
       status: draft.collection.status ?? "owned",
       fillState: draft.collection.fillState ?? "sealed",
@@ -633,7 +624,6 @@ export async function createDraftFromPhoto(fileName: string, imageBase64?: strin
 
   if (aiResult?.expression) {
     draft.expression = {
-      ...draft.expression,
       brand: aiResult.expression.brand,
       name: aiResult.expression.name ?? draft.expression.name,
       releaseSeries: aiResult.expression.releaseSeries,

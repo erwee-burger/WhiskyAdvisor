@@ -375,7 +375,6 @@ function buildReviewItems(
 
 function normalizeAnalyzedBottle(payload: ExtractedBottlePayload, fileName: string) {
   const rawExpression = toRawExpression(payload, fileName);
-  const ageStatement = rawExpression.ageStatement;
   const mappedExpression = {
     distilleryName: rawExpression.distilleryName,
     bottlerName: rawExpression.bottlerName,
@@ -387,7 +386,7 @@ function normalizeAnalyzedBottle(payload: ExtractedBottlePayload, fileName: stri
     country: rawExpression.country,
     region: rawExpression.region,
     abv: rawExpression.abv,
-    ageStatement,
+    ageStatement: rawExpression.ageStatement,
     vintageYear: rawExpression.vintageYear,
     distilledYear: rawExpression.distilledYear,
     bottledYear: rawExpression.bottledYear,
@@ -399,11 +398,11 @@ function normalizeAnalyzedBottle(payload: ExtractedBottlePayload, fileName: stri
     barcode: rawExpression.barcode,
     peatLevel: normalizeEnumValue(rawExpression.peatLevel, PEAT_LEVEL_LOOKUP),
     caskInfluence: normalizeEnumValue(rawExpression.caskInfluence, CASK_INFLUENCE_LOOKUP),
-    isChillFiltered: rawExpression.isChillFiltered ?? false,
-    isNaturalColor: rawExpression.isNaturalColor ?? false,
-    isLimited: rawExpression.isLimited ?? false,
-    isNas: rawExpression.isNas ?? ageStatement === undefined,
-    flavorTags: rawExpression.flavorTags ?? [],
+    isChillFiltered: rawExpression.isChillFiltered,
+    isNaturalColor: rawExpression.isNaturalColor,
+    isLimited: rawExpression.isLimited,
+    isNas: rawExpression.isNas,
+    flavorTags: rawExpression.flavorTags,
     description: rawExpression.description
   } satisfies DraftExpression;
 
