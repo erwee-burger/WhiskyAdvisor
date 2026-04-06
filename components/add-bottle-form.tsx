@@ -656,7 +656,8 @@ export function AddBottleForm() {
               </div>
               <div className="field">
                 <label htmlFor="peatLevel">Peat level</label>
-                <select defaultValue={draft.expression.peatLevel} id="peatLevel" name="peatLevel">
+                <select defaultValue={draft.expression.peatLevel ?? ""} id="peatLevel" name="peatLevel">
+                  <option value="">Select a peat level</option>
                   <option value="unpeated">Unpeated</option>
                   <option value="light">Light</option>
                   <option value="medium">Medium</option>
@@ -665,7 +666,8 @@ export function AddBottleForm() {
               </div>
               <div className="field">
                 <label htmlFor="caskInfluence">Cask influence</label>
-                <select defaultValue={draft.expression.caskInfluence} id="caskInfluence" name="caskInfluence">
+                <select defaultValue={draft.expression.caskInfluence ?? ""} id="caskInfluence" name="caskInfluence">
+                  <option value="">Select a cask influence</option>
                   <option value="bourbon">Bourbon</option>
                   <option value="sherry">Sherry</option>
                   <option value="wine">Wine</option>
