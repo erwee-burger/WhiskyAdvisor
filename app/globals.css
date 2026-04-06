@@ -1280,3 +1280,140 @@ td {
     width: min(250px, 92vw);
   }
 }
+
+/* News Feed */
+.news-page__meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.news-page__refresh {
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.news-page__refresh:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.news-page__error {
+  color: #c0392b;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.news-feed {
+  margin-top: 2rem;
+}
+
+.news-feed__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.news-feed__chip {
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 16px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.8rem;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.news-feed__chip--active {
+  opacity: 1;
+  border-color: var(--accent, #2d2d2d);
+}
+
+.news-feed__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.news-feed__empty {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.news-item {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 8px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 0.15s;
+}
+
+.news-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.news-item__image img {
+  width: 100%;
+  aspect-ratio: 3/4;
+  object-fit: contain;
+  background: var(--surface-alt, #f5f5f5);
+}
+
+.news-item__body {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.news-item__name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
+.news-item__price {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.news-item__original {
+  font-size: 0.8rem;
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.news-item__discount {
+  font-size: 0.8rem;
+  color: #c0392b;
+  font-weight: 600;
+}
+
+.news-item__badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #27ae60;
+}
+
+.news-item__stars {
+  font-size: 0.85rem;
+  color: #f39c12;
+}
+
+.news-item__source {
+  font-size: 0.75rem;
+  opacity: 0.4;
+  margin-top: 0.25rem;
+}
