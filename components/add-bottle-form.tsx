@@ -349,7 +349,7 @@ export function AddBottleForm() {
 
       const saved = (await response.json()) as { itemId: string };
       setNotice({ tone: "success", text: "Bottle saved. Opening the record now..." });
-      router.push(`/collection/${saved.itemId}`);
+      router.push(`/collection/${saved.itemId}`, { scroll: true });
       router.refresh();
     } catch (error) {
       setNotice({
