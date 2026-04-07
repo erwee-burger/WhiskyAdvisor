@@ -1560,16 +1560,18 @@ td {
 
 .advisor-chat__chip {
   padding: 0.4rem 0.85rem;
-  border: 1px solid var(--border, #e5e5e5);
+  border: 1px solid rgba(255, 239, 213, 0.3);
   border-radius: 20px;
   background: transparent;
+  color: var(--text);
   cursor: pointer;
   font-size: 0.875rem;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .advisor-chat__chip:hover:not(:disabled) {
-  background: var(--surface-alt, #f5f5f5);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 239, 213, 0.5);
 }
 
 .advisor-chat__chip:disabled {
@@ -1585,10 +1587,11 @@ td {
 .advisor-chat__input {
   flex: 1;
   padding: 0.75rem 1rem;
-  border: 1px solid var(--border, #e5e5e5);
+  border: 1px solid rgba(255, 225, 190, 0.12);
   border-radius: 8px;
   font-size: 1rem;
-  background: var(--surface, white);
+  background: rgba(17, 11, 9, 0.85);
+  color: var(--text);
 }
 
 .advisor-chat__send {
