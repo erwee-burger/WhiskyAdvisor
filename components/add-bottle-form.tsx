@@ -8,6 +8,7 @@ import { uploadImageToSupabase } from "@/lib/upload-image";
 
 type DraftResponse = {
   draftId: string;
+  collectionItemId?: string;
   matchedExpressionId?: string;
   source: string;
   barcode?: string;
