@@ -17,7 +17,18 @@ import type { TastingEntry, CollectionViewItem } from "@/lib/types";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const { messages, query } = (await req.json()) as { messages: ModelMessage[]; query: string };
+  const body = (await req.json()) as { messages: ModelMessage[] };
+  const messages = body.messages || [];
+
+  // Extract the last user message as the query for context triggering
+  let query = "";
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role === "user") {
+      query = typeof msg.content === "string" ? msg.content : "";
+      break;
+    }
+  }
 
   const dashboard = await getDashboardData();
   const { collection, profile, drinkNow, buyNext } = dashboard;
