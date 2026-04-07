@@ -9,3 +9,4 @@ data/mock-store.json
 npm-debug.log*
 dev-server*.log
 mockups/assets/pngimg-page.html
+supabase/.temp/
