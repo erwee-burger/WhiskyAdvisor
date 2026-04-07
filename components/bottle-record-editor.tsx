@@ -130,7 +130,7 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
       ageStatement: parseNumber(formData.get("ageStatement")),
       barcode: String(formData.get("barcode") ?? "").trim() || undefined,
       description: String(formData.get("description") ?? "").trim() || undefined,
-      imageUrl: previewUrl || undefined,
+      frontImageUrl: previewUrl || undefined,
       tags: parseTags(formData.get("tags")),
       status: String(formData.get("status") ?? "owned"),
       fillState: String(formData.get("fillState") ?? "sealed"),
