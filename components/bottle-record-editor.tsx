@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { getBottleDisplayImage } from "@/lib/bottle-image";
 import type { CollectionViewItem } from "@/lib/types";
 import { readResponseMessage } from "@/lib/utils";
+import { uploadImageToSupabase } from "@/lib/upload-image";
 
 type NoticeTone = "info" | "success" | "error";
 
@@ -99,30 +100,46 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
     setNotice({ tone: "info", text: "Saving your bottle changes..." });
 
     const formData = new FormData(event.currentTarget);
-    const payload = {
-      distilleryName: String(formData.get("distilleryName") ?? "").trim(),
-      bottlerName: String(formData.get("bottlerName") ?? "").trim(),
-      brand: String(formData.get("brand") ?? "").trim() || undefined,
-      name: String(formData.get("name") ?? "").trim(),
-      country: String(formData.get("country") ?? "").trim(),
-      abv: parseNumber(formData.get("abv")),
-      ageStatement: parseNumber(formData.get("ageStatement")),
-      barcode: String(formData.get("barcode") ?? "").trim() || undefined,
-      description: String(formData.get("description") ?? "").trim() || undefined,
-      frontImageUrl: previewUrl || undefined,
-      tags: parseTags(formData.get("tags")),
-      status: String(formData.get("status") ?? "owned"),
-      fillState: String(formData.get("fillState") ?? "sealed"),
-      purchaseCurrency: String(formData.get("purchaseCurrency") ?? "ZAR")
-        .trim()
-        .toUpperCase(),
-      purchasePrice: parseNumber(formData.get("purchasePrice")),
-      purchaseDate: String(formData.get("purchaseDate") ?? "").trim() || undefined,
-      purchaseSource: String(formData.get("purchaseSource") ?? "").trim() || undefined,
-      personalNotes: String(formData.get("personalNotes") ?? "").trim() || undefined
-    };
+    let frontImageUrl = previewUrl || undefined;
 
     try {
+      // Upload image to Supabase if it's a new data URL
+      if (frontImageUrl?.startsWith("data:")) {
+        try {
+          frontImageUrl = await uploadImageToSupabase(frontImageUrl, entry.item.id);
+        } catch (uploadError) {
+          setNotice({
+            tone: "error",
+            text: uploadError instanceof Error ? uploadError.message : "Could not upload the image."
+          });
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      const payload = {
+        distilleryName: String(formData.get("distilleryName") ?? "").trim(),
+        bottlerName: String(formData.get("bottlerName") ?? "").trim(),
+        brand: String(formData.get("brand") ?? "").trim() || undefined,
+        name: String(formData.get("name") ?? "").trim(),
+        country: String(formData.get("country") ?? "").trim(),
+        abv: parseNumber(formData.get("abv")),
+        ageStatement: parseNumber(formData.get("ageStatement")),
+        barcode: String(formData.get("barcode") ?? "").trim() || undefined,
+        description: String(formData.get("description") ?? "").trim() || undefined,
+        frontImageUrl,
+        tags: parseTags(formData.get("tags")),
+        status: String(formData.get("status") ?? "owned"),
+        fillState: String(formData.get("fillState") ?? "sealed"),
+        purchaseCurrency: String(formData.get("purchaseCurrency") ?? "ZAR")
+          .trim()
+          .toUpperCase(),
+        purchasePrice: parseNumber(formData.get("purchasePrice")),
+        purchaseDate: String(formData.get("purchaseDate") ?? "").trim() || undefined,
+        purchaseSource: String(formData.get("purchaseSource") ?? "").trim() || undefined,
+        personalNotes: String(formData.get("personalNotes") ?? "").trim() || undefined
+      };
+
       const response = await fetch(`/api/items/${entry.item.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

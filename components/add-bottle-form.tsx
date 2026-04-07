@@ -4,6 +4,7 @@ import { type ChangeEvent, type FormEvent, useState } from "react";
 import Image from "next/image";
 
 import { readResponseMessage } from "@/lib/utils";
+import { uploadImageToSupabase } from "@/lib/upload-image";
 
 type DraftResponse = {
   draftId: string;
@@ -281,36 +282,49 @@ export function AddBottleForm() {
     }
 
     const formData = new FormData(event.currentTarget);
-    const payload = {
-      draftId: draft.draftId,
-      distilleryName: String(formData.get("distilleryName") ?? "").trim(),
-      bottlerName: String(formData.get("bottlerName") ?? "").trim(),
-      brand: String(formData.get("brand") ?? "").trim() || undefined,
-      name: String(formData.get("name") ?? "").trim(),
-      country: String(formData.get("country") ?? "").trim(),
-      abv: parseNumber(formData.get("abv")),
-      ageStatement: parseNumber(formData.get("ageStatement")),
-      barcode: String(formData.get("barcode") ?? "").trim() || undefined,
-      tags: parseFlavorTags(formData.get("tags")),
-      description: String(formData.get("description") ?? "").trim() || undefined,
-      status: String(formData.get("status") ?? "owned"),
-      fillState: String(formData.get("fillState") ?? "sealed"),
-      purchaseCurrency: String(formData.get("purchaseCurrency") ?? "ZAR").trim().toUpperCase(),
-      purchasePrice: parseNumber(formData.get("purchasePrice")),
-      purchaseDate: String(formData.get("purchaseDate") ?? "") || undefined,
-      purchaseSource: String(formData.get("purchaseSource") ?? "").trim() || undefined,
-      personalNotes: String(formData.get("personalNotes") ?? "").trim() || undefined,
-      frontImageUrl: previewUrl || undefined,
-      frontImageLabel: previewLabel || undefined
-    };
+    let frontImageUrl = previewUrl || undefined;
 
     setBusyAction("save");
     setNotice({ tone: "info", text: "Saving the bottle and its front image..." });
 
     try {
-      if (payload.frontImageUrl?.startsWith("data:")) {
-        payload.frontImageUrl = await resizeDataUrl(payload.frontImageUrl);
+      // Upload image to Supabase if it's a data URL
+      if (frontImageUrl?.startsWith("data:")) {
+        const resized = await resizeDataUrl(frontImageUrl);
+        try {
+          frontImageUrl = await uploadImageToSupabase(resized, draft.collectionItemId);
+        } catch (uploadError) {
+          setNotice({
+            tone: "error",
+            text: uploadError instanceof Error ? uploadError.message : "Could not upload the image."
+          });
+          setBusyAction(null);
+          return;
+        }
       }
+
+      const payload = {
+        draftId: draft.draftId,
+        distilleryName: String(formData.get("distilleryName") ?? "").trim(),
+        bottlerName: String(formData.get("bottlerName") ?? "").trim(),
+        brand: String(formData.get("brand") ?? "").trim() || undefined,
+        name: String(formData.get("name") ?? "").trim(),
+        country: String(formData.get("country") ?? "").trim(),
+        abv: parseNumber(formData.get("abv")),
+        ageStatement: parseNumber(formData.get("ageStatement")),
+        barcode: String(formData.get("barcode") ?? "").trim() || undefined,
+        tags: parseFlavorTags(formData.get("tags")),
+        description: String(formData.get("description") ?? "").trim() || undefined,
+        status: String(formData.get("status") ?? "owned"),
+        fillState: String(formData.get("fillState") ?? "sealed"),
+        purchaseCurrency: String(formData.get("purchaseCurrency") ?? "ZAR").trim().toUpperCase(),
+        purchasePrice: parseNumber(formData.get("purchasePrice")),
+        purchaseDate: String(formData.get("purchaseDate") ?? "") || undefined,
+        purchaseSource: String(formData.get("purchaseSource") ?? "").trim() || undefined,
+        personalNotes: String(formData.get("personalNotes") ?? "").trim() || undefined,
+        frontImageUrl,
+        frontImageLabel: previewLabel || undefined
+      };
 
       const response = await fetch(`/api/items/${draft.draftId}`, {
         method: "PATCH",
