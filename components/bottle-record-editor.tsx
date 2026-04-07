@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { getBottleDisplayImage } from "@/lib/bottle-image";
 import type { CollectionViewItem } from "@/lib/types";
+import { readResponseMessage } from "@/lib/utils";
 
 type NoticeTone = "info" | "success" | "error";
 
@@ -25,28 +26,6 @@ function parseTags(value: FormDataEntryValue | null) {
     .filter(Boolean);
 }
 
-async function readResponseMessage(response: Response, fallback: string) {
-  try {
-    const payload = (await response.json()) as {
-      error?: string | { fieldErrors?: Record<string, string[]> };
-    };
-
-    if (typeof payload.error === "string") {
-      return payload.error;
-    }
-
-    if (payload.error && typeof payload.error === "object" && "fieldErrors" in payload.error) {
-      const fieldErrors = Object.values(payload.error.fieldErrors ?? {}).flat().filter(Boolean);
-      if (fieldErrors.length > 0) {
-        return fieldErrors[0];
-      }
-    }
-  } catch {
-    return fallback;
-  }
-
-  return fallback;
-}
 
 export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
   const router = useRouter();
@@ -130,7 +109,7 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
       ageStatement: parseNumber(formData.get("ageStatement")),
       barcode: String(formData.get("barcode") ?? "").trim() || undefined,
       description: String(formData.get("description") ?? "").trim() || undefined,
-      imageUrl: previewUrl || undefined,
+      frontImageUrl: previewUrl || undefined,
       tags: parseTags(formData.get("tags")),
       status: String(formData.get("status") ?? "owned"),
       fillState: String(formData.get("fillState") ?? "sealed"),

@@ -33,3 +33,26 @@ export function average(values: number[]) {
 export function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
+
+export async function readResponseMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const payload = (await response.json()) as {
+      error?: string | { fieldErrors?: Record<string, string[]> };
+    };
+
+    if (typeof payload.error === "string") {
+      return payload.error;
+    }
+
+    if (payload.error && typeof payload.error === "object" && "fieldErrors" in payload.error) {
+      const fieldErrors = Object.values(payload.error.fieldErrors ?? {}).flat().filter(Boolean);
+      if (fieldErrors.length > 0) {
+        return fieldErrors.join(". ");
+      }
+    }
+  } catch {
+    // JSON parse failed — fall through to fallback
+  }
+
+  return fallback;
+}

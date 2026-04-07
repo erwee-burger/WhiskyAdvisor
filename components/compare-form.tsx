@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 
+import { readResponseMessage } from "@/lib/utils";
+
 type CompareOption = {
   itemId: string;
   expressionId: string;
@@ -45,19 +47,23 @@ export function CompareForm({ options }: { options: CompareOption[] }) {
     setNotice({ tone: "info", text: "Building the side-by-side comparison..." });
 
     startTransition(async () => {
-      const response = await fetch("/api/compare", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leftId, rightId })
-      });
+      try {
+        const response = await fetch("/api/compare", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ leftId, rightId })
+        });
 
-      if (!response.ok) {
-        setNotice({ tone: "error", text: "Comparison failed." });
-        return;
+        if (!response.ok) {
+          setNotice({ tone: "error", text: await readResponseMessage(response, "Comparison failed.") });
+          return;
+        }
+
+        setResult((await response.json()) as CompareResult);
+        setNotice(null);
+      } catch {
+        setNotice({ tone: "error", text: "Comparison failed. Check your connection and try again." });
       }
-
-      setResult((await response.json()) as CompareResult);
-      setNotice(null);
     });
   }
 

@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { readResponseMessage } from "@/lib/utils";
+
 export function TastingForm({ itemId }: { itemId: string }) {
   const router = useRouter();
   const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
@@ -34,19 +36,23 @@ export function TastingForm({ itemId }: { itemId: string }) {
     };
 
     startTransition(async () => {
-      const response = await fetch(`/api/items/${itemId}/tastings`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+      try {
+        const response = await fetch(`/api/items/${itemId}/tastings`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
 
-      if (!response.ok) {
-        setNotice({ tone: "error", text: "Could not save the tasting note." });
-        return;
+        if (!response.ok) {
+          setNotice({ tone: "error", text: await readResponseMessage(response, "Could not save the tasting note.") });
+          return;
+        }
+
+        setNotice({ tone: "success", text: "Tasting note saved." });
+        router.refresh();
+      } catch {
+        setNotice({ tone: "error", text: "Could not save the tasting note. Check your connection and try again." });
       }
-
-      setNotice({ tone: "success", text: "Tasting note saved." });
-      router.refresh();
     });
   }
 
