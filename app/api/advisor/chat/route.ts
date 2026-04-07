@@ -1,5 +1,6 @@
 import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
+import type { UIMessage } from "ai";
 import type { ModelMessage } from "@ai-sdk/provider-utils";
 import {
   detectContextTriggers,
@@ -17,16 +18,19 @@ import type { TastingEntry, CollectionViewItem } from "@/lib/types";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const body = (await req.json()) as { messages: ModelMessage[] };
-  const messages = body.messages || [];
+  const body = (await req.json()) as { messages: UIMessage[] };
+  const uiMessages = body.messages || [];
 
   // Extract the last user message as the query for context triggering
   let query = "";
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
-    if (msg.role === "user") {
-      query = typeof msg.content === "string" ? msg.content : "";
-      break;
+  for (let i = uiMessages.length - 1; i >= 0; i--) {
+    const msg = uiMessages[i];
+    if (msg.role === "user" && msg.parts) {
+      const textPart = msg.parts.find((p) => p.type === "text");
+      if (textPart && "text" in textPart) {
+        query = (textPart as { text: string }).text;
+        break;
+      }
     }
   }
 
@@ -80,17 +84,31 @@ RULES:
 - When recommending a bottle, always give a reason tied to their actual palate
 - At the end of each response, suggest 2-3 natural follow-up questions as a JSON block on its own line: {"suggestions": ["...", "...", "..."]}`;
 
-  // Replace __opening__ sentinel with a greet instruction
-  const processedMessages: ModelMessage[] = messages.map(m =>
-    m.content === "__opening__"
-      ? { ...m, content: "Please greet me warmly and share one genuinely interesting insight from my collection. Keep it to 2-3 sentences. End with a follow-up suggestions JSON block." }
-      : m
-  ) as ModelMessage[];
+  // Convert UIMessage to the format expected by streamText
+  const messages: ModelMessage[] = uiMessages.map(m => {
+    // Handle __opening__ sentinel
+    if (m.parts && m.parts.length === 1 && "text" in m.parts[0] && (m.parts[0] as { text: string }).text === "__opening__") {
+      return {
+        role: m.role as "user" | "assistant",
+        content: "Please greet me warmly and share one genuinely interesting insight from my collection. Keep it to 2-3 sentences. End with a follow-up suggestions JSON block."
+      };
+    }
+
+    // Convert parts to content string
+    const content = m.parts
+      ?.map(p => ("text" in p ? (p as { text: string }).text : ""))
+      .join(" ") || "";
+
+    return {
+      role: m.role as "user" | "assistant",
+      content
+    };
+  });
 
   const result = streamText({
     model: openai("gpt-4o"),
     system: systemPrompt,
-    messages: processedMessages
+    messages
   });
 
   return result.toTextStreamResponse();
