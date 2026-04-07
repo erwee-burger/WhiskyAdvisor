@@ -1,4 +1,4 @@
-import { streamText } from "ai";
+import { streamText, createUIMessageStreamResponse } from "ai";
 import { openai } from "@ai-sdk/openai";
 import type { UIMessage } from "ai";
 import type { ModelMessage } from "@ai-sdk/provider-utils";
@@ -111,15 +111,7 @@ RULES:
     messages
   });
 
-  // Get the data stream and wrap it with proper headers for streaming
-  const stream = result.fullStream;
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'Transfer-Encoding': 'chunked'
-    }
+  return createUIMessageStreamResponse({
+    stream: result.toUIMessageStream()
   });
 }
