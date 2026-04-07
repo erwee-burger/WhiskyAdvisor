@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { createId } from "@/lib/id";
-import { createSupabaseClient } from "@/lib/supabase-client";
+import { createClient } from "@supabase/supabase-js";
 
 const BUCKET_NAME = "bottle-images";
 
@@ -38,7 +38,14 @@ export async function POST(request: Request) {
 
   const binaryData = Buffer.from(base64Data, "base64");
 
-  const supabase = createSupabaseClient();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceRoleKey) {
+    return NextResponse.json({ error: "Storage is not configured" }, { status: 500 });
+  }
+
+  const supabase = createClient(url, serviceRoleKey);
   const { error: uploadError } = await supabase.storage
     .from(BUCKET_NAME)
     .upload(path, binaryData, { contentType: mimeType, upsert: true });
