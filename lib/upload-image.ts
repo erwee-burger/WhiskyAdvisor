@@ -1,7 +1,7 @@
 "use client";
 
 import { createSupabaseClient } from "./supabase-client";
-import { createId } from "@paralleldrive/cuid2";
+import { createId } from "./id";
 
 const BUCKET_NAME = "bottle-images";
 
