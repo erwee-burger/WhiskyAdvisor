@@ -5,6 +5,7 @@ import { buildCollectionAnalytics } from "@/lib/analytics";
 import { buildComparison } from "@/lib/comparison";
 import { createId } from "@/lib/id";
 import { readStore, writeStore } from "@/lib/mock-store";
+import { uploadBottleImage } from "@/lib/storage";
 import { analyzeBottleImage, buildDraftFromExpression } from "@/lib/openai";
 import { buildPalateProfile } from "@/lib/profile";
 import type {
@@ -332,11 +333,13 @@ export async function saveDraftAsItem(draftId: string, payload: BottleRecordPayl
   store.collectionItems.unshift(collectionItem);
 
   if (payload.frontImageUrl) {
+    const storedUrl =
+      (await uploadBottleImage(payload.frontImageUrl, collectionItem.id)) ?? payload.frontImageUrl;
     store.itemImages.unshift({
       id: createId("img"),
       collectionItemId: collectionItem.id,
       kind: "front",
-      url: payload.frontImageUrl,
+      url: storedUrl,
       label: payload.frontImageLabel
     });
   }
@@ -388,11 +391,13 @@ export async function updateItem(itemId: string, payload: BottleRecordPayload) {
   );
 
   if (payload.frontImageUrl) {
+    const storedUrl =
+      (await uploadBottleImage(payload.frontImageUrl, existingItem.id)) ?? payload.frontImageUrl;
     upsertItemImage(store, {
       id: createId("img"),
       collectionItemId: existingItem.id,
       kind: "front",
-      url: payload.frontImageUrl,
+      url: storedUrl,
       label: payload.frontImageLabel ?? "Uploaded front label"
     });
   }
