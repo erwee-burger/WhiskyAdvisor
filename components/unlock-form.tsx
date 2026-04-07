@@ -27,25 +27,30 @@ export function UnlockForm({ nextPath }: { nextPath: string }) {
     setError("");
     setLoading(true);
 
-    const response = await fetch("/api/auth/unlock", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, next: nextPath })
-    });
+    try {
+      const response = await fetch("/api/auth/unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, next: nextPath })
+      });
 
-    const payload = (await response.json().catch(() => null)) as
-      | { ok?: boolean; error?: string; redirectTo?: string }
-      | null;
+      const payload = (await response.json().catch(() => null)) as
+        | { ok?: boolean; error?: string; redirectTo?: string }
+        | null;
 
-    setLoading(false);
+      setLoading(false);
 
-    if (!response.ok || !payload?.ok) {
-      setError(payload?.error ?? "Could not unlock access.");
-      return;
+      if (!response.ok || !payload?.ok) {
+        setError(payload?.error ?? "Could not unlock access.");
+        return;
+      }
+
+      router.replace(payload.redirectTo ?? "/");
+      router.refresh();
+    } catch {
+      setLoading(false);
+      setError("Could not connect. Check your connection and try again.");
     }
-
-    router.replace(payload.redirectTo ?? "/");
-    router.refresh();
   }
 
   return (
@@ -64,7 +69,7 @@ export function UnlockForm({ nextPath }: { nextPath: string }) {
       <button className="button" disabled={loading || token.trim().length === 0} type="submit">
         {renderButtonLabel("Unlock", loading)}
       </button>
-      {error ? <div className="status-note">{error}</div> : null}
+      {error ? <div className="status-note status-note-error">{error}</div> : null}
     </form>
   );
 }
