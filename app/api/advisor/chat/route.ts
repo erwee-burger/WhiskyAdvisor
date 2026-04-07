@@ -111,5 +111,15 @@ RULES:
     messages
   });
 
-  return result.toTextStreamResponse();
+  // Get the data stream and wrap it with proper headers for streaming
+  const stream = result.fullStream;
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Transfer-Encoding': 'chunked'
+    }
+  });
 }
