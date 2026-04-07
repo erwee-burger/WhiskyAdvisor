@@ -1,14 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { detectContextTriggers, buildCollectionSummary } from "@/lib/advisor-context";
-import type { CollectionViewItem, PalateProfile } from "@/lib/types";
-
-const emptyProfile: PalateProfile = {
-  cards: [],
-  favoredFlavorTags: [],
-  favoredRegions: [],
-  favoredCaskStyles: [],
-  favoredPeatTag: null
-};
+import type { CollectionViewItem } from "@/lib/types";
 
 describe("detectContextTriggers", () => {
   it("detects drink-now triggers", () => {
