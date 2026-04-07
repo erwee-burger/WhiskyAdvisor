@@ -111,5 +111,29 @@ RULES:
     messages
   });
 
-  return result.toTextStreamResponse();
+  const stream = new ReadableStream({
+    async start(controller) {
+      controller.enqueue('0:["assistant","text/plain","');
+
+      for await (const chunk of result.textStream) {
+        // Escape special characters in JSON string
+        const escaped = chunk
+          .replace(/\\/g, '\\\\')
+          .replace(/"/g, '\\"')
+          .replace(/\n/g, '\\n');
+        controller.enqueue(escaped);
+      }
+
+      controller.enqueue('"]\n');
+      controller.close();
+    }
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive'
+    }
+  });
 }
