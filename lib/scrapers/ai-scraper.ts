@@ -50,6 +50,79 @@ const SOURCES: SourceConfig[] = [
   }
 ];
 
+// ---- Shopify JSON API (primary strategy) ----
+// Shopify stores expose /collections/{handle}/products.json without auth.
+// This avoids JS-rendered HTML, which plain fetch cannot execute.
+
+type ShopifyVariant = {
+  price: string;
+  compare_at_price: string | null;
+  available: boolean;
+};
+
+type ShopifyProduct = {
+  title: string;
+  handle: string;
+  variants: ShopifyVariant[];
+  images: Array<{ src: string }>;
+};
+
+async function tryShopifyCollection(
+  collectionUrl: string,
+  source: string,
+  kind: NewsItem["kind"]
+): Promise<NewsItem[] | null> {
+  const jsonUrl = `${collectionUrl}/products.json?limit=250`;
+  let response: Response;
+  try {
+    response = await fetch(jsonUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; WhiskyAdvisor/1.0)" }
+    });
+  } catch {
+    return null;
+  }
+
+  if (!response.ok) return null;
+  if (!(response.headers.get("content-type") ?? "").includes("json")) return null;
+
+  let data: { products?: unknown };
+  try {
+    data = await response.json() as { products?: unknown };
+  } catch {
+    return null;
+  }
+
+  if (!Array.isArray(data.products) || data.products.length === 0) return null;
+
+  const baseUrl = new URL(collectionUrl).origin;
+  const products = data.products as ShopifyProduct[];
+
+  return products.map(product => {
+    const variant = product.variants?.[0];
+    const price = parseFloat(variant?.price ?? "0") || 0;
+    const compareAtRaw = variant?.compare_at_price;
+    const compareAt = compareAtRaw ? parseFloat(compareAtRaw) : undefined;
+    const originalPrice = compareAt && compareAt > price ? compareAt : undefined;
+    const discountPct = originalPrice
+      ? Math.round(((originalPrice - price) / originalPrice) * 100)
+      : undefined;
+
+    return {
+      source,
+      kind,
+      name: product.title,
+      price,
+      originalPrice,
+      discountPct,
+      url: `${baseUrl}/products/${product.handle}`,
+      imageUrl: product.images?.[0]?.src ?? undefined,
+      inStock: product.variants?.some(v => v.available) ?? true
+    } satisfies NewsItem;
+  });
+}
+
+// ---- AI extraction (fallback for non-Shopify stores) ----
+
 type AiProduct = {
   name?: unknown;
   price?: unknown;
@@ -88,11 +161,11 @@ async function callOpenAi(prompt: string): Promise<string> {
   return payload.choices?.[0]?.message?.content ?? "[]";
 }
 
-function extractJsonArray(text: string): AiProduct[] {
+function extractJsonArray<T>(text: string): T[] {
   const match = text.match(/\[[\s\S]*\]/);
   if (!match) return [];
   try {
-    return JSON.parse(match[0]) as AiProduct[];
+    return JSON.parse(match[0]) as T[];
   } catch {
     return [];
   }
@@ -110,7 +183,7 @@ function toNumber(v: unknown): number | undefined {
   return Number.isNaN(n) ? undefined : n;
 }
 
-export async function scrapeWithAI(
+async function scrapeWithAI(
   pageUrl: string,
   source: string,
   kind: NewsItem["kind"]
@@ -135,7 +208,7 @@ export async function scrapeWithAI(
   ].join("\n");
 
   const responseText = await callOpenAi(prompt);
-  const products = extractJsonArray(responseText);
+  const products = extractJsonArray<AiProduct>(responseText);
 
   return products
     .filter(p => p.name && p.price)
@@ -161,6 +234,23 @@ export async function scrapeWithAI(
     .filter(item => item.url);
 }
 
+// ---- Orchestration ----
+
+async function scrapeSource(
+  pageUrl: string,
+  source: string,
+  kind: NewsItem["kind"]
+): Promise<NewsItem[]> {
+  // Try Shopify JSON API first. Returns null only if the site is not Shopify
+  // (e.g. no /products.json endpoint). Returns [] if the collection is empty.
+  const shopifyItems = await tryShopifyCollection(pageUrl, source, kind);
+  if (shopifyItems !== null) {
+    return shopifyItems;
+  }
+  // Non-Shopify: fall back to HTML + AI extraction
+  return scrapeWithAI(pageUrl, source, kind);
+}
+
 export async function scrapeAllWithAI(): Promise<NewsItem[]> {
   const tasks = SOURCES.flatMap(config =>
     config.urls.map(({ path, kind }) => ({
@@ -171,7 +261,7 @@ export async function scrapeAllWithAI(): Promise<NewsItem[]> {
   );
 
   const results = await Promise.allSettled(
-    tasks.map(t => scrapeWithAI(t.url, t.source, t.kind))
+    tasks.map(t => scrapeSource(t.url, t.source, t.kind))
   );
 
   return results.flatMap((result, i) => {

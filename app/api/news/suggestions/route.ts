@@ -53,6 +53,10 @@ export async function GET() {
       itemList
     ].join("\n");
 
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({ picks: [] });
+    }
+
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {

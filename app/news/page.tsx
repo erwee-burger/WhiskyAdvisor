@@ -100,7 +100,7 @@ export default function NewsPage() {
     const timer = setTimeout(() => setRefreshMessage("Still fetching…"), 10000);
     try {
       await fetch("/api/news/refresh", { method: "POST" });
-      await loadNews();
+      await Promise.all([loadNews(), loadSuggestions()]);
     } catch (err) {
       console.error("[news page] refresh failed:", err);
     } finally {
@@ -151,8 +151,8 @@ export default function NewsPage() {
         <section className="news-page__suggestions">
           <h2>Picked for you</h2>
           <ul className="news-page__suggestions-list">
-            {suggestions.map((s, i) => (
-              <li key={i} className="news-page__suggestion-item">
+            {suggestions.map((s) => (
+              <li key={s.url} className="news-page__suggestion-item">
                 <a href={s.url} target="_blank" rel="noopener noreferrer" className="news-page__suggestion-name">
                   {s.name}
                 </a>
