@@ -1,9 +1,5 @@
 import type { NewsItem } from "@/lib/types";
-import { scrapeWhiskyBrother } from "@/lib/scrapers/whiskybrother";
-import { scrapeBottegaWhiskey } from "@/lib/scrapers/bottegawhiskey";
-import { scrapeMotherCityLiquor } from "@/lib/scrapers/mothercityliquor";
-import { scrapeWhiskyEmporium } from "@/lib/scrapers/whiskyemporium";
-import { scrapeNormanGoodfellows } from "@/lib/scrapers/normangoodfellows";
+import { scrapeAllWithAI } from "@/lib/scrapers/ai-scraper";
 
 type Scraper = () => Promise<NewsItem[]>;
 
@@ -17,11 +13,5 @@ export async function runAllScrapers(scrapers: Scraper[]): Promise<NewsItem[]> {
 }
 
 export async function scrapeAll(): Promise<NewsItem[]> {
-  return runAllScrapers([
-    scrapeWhiskyBrother,
-    scrapeBottegaWhiskey,
-    scrapeMotherCityLiquor,
-    scrapeWhiskyEmporium,
-    scrapeNormanGoodfellows
-  ]);
+  return scrapeAllWithAI();
 }

@@ -226,3 +226,13 @@ export interface ScoredNewsItem extends NewsItem {
   palateScore: number;
   palateStars: 0 | 1 | 2 | 3;
 }
+
+export interface NewsSuggestion {
+  name: string;
+  url: string;
+  price: number;
+  kind: "special" | "new_release";
+  source: string;
+  discountPct?: number;
+  reason: string;
+}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { NewsFeed } from "@/components/news-feed";
-import type { ScoredNewsItem } from "@/lib/types";
+import type { ScoredNewsItem, NewsSuggestion } from "@/lib/types";
 import { scoreToPalateStars } from "@/lib/news-store";
 
 interface RawNewsRow {
@@ -62,6 +62,18 @@ export default function NewsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<NewsSuggestion[]>([]);
+
+  async function loadSuggestions() {
+    try {
+      const res = await fetch("/api/news/suggestions");
+      if (!res.ok) return;
+      const data = await res.json() as { picks: NewsSuggestion[] };
+      setSuggestions(data.picks ?? []);
+    } catch {
+      // suggestions are non-critical, fail silently
+    }
+  }
 
   async function loadNews() {
     setLoading(true);
@@ -98,7 +110,10 @@ export default function NewsPage() {
     }
   }
 
-  useEffect(() => { loadNews(); }, []);
+  useEffect(() => {
+    loadNews();
+    loadSuggestions();
+  }, []);
 
   if (loading) {
     return (
@@ -131,6 +146,25 @@ export default function NewsPage() {
       </section>
 
       {error && <p className="news-page__error">{error}</p>}
+
+      {suggestions.length > 0 && (
+        <section className="news-page__suggestions">
+          <h2>Picked for you</h2>
+          <ul className="news-page__suggestions-list">
+            {suggestions.map((s, i) => (
+              <li key={i} className="news-page__suggestion-item">
+                <a href={s.url} target="_blank" rel="noopener noreferrer" className="news-page__suggestion-name">
+                  {s.name}
+                </a>
+                <span className="news-page__suggestion-price">
+                  R{s.price}{s.discountPct ? ` — ${s.discountPct}% off` : ""}
+                </span>
+                <p className="news-page__suggestion-reason">{s.reason}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <NewsFeed
         title="What's on special"
