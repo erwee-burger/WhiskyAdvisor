@@ -14,7 +14,6 @@ import {
   buildFullBottleContextBlock
 } from "@/lib/advisor-context";
 import { getDashboardData, getItemById } from "@/lib/repository";
-import type { CollectionViewItem } from "@/lib/types";
 
 export const runtime = "nodejs";
 
