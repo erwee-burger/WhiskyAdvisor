@@ -10,16 +10,18 @@ import {
   buildDrinkNowBlock,
   buildWishlistBlock,
   buildTastingsBlock,
-  buildBottleDetailBlock
+  buildBottleDetailBlock,
+  buildFullBottleContextBlock
 } from "@/lib/advisor-context";
-import { getDashboardData } from "@/lib/repository";
+import { getDashboardData, getItemById } from "@/lib/repository";
 import type { TastingEntry, CollectionViewItem } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const body = (await req.json()) as { messages: UIMessage[] };
+  const body = (await req.json()) as { messages: UIMessage[]; bottleId?: string };
   const uiMessages = body.messages || [];
+  const bottleId = body.bottleId ?? null;
 
   // Extract the last user message as the query for context triggering
   let query = "";
@@ -39,11 +41,17 @@ export async function POST(req: Request) {
 
   const triggers = detectContextTriggers(query);
 
+  const bottleItem = bottleId ? await getItemById(bottleId) : null;
+
   const contextBlocks: string[] = [
     buildPalateContextBlock(profile),
     buildCollectionSummary(collection),
     buildSuggestionsBlock(drinkNow, buyNext)
   ];
+
+  if (bottleItem) {
+    contextBlocks.unshift(buildFullBottleContextBlock(bottleItem));
+  }
 
   if (triggers.drinkNow) {
     contextBlocks.push(buildDrinkNowBlock(collection));
@@ -70,9 +78,13 @@ export async function POST(req: Request) {
     if (detail) contextBlocks.push(detail);
   }
 
+  const bottleFocus = bottleItem
+    ? `\nFOCUS: The user is currently viewing "${bottleItem.expression.name}" on their bottle detail page. Ground your answers in this bottle's details. If they ask something not specific to it, you may draw on their broader collection context.`
+    : "";
+
   const systemPrompt = `You are a personal whisky advisor for this collection.
 
-PERSONALITY: You are warm, opinionated, and genuinely enthusiastic about whisky. You adapt your tone to match how the user speaks — casual when they are casual, technical when they go deep. Underneath everything, you have strong opinions and aren't afraid to share them.
+PERSONALITY: You are warm, opinionated, and genuinely enthusiastic about whisky. You adapt your tone to match how the user speaks — casual when they are casual, technical when they go deep. Underneath everything, you have strong opinions and aren't afraid to share them.${bottleFocus}
 
 ${contextBlocks.join("\n\n")}
 
