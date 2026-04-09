@@ -124,16 +124,16 @@ export const compareSchema = z
   })
   .strip();
 
-export const tastingSchema = z
+export const ratingSchema = z
   .object({
-    tastedAt: z.string().trim().min(1, "Tasted date is required"),
-    nose: z.string().trim().min(1, "Nose notes are required"),
-    palate: z.string().trim().min(1, "Palate notes are required"),
-    finish: z.string().trim().min(1, "Finish notes are required"),
-    overallNote: z.string().trim().min(1, "Overall note is required"),
-    rating: z.number().int().min(1).max(5)
+    rating: z.number().int().min(1).max(3).nullable(),
+    isFavorite: z.boolean().optional().default(false)
   })
-  .strip();
+  .strip()
+  .refine(
+    (data) => !data.isFavorite || data.rating === 3,
+    { message: "Only 3-star bottles can be marked as a favorite", path: ["isFavorite"] }
+  );
 
 export const updateItemSchema = bottlePayloadSchema;
 

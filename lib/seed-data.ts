@@ -192,38 +192,6 @@ export const seedStore: WhiskyStore = {
       updatedAt: today
     }
   ],
-  tastingEntries: [
-    {
-      id: "taste_lagavulin_1",
-      collectionItemId: "item_lagavulin",
-      tastedAt: "2026-01-08",
-      nose: "Smoked citrus, bandages, sea breeze, and treacle.",
-      palate: "Dense peat, raisins, black tea, and salty caramel.",
-      finish: "Long, drying, coastal, and ashy with a sweet tail.",
-      overallNote: "Still the reference point when I want full smoke with real depth.",
-      rating: 5
-    },
-    {
-      id: "taste_lagavulin_2",
-      collectionItemId: "item_lagavulin",
-      tastedAt: "2026-03-02",
-      nose: "More polished now, with leather and orange oil.",
-      palate: "Smoke and dried fruit, but less sharp than the first pour.",
-      finish: "Long and savory with dark chocolate bitterness.",
-      overallNote: "Opened up beautifully after a few months.",
-      rating: 4
-    },
-    {
-      id: "taste_springbank_1",
-      collectionItemId: "item_springbank",
-      tastedAt: "2026-02-18",
-      nose: "Dunnage funk, citrus zest, and barley sugar.",
-      palate: "Oily texture, salted toffee, and gentle peat.",
-      finish: "Medium-long, mineral, slightly waxy.",
-      overallNote: "Quirkier than the label suggests.",
-      rating: 5
-    }
-  ],
   itemImages: [
     {
       id: "img_lagavulin_front",

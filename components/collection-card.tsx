@@ -1,6 +1,7 @@
 import Image from "next/image";
 
 import { PendingLink } from "@/components/navigation-feedback";
+import { StarRating } from "@/components/star-rating";
 import { getBottleDisplayImage } from "@/lib/bottle-image";
 import { getCaskStyleTags, getPeatTag, isIndependentBottler, isLimited, isNas } from "@/lib/tags";
 import type { CollectionViewItem } from "@/lib/types";
@@ -48,6 +49,7 @@ export function CollectionCard({
       <div className="shelf-bottle-copy">
         <h3>{entry.expression.name}</h3>
         <p>{subtitle}</p>
+        <StarRating isFavorite={entry.item.isFavorite} rating={entry.item.rating} size="sm" />
       </div>
 
       <div className="shelf-popup">

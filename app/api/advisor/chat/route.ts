@@ -9,12 +9,12 @@ import {
   buildSuggestionsBlock,
   buildDrinkNowBlock,
   buildWishlistBlock,
-  buildTastingsBlock,
+  buildRatingsBlock,
   buildBottleDetailBlock,
   buildFullBottleContextBlock
 } from "@/lib/advisor-context";
 import { getDashboardData, getItemById } from "@/lib/repository";
-import type { TastingEntry, CollectionViewItem } from "@/lib/types";
+import type { CollectionViewItem } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -68,9 +68,7 @@ export async function POST(req: Request) {
   }
 
   if (triggers.tastings) {
-    const allTastings = collection.flatMap((i: CollectionViewItem) => i.tastingEntries)
-      .sort((a: TastingEntry, b: TastingEntry) => b.tastedAt.localeCompare(a.tastedAt));
-    contextBlocks.push(buildTastingsBlock(allTastings, collection));
+    contextBlocks.push(buildRatingsBlock(collection));
   }
 
   if (triggers.bottleName) {

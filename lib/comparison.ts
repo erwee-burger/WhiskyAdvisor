@@ -21,7 +21,7 @@ export function buildComparison(left: CollectionViewItem, right: CollectionViewI
       ageStatement: left.expression.ageStatement,
       abv: left.expression.abv,
       tags: left.expression.tags,
-      latestTasting: left.latestTasting
+      rating: left.item.rating
     },
     right: {
       title: "Right bottle",
@@ -33,7 +33,7 @@ export function buildComparison(left: CollectionViewItem, right: CollectionViewI
       ageStatement: right.expression.ageStatement,
       abv: right.expression.abv,
       tags: right.expression.tags,
-      latestTasting: right.latestTasting
+      rating: right.item.rating
     },
     rows: [
       { label: "Brand", left: left.expression.brand ?? "Not set", right: right.expression.brand ?? "Not set" },
@@ -81,9 +81,9 @@ export function buildComparison(left: CollectionViewItem, right: CollectionViewI
         right: right.expression.tags.join(", ")
       },
       {
-        label: "Latest rating",
-        left: left.latestTasting ? `${left.latestTasting.rating}/5` : "Not rated",
-        right: right.latestTasting ? `${right.latestTasting.rating}/5` : "Not rated"
+        label: "Rating",
+        left: left.item.rating ? `${left.item.rating}/3${left.item.isFavorite ? " ★" : ""}` : "Not rated",
+        right: right.item.rating ? `${right.item.rating}/3${right.item.isFavorite ? " ★" : ""}` : "Not rated"
       }
     ],
     summary: `${left.expression.name} leans more ${left.expression.tags.slice(0, 2).join(" and ")}, while ${right.expression.name} brings more ${right.expression.tags.slice(0, 2).join(" and ")}.`,

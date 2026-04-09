@@ -2,8 +2,8 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 
 import { BottleChat } from "@/components/bottle-chat";
+import { BottleRating } from "@/components/bottle-rating";
 import { BottleRecordEditor } from "@/components/bottle-record-editor";
-import { TastingForm } from "@/components/tasting-form";
 import { getBottleDisplayImage } from "@/lib/bottle-image";
 import { getItemById } from "@/lib/repository";
 import {
@@ -197,51 +197,18 @@ export default async function ItemDetailPage({
 
       <BottleRecordEditor entry={entry} />
 
-      <section className="grid columns-2">
-        <div className="panel stack">
-          <div className="section-title">
-            <div>
-              <h2>Tasting history</h2>
-              <p>Save structured notes over time as the bottle evolves.</p>
-            </div>
-          </div>
-          <div className="card-list">
-            {entry.tastingEntries.length > 0 ? (
-              entry.tastingEntries.map((note) => (
-                <article className="advisor-card" key={note.id}>
-                  <div className="section-title">
-                    <div>
-                      <h3>{formatDate(note.tastedAt)}</h3>
-                      <p>{note.rating}/5</p>
-                    </div>
-                  </div>
-                  <p>
-                    <strong>Nose:</strong> {note.nose}
-                  </p>
-                  <p>
-                    <strong>Palate:</strong> {note.palate}
-                  </p>
-                  <p>
-                    <strong>Finish:</strong> {note.finish}
-                  </p>
-                  <p className="muted">{note.overallNote}</p>
-                </article>
-              ))
-            ) : (
-              <div className="empty-state">No tasting notes yet.</div>
-            )}
+      <section className="panel stack">
+        <div className="section-title">
+          <div>
+            <h2>My rating</h2>
+            <p>Rate this bottle and mark it as a favorite if it stands out.</p>
           </div>
         </div>
-
-        <div className="panel stack">
-          <div className="section-title">
-            <div>
-              <h2>Add tasting note</h2>
-              <p>Structured notes feed both analytics and advisor scoring.</p>
-            </div>
-          </div>
-          <TastingForm itemId={entry.item.id} />
-        </div>
+        <BottleRating
+          isFavorite={entry.item.isFavorite}
+          itemId={entry.item.id}
+          rating={entry.item.rating}
+        />
       </section>
 
       <BottleChat bottleId={entry.item.id} bottleName={entry.expression.name} />

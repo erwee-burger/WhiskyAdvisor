@@ -48,19 +48,10 @@ export interface CollectionItem {
   purchaseDate?: string;
   purchaseSource?: string;
   personalNotes?: string;
+  rating?: 1 | 2 | 3;
+  isFavorite?: boolean;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface TastingEntry {
-  id: string;
-  collectionItemId: string;
-  tastedAt: string;
-  nose: string;
-  palate: string;
-  finish: string;
-  overallNote: string;
-  rating: 1 | 2 | 3 | 4 | 5;
 }
 
 export interface ItemImage {
@@ -93,8 +84,6 @@ export interface IntakeDraft {
 export interface CollectionViewItem {
   item: CollectionItem;
   expression: Expression;
-  tastingEntries: TastingEntry[];
-  latestTasting?: TastingEntry;
   images: ItemImage[];
   priceSnapshot?: {
     retail?: { low: number; high: number; currency: string };
@@ -125,7 +114,7 @@ export interface CollectionAnalytics {
     averageVolumeMl?: number | null;
     withVolume?: number;
   };
-  ratingDistribution: Array<{ rating: number; count: number }>;
+  ratingDistribution: Array<{ rating: number; count: number; label: string }>;
   regionSplit: Array<{ region: string; count: number }>;
   peatProfile: Array<{ tag: string; count: number; peatLevel?: string }>;
   topDistilleries: Array<{ name: string; count: number }>;
@@ -179,7 +168,7 @@ export interface ComparisonColumn {
   ageStatement?: number;
   abv?: number;
   tags: string[];
-  latestTasting?: TastingEntry;
+  rating?: 1 | 2 | 3;
 }
 
 export interface ComparisonRow {
@@ -199,7 +188,6 @@ export interface ComparisonResult {
 export interface WhiskyStore {
   expressions: Expression[];
   collectionItems: CollectionItem[];
-  tastingEntries: TastingEntry[];
   itemImages: ItemImage[];
   drafts: IntakeDraft[];
   distilleries?: { id: string; name: string }[];

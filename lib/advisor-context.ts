@@ -1,4 +1,4 @@
-import type { CollectionViewItem, PalateProfile, AdvisorSuggestion, TastingEntry, ScoredNewsItem } from "@/lib/types";
+import type { CollectionViewItem, PalateProfile, AdvisorSuggestion, ScoredNewsItem } from "@/lib/types";
 import { buildCollectionAnalytics } from "@/lib/analytics";
 
 export interface ContextTriggers {
@@ -16,7 +16,7 @@ export function detectContextTriggers(query: string): ContextTriggers {
   const drinkNow = /open tonight|drink now|what should i have|what should i open|pour tonight/.test(q);
   const wishlist = /buy next|next purchase|wishlist|should i get|worth (it|buying)/.test(q);
   const analytics = /how many|collection stats|analytics|how much|total|count/.test(q);
-  const tastings = /tasting note|my notes|rating|rated|my review/.test(q);
+  const tastings = /my notes|rating|rated|my review|favorites|favourites/.test(q);
   const deals = /special|deal|discount|on sale|new release|just arrived|what.s new/.test(q);
 
   // Extract a bottle name if the query mentions one — grab text after keywords like "my" or "about"
@@ -76,8 +76,8 @@ export function buildSuggestionsBlock(drinkNow: AdvisorSuggestion[], buyNext: Ad
 export function buildDrinkNowBlock(items: CollectionViewItem[]): string {
   const open = items.filter(i => i.item.status === "owned" && i.item.fillState !== "finished");
   const lines = open.map(i => {
-    const rating = i.latestTasting ? ` (rated ${i.latestTasting.rating}/5)` : "";
-    return `  - ${i.expression.name}${rating} [${i.item.fillState}]`;
+    const ratingStr = i.item.rating ? ` (rated ${i.item.rating}/3${i.item.isFavorite ? " ★ favorite" : ""})` : "";
+    return `  - ${i.expression.name}${ratingStr} [${i.item.fillState}]`;
   });
   return ["OWNED BOTTLES AVAILABLE TO DRINK:", ...lines].join("\n");
 }
@@ -91,14 +91,14 @@ export function buildWishlistBlock(items: CollectionViewItem[]): string {
   return ["WISHLIST:", ...lines].join("\n");
 }
 
-export function buildTastingsBlock(tastings: TastingEntry[], items: CollectionViewItem[]): string {
-  const recent = tastings.slice(0, 10);
-  const lines = recent.map(t => {
-    const item = items.find(i => i.item.id === t.collectionItemId);
-    const name = item?.expression.name ?? "Unknown";
-    return `  - ${name} (${t.rating}/5): nose: ${t.nose}; palate: ${t.palate}; finish: ${t.finish}`;
+export function buildRatingsBlock(items: CollectionViewItem[]): string {
+  const rated = items.filter(i => i.item.status === "owned" && i.item.rating !== undefined);
+  const lines = rated.map(i => {
+    const stars = "★".repeat(i.item.rating ?? 0) + "☆".repeat(3 - (i.item.rating ?? 0));
+    const favStr = i.item.isFavorite ? " ★ FAVORITE" : "";
+    return `  - ${i.expression.name}: ${stars}${favStr}`;
   });
-  return ["RECENT TASTING NOTES:", ...lines].join("\n");
+  return ["MY BOTTLE RATINGS:", ...lines].join("\n");
 }
 
 export function buildBottleDetailBlock(query: string, items: CollectionViewItem[]): string {
@@ -109,7 +109,6 @@ export function buildBottleDetailBlock(query: string, items: CollectionViewItem[
   );
   if (!match) return "";
   const e = match.expression;
-  const t = match.latestTasting;
   return [
     `BOTTLE DETAIL: ${e.name}`,
     e.distilleryName ? `Distillery: ${e.distilleryName}` : "",
@@ -120,7 +119,7 @@ export function buildBottleDetailBlock(query: string, items: CollectionViewItem[
     e.caskType ? `Cask: ${e.caskType}` : "",
     e.tags.length ? `Tags: ${e.tags.join(", ")}` : "",
     `Status: ${match.item.status}, ${match.item.fillState}`,
-    t ? `Latest tasting (${t.rating}/5): ${t.overallNote}` : "No tasting notes yet"
+    match.item.rating ? `Rating: ${match.item.rating}/3${match.item.isFavorite ? " (favorite)" : ""}` : "Not rated yet"
   ].filter(Boolean).join("\n");
 }
 
@@ -154,17 +153,11 @@ export function buildFullBottleContextBlock(item: CollectionViewItem): string {
     `Status: ${item.item.status}, ${item.item.fillState}`,
     item.item.purchasePrice ? `Purchase price: ${item.item.purchasePrice} ${item.item.purchaseCurrency ?? ""}`.trim() : null,
     item.item.purchaseSource ? `Purchased from: ${item.item.purchaseSource}` : null,
-    item.item.personalNotes ? `Personal notes: ${item.item.personalNotes}` : null
+    item.item.personalNotes ? `Personal notes: ${item.item.personalNotes}` : null,
+    item.item.rating
+      ? `Rating: ${item.item.rating}/3${item.item.isFavorite ? " (marked as favorite)" : ""}`
+      : "Rating: not rated yet"
   ].filter(Boolean);
-
-  if (item.tastingEntries.length > 0) {
-    lines.push(`Tasting history (${item.tastingEntries.length} session${item.tastingEntries.length > 1 ? "s" : ""}):`)
-    for (const t of item.tastingEntries) {
-      lines.push(`  - ${t.tastedAt.slice(0, 10)} (${t.rating}/5): nose: ${t.nose}; palate: ${t.palate}; finish: ${t.finish}${t.overallNote ? `; overall: ${t.overallNote}` : ""}`);
-    }
-  } else {
-    lines.push("Tasting history: none yet");
-  }
 
   return lines.join("\n");
 }

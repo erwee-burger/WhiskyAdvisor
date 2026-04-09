@@ -60,19 +60,10 @@ create table if not exists collection_items (
   opened_date date,
   finished_date date,
   personal_notes text,
+  rating int check (rating between 1 and 3),
+  is_favorite boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
-);
-
-create table if not exists tasting_entries (
-  id text primary key,
-  collection_item_id text not null references collection_items(id) on delete cascade,
-  tasted_at date not null,
-  nose text not null,
-  palate text not null,
-  finish text not null,
-  overall_note text not null,
-  rating int not null check (rating between 1 and 5)
 );
 
 create table if not exists item_images (

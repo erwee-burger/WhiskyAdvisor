@@ -12,7 +12,7 @@ export default async function AnalyticsPage() {
     : [];
   const safeTopDistilleries = Array.isArray(analytics?.topDistilleries) ? analytics.topDistilleries : [];
   const safeTopBottlers = Array.isArray(analytics?.topBottlers) ? analytics.topBottlers : [];
-  const tastingNotesCount = analytics.ratingDistribution.reduce((total, entry) => total + entry.count, 0);
+  const ratedBottlesCount = analytics.ratingDistribution.reduce((total, entry) => total + entry.count, 0);
 
   return (
     <div className="page">
@@ -47,7 +47,7 @@ export default async function AnalyticsPage() {
           <StatCard label="Limited" value={String(analytics.bottleProfile.limited)} />
           <StatCard label="Chill filtered" value={String(analytics.bottleProfile.chillFiltered)} />
           <StatCard label="Natural color" value={String(analytics.bottleProfile.naturalColor)} />
-          <StatCard label="Tasting notes" value={String(tastingNotesCount)} />
+          <StatCard label="Rated bottles" value={String(ratedBottlesCount)} />
         </div>
       </section>
 
@@ -88,14 +88,14 @@ export default async function AnalyticsPage() {
           <div className="section-title">
             <div>
               <h2>Ratings</h2>
-              <p>How your tasting history distributes.</p>
+              <p>How your collection distributes across the 3-star scale.</p>
             </div>
           </div>
           <div className="card-list">
             {safeRatingDistribution.map((entry) => (
               <div className="advisor-card" key={entry.rating}>
-                <strong>{entry.rating}/5</strong>
-                <p className="muted">{entry.count} tasting notes</p>
+                <strong>{"★".repeat(entry.rating)}{"☆".repeat(3 - entry.rating)} — {entry.label}</strong>
+                <p className="muted">{entry.count} {entry.count === 1 ? "bottle" : "bottles"}</p>
               </div>
             ))}
           </div>

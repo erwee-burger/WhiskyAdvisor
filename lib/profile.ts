@@ -13,13 +13,12 @@ export function buildPalateProfile(items: CollectionViewItem[]): PalateProfile {
   const regionScores = new Map<string, number>();
   const caskScores = new Map<string, number>();
   const peatScores = new Map<string, number>();
-  const hasSignals = items.some((entry) => entry.tastingEntries.length > 0);
+  const hasSignals = items.some((entry) => entry.item.rating !== undefined);
 
   for (const entry of items) {
-    const average =
-      entry.tastingEntries.reduce((sum, tasting) => sum + tasting.rating, 0) /
-        (entry.tastingEntries.length || 1) || 0;
-    const weight = average || 3;
+    const baseWeight = entry.item.rating ?? 2;
+    // Favorites get a boost — they're standouts within the highest tier
+    const weight = entry.item.isFavorite ? baseWeight + 1 : baseWeight;
 
     for (const tag of entry.expression.tags) {
       flavorScores.set(tag, (flavorScores.get(tag) ?? 0) + weight);
@@ -49,29 +48,29 @@ export function buildPalateProfile(items: CollectionViewItem[]): PalateProfile {
         title: "Peat comfort zone",
         value: favoredPeatTag ?? "No data yet",
         supporting: hasSignals
-          ? "Weighted from your highest-rated pours."
-          : "Add tasting notes before the app starts inferring this."
+          ? "Weighted from your highest-rated bottles."
+          : "Rate a few bottles and the app will start inferring this."
       },
       {
         title: "Regional lean",
         value: hasSignals ? topEntries(regionScores, 1)[0] ?? "Still learning" : "No data yet",
         supporting: hasSignals
-          ? "Based on your saved notes and recent ratings."
-          : "Regional preferences appear once you rate a few drams."
+          ? "Based on the regions you rate most highly."
+          : "Regional preferences appear once you rate a few bottles."
       },
       {
         title: "Cask bias",
         value: hasSignals ? topEntries(caskScores, 1)[0] ?? "Mixed" : "No data yet",
         supporting: hasSignals
           ? "The cask styles that currently suit your palate best."
-          : "Cask preferences appear after confirmed tastings."
+          : "Cask preferences appear after you rate some bottles."
       },
       {
         title: "Signature notes",
         value: hasSignals ? topEntries(flavorScores, 3).join(", ") || "No notes yet" : "No data yet",
         supporting: hasSignals
-          ? "Descriptors that keep surfacing in bottles you rate highly."
-          : "Flavor patterns appear after you save tasting notes."
+          ? "Flavor tags that keep surfacing in bottles you rate highly."
+          : "Flavor patterns appear after you rate a few bottles."
       }
     ],
     favoredFlavorTags: topEntries(flavorScores, 5),

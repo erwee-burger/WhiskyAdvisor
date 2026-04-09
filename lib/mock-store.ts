@@ -9,6 +9,12 @@ import {
 } from "@/lib/supabase-store";
 import type { CollectionItem, Expression, IntakeDraft, WhiskyStore } from "@/lib/types";
 
+function toRating(value: unknown): 1 | 2 | 3 | undefined {
+  const n = Number(value);
+  if (n === 1 || n === 2 || n === 3) return n;
+  return undefined;
+}
+
 const dataDir = path.join(process.cwd(), "data");
 const storePath = path.join(dataDir, "mock-store.json");
 const fallbackTimestamp = "2026-04-05T09:00:00.000Z";
@@ -296,21 +302,10 @@ function migrateLegacyStore(store: Record<string, unknown>): WhiskyStore {
             : typeof entry.personal_notes === "string"
               ? entry.personal_notes
               : undefined,
+        rating: toRating(entry.rating ?? entry.is_favorite),
+        isFavorite: entry.isFavorite === true || entry.is_favorite === true,
         createdAt: typeof entry.createdAt === "string" ? entry.createdAt : fallbackTimestamp,
         updatedAt: typeof entry.updatedAt === "string" ? entry.updatedAt : fallbackTimestamp
-      }))
-    : [];
-
-  const tastingEntries = Array.isArray(store.tastingEntries)
-    ? store.tastingEntries.map((entry) => ({
-        id: String(entry.id),
-        collectionItemId: String(entry.collectionItemId ?? entry.collection_item_id),
-        tastedAt: String(entry.tastedAt ?? entry.tasted_at ?? fallbackTimestamp),
-        nose: String(entry.nose ?? ""),
-        palate: String(entry.palate ?? ""),
-        finish: String(entry.finish ?? ""),
-        overallNote: String(entry.overallNote ?? entry.overall_note ?? ""),
-        rating: Number(entry.rating) as 1 | 2 | 3 | 4 | 5
       }))
     : [];
 
@@ -331,7 +326,6 @@ function migrateLegacyStore(store: Record<string, unknown>): WhiskyStore {
   return {
     expressions,
     collectionItems,
-    tastingEntries,
     itemImages,
     drafts
   };

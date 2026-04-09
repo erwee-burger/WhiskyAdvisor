@@ -15,7 +15,6 @@ import type {
   FillState,
   IntakeDraft,
   ItemImage,
-  TastingEntry,
   WhiskyStore
 } from "@/lib/types";
 
@@ -162,6 +161,8 @@ function buildCollectionItemRecord(
     purchaseDate: payload.purchaseDate,
     purchaseSource: payload.purchaseSource,
     personalNotes: payload.personalNotes,
+    rating: existingItem?.rating,
+    isFavorite: existingItem?.isFavorite ?? false,
     createdAt: existingItem?.createdAt ?? now,
     updatedAt: now
   };
@@ -185,20 +186,10 @@ export async function getCollectionView(): Promise<CollectionViewItem[]> {
       name: "Unknown",
       tags: []
     };
-    const tastingEntries = store.tastingEntries.filter(
-      (t) => t.collectionItemId === item.id
-    );
     const images = store.itemImages.filter((img) => img.collectionItemId === item.id);
-    const latestTasting = tastingEntries.length > 0
-      ? tastingEntries.reduce((latest, t) =>
-          t.tastedAt > latest.tastedAt ? t : latest
-        )
-      : undefined;
     return {
       item,
       expression,
-      tastingEntries,
-      latestTasting,
       images,
       distillery: expression.distilleryName ? { name: expression.distilleryName } : undefined,
       bottler: expression.bottlerName ? { name: expression.bottlerName } : undefined,
@@ -409,9 +400,6 @@ export async function deleteItem(itemId: string) {
     return false;
   }
 
-  store.tastingEntries = store.tastingEntries.filter(
-    (entry) => entry.collectionItemId !== itemId
-  );
   store.itemImages = store.itemImages.filter((entry) => entry.collectionItemId !== itemId);
   store.collectionItems = store.collectionItems.filter((entry) => entry.id !== itemId);
   removeExpressionIfOrphaned(store, item.expressionId);
@@ -420,9 +408,10 @@ export async function deleteItem(itemId: string) {
   return true;
 }
 
-export async function addTastingEntry(
+export async function setBottleRating(
   itemId: string,
-  payload: Omit<TastingEntry, "id" | "collectionItemId">
+  rating: 1 | 2 | 3 | null,
+  isFavorite: boolean
 ) {
   const store = await readStore();
   const item = store.collectionItems.find((entry) => entry.id === itemId);
@@ -431,16 +420,11 @@ export async function addTastingEntry(
     return null;
   }
 
-  const entry: TastingEntry = {
-    id: createId("taste"),
-    collectionItemId: itemId,
-    ...payload
-  };
-
-  store.tastingEntries.unshift(entry);
+  item.rating = rating ?? undefined;
+  item.isFavorite = rating === 3 ? isFavorite : false;
   item.updatedAt = new Date().toISOString();
   await writeStore(store);
-  return entry;
+  return item;
 }
 
 export async function getPricing(itemId: string) {
@@ -517,7 +501,7 @@ export async function exportCollection(format: "csv" | "json") {
   }
 
   const rows = collection.map(
-    ({ item, expression, latestTasting }) => ({
+    ({ item, expression }) => ({
       expression: expression.name,
       brand: expression.brand ?? "",
       distillery: expression.distilleryName ?? "",
@@ -531,7 +515,8 @@ export async function exportCollection(format: "csv" | "json") {
       purchasePrice: item.purchasePrice ?? "",
       purchaseCurrency: item.purchaseCurrency ?? "",
       purchaseSource: item.purchaseSource ?? "",
-      rating: latestTasting?.rating ?? "",
+      rating: item.rating ?? "",
+      isFavorite: item.isFavorite ? "yes" : "",
       personalNotes: item.personalNotes ?? ""
     })
   );

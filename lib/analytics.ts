@@ -15,15 +15,20 @@ function countBy<T extends string>(values: T[]) {
   }, {});
 }
 
+const RATING_LABELS: Record<number, string> = {
+  1: "Don't like it",
+  2: "Good / neutral",
+  3: "Like it"
+};
+
 export function buildCollectionAnalytics(items: CollectionViewItem[]): CollectionAnalytics {
   const ownedItems = items.filter(({ item }) => item.status === "owned");
-  const tastingEntries = ownedItems.flatMap(({ tastingEntries: entries }) => entries);
   const regionCounts = countBy(ownedItems.map(({ expression }) => expression.country ?? "Unknown").filter((c): c is string => Boolean(c)));
   const peatTags = ownedItems.map(({ expression }) => getPeatTag(expression.tags) ?? "unspecified");
   const peatCounts = countBy(peatTags as string[]);
   const distilleryCounts = countBy(ownedItems.map(({ expression }) => expression.distilleryName ?? "Unknown").filter((d): d is string => Boolean(d)));
   const bottlerCounts = countBy(ownedItems.map(({ expression }) => expression.bottlerName ?? "Unknown").filter((b): b is string => Boolean(b)));
-  const ratings = countBy(tastingEntries.map((entry) => String(entry.rating)));
+  const ratings = countBy(ownedItems.filter(({ item }) => item.rating).map(({ item }) => String(item.rating)));
   const volumeEntries = ownedItems
     .map(({ expression }) => expression.volumeMl)
     .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
@@ -51,8 +56,9 @@ export function buildCollectionAnalytics(items: CollectionViewItem[]): Collectio
       averageVolumeMl: volumeEntries.length > 0 ? Math.round(volumeEntries.reduce((sumValue, value) => sumValue + value, 0) / volumeEntries.length) : null,
       withVolume: volumeEntries.length
     },
-    ratingDistribution: [1, 2, 3, 4, 5].map((rating) => ({
+    ratingDistribution: [1, 2, 3].map((rating) => ({
       rating,
+      label: RATING_LABELS[rating],
       count: ratings[String(rating)] ?? 0
     })),
     regionSplit: Object.entries(regionCounts)

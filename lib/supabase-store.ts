@@ -68,15 +68,14 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
   const supabase = getSupabaseClient() as SupabaseClientLike | null;
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const [expressionsRes, itemsRes, tastingsRes, imagesRes, draftsRes] = await Promise.all([
+  const [expressionsRes, itemsRes, imagesRes, draftsRes] = await Promise.all([
     supabase.from("expressions").select("*"),
     supabase.from("collection_items").select("*"),
-    supabase.from("tasting_entries").select("*"),
     supabase.from("item_images").select("*"),
     supabase.from("intake_drafts").select("*")
   ]);
 
-  for (const res of [expressionsRes, itemsRes, tastingsRes, imagesRes, draftsRes]) {
+  for (const res of [expressionsRes, itemsRes, imagesRes, draftsRes]) {
     if (res.error) throw res.error;
   }
 
@@ -106,18 +105,10 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
       purchaseDate: typeof row.purchase_date === "string" ? row.purchase_date : undefined,
       purchaseSource: typeof row.purchase_source === "string" ? row.purchase_source : undefined,
       personalNotes: typeof row.personal_notes === "string" ? row.personal_notes : undefined,
+      rating: (row.rating === 1 || row.rating === 2 || row.rating === 3) ? row.rating : undefined,
+      isFavorite: row.is_favorite === true,
       createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
       updatedAt: typeof row.updated_at === "string" ? row.updated_at : new Date().toISOString()
-    })),
-    tastingEntries: ((tastingsRes.data ?? []) as SupabaseRow[]).map((row) => ({
-      id: String(row.id),
-      collectionItemId: String(row.collection_item_id),
-      tastedAt: String(row.tasted_at),
-      nose: String(row.nose ?? ""),
-      palate: String(row.palate ?? ""),
-      finish: String(row.finish ?? ""),
-      overallNote: String(row.overall_note ?? ""),
-      rating: Number(row.rating) as 1 | 2 | 3 | 4 | 5
     })),
     itemImages: ((imagesRes.data ?? []) as SupabaseRow[]).map((row) => ({
       id: String(row.id),
@@ -188,27 +179,14 @@ export async function writeStoreToSupabase(store: WhiskyStore) {
       purchase_date: item.purchaseDate ?? null,
       purchase_source: item.purchaseSource ?? null,
       personal_notes: item.personalNotes ?? null,
+      rating: item.rating ?? null,
+      is_favorite: item.isFavorite ?? false,
       created_at: item.createdAt,
       updated_at: item.updatedAt
     })),
     { onConflict: "id" }
   );
   if (itemsUpsert.error) throw itemsUpsert.error;
-
-  const tastingsUpsert = await supabase.from("tasting_entries").upsert(
-    store.tastingEntries.map((t) => ({
-      id: t.id,
-      collection_item_id: t.collectionItemId,
-      tasted_at: t.tastedAt,
-      nose: t.nose,
-      palate: t.palate,
-      finish: t.finish,
-      overall_note: t.overallNote,
-      rating: t.rating
-    })),
-    { onConflict: "id" }
-  );
-  if (tastingsUpsert.error) throw tastingsUpsert.error;
 
   const imagesUpsert = await supabase.from("item_images").upsert(
     store.itemImages.map((img) => ({
@@ -237,7 +215,6 @@ export async function writeStoreToSupabase(store: WhiskyStore) {
   if (draftsUpsert.error) throw draftsUpsert.error;
 
   await deleteRowsNotInIds(supabase, "intake_drafts", store.drafts.map((d) => d.id));
-  await deleteRowsNotInIds(supabase, "tasting_entries", store.tastingEntries.map((t) => t.id));
   await deleteRowsNotInIds(supabase, "item_images", store.itemImages.map((img) => img.id));
   await deleteRowsNotInIds(supabase, "collection_items", store.collectionItems.map((item) => item.id));
   await deleteRowsNotInIds(supabase, "expressions", store.expressions.map((e) => e.id));
