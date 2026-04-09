@@ -26,8 +26,8 @@ export function buildCollectionAnalytics(items: CollectionViewItem[]): Collectio
   const regionCounts = countBy(ownedItems.map(({ expression }) => expression.country ?? "Unknown").filter((c): c is string => Boolean(c)));
   const peatTags = ownedItems.map(({ expression }) => getPeatTag(expression.tags) ?? "unspecified");
   const peatCounts = countBy(peatTags as string[]);
-  const distilleryCounts = countBy(ownedItems.map(({ expression }) => expression.distilleryName ?? "Unknown").filter((d): d is string => Boolean(d)));
-  const bottlerCounts = countBy(ownedItems.map(({ expression }) => expression.bottlerName ?? "Unknown").filter((b): b is string => Boolean(b)));
+  const distilleryCounts = countBy(ownedItems.map(({ expression }) => expression.distilleryName).filter((d): d is string => Boolean(d)));
+  const bottlerCounts = countBy(ownedItems.map(({ expression }) => expression.bottlerName).filter((b): b is string => Boolean(b)));
   const ratings = countBy(ownedItems.filter(({ item }) => item.rating).map(({ item }) => String(item.rating)));
   const volumeEntries = ownedItems
     .map(({ expression }) => expression.volumeMl)
