@@ -124,6 +124,51 @@ export function buildBottleDetailBlock(query: string, items: CollectionViewItem[
   ].filter(Boolean).join("\n");
 }
 
+export function buildFullBottleContextBlock(item: CollectionViewItem): string {
+  const e = item.expression;
+  const tags = e.tags ?? [];
+
+  const lines = [
+    `CURRENT BOTTLE CONTEXT (user is viewing this bottle right now):`,
+    `Name: ${e.name}`,
+    e.brand ? `Brand: ${e.brand}` : null,
+    e.distilleryName ? `Distillery: ${e.distilleryName}` : null,
+    e.bottlerName ? `Bottler: ${e.bottlerName}` : null,
+    e.country ? `Country: ${e.country}` : null,
+    e.region ? `Region: ${e.region}` : null,
+    e.abv ? `ABV: ${e.abv}%` : null,
+    e.ageStatement ? `Age: ${e.ageStatement} years` : (e.isNas ? "Age: NAS (no age statement)" : null),
+    e.caskType ? `Cask type: ${e.caskType}` : null,
+    e.caskInfluence ? `Cask influence: ${e.caskInfluence}` : null,
+    e.peatLevel ? `Peat level: ${e.peatLevel}` : null,
+    e.whiskyType ? `Whisky type: ${e.whiskyType}` : null,
+    e.vintageYear ? `Vintage: ${e.vintageYear}` : null,
+    e.distilledYear ? `Distilled: ${e.distilledYear}` : null,
+    e.bottledYear ? `Bottled: ${e.bottledYear}` : null,
+    e.volumeMl ? `Volume: ${e.volumeMl}ml` : null,
+    e.isChillFiltered !== undefined ? `Chill filtered: ${e.isChillFiltered ? "yes" : "no"}` : null,
+    e.isNaturalColor !== undefined ? `Natural colour: ${e.isNaturalColor ? "yes" : "no"}` : null,
+    e.isLimited ? `Limited release: yes` : null,
+    tags.length ? `Tags: ${tags.join(", ")}` : null,
+    e.description ? `Description: ${e.description}` : null,
+    `Status: ${item.item.status}, ${item.item.fillState}`,
+    item.item.purchasePrice ? `Purchase price: ${item.item.purchasePrice} ${item.item.purchaseCurrency ?? ""}`.trim() : null,
+    item.item.purchaseSource ? `Purchased from: ${item.item.purchaseSource}` : null,
+    item.item.personalNotes ? `Personal notes: ${item.item.personalNotes}` : null
+  ].filter(Boolean);
+
+  if (item.tastingEntries.length > 0) {
+    lines.push(`Tasting history (${item.tastingEntries.length} session${item.tastingEntries.length > 1 ? "s" : ""}):`)
+    for (const t of item.tastingEntries) {
+      lines.push(`  - ${t.tastedAt.slice(0, 10)} (${t.rating}/5): nose: ${t.nose}; palate: ${t.palate}; finish: ${t.finish}${t.overallNote ? `; overall: ${t.overallNote}` : ""}`);
+    }
+  } else {
+    lines.push("Tasting history: none yet");
+  }
+
+  return lines.join("\n");
+}
+
 export function buildDealsContextBlock(
   specials: ScoredNewsItem[],
   newReleases: ScoredNewsItem[],

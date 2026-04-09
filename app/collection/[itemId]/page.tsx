@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
 
+import { BottleChat } from "@/components/bottle-chat";
 import { BottleRecordEditor } from "@/components/bottle-record-editor";
 import { TastingForm } from "@/components/tasting-form";
 import { getBottleDisplayImage } from "@/lib/bottle-image";
@@ -242,6 +243,8 @@ export default async function ItemDetailPage({
           <TastingForm itemId={entry.item.id} />
         </div>
       </section>
+
+      <BottleChat bottleId={entry.item.id} bottleName={entry.expression.name} />
     </div>
   );
 }
