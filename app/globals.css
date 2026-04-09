@@ -501,6 +501,46 @@ textarea {
   border: 1px solid var(--line);
 }
 
+.advisor-card--link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.advisor-card--link:hover {
+  background: rgba(255, 250, 244, 0.09);
+  border-color: rgba(255, 225, 190, 0.2);
+}
+
+.stat-card--link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.stat-card--link:hover {
+  background: rgba(255, 250, 244, 0.1);
+  border-color: rgba(255, 225, 190, 0.2);
+}
+
+.pill--filter {
+  background: rgba(201, 138, 53, 0.18);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: rgba(248, 238, 223, 0.9);
+  transition: background 150ms ease;
+}
+
+.pill--filter:hover {
+  background: rgba(201, 138, 53, 0.28);
+}
+
 .meta-line {
   display: flex;
   flex-wrap: wrap;

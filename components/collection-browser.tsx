@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 
 import { CollectionCard } from "@/components/collection-card";
+import { getPeatTag } from "@/lib/tags";
 import type { CollectionViewItem } from "@/lib/types";
 
 function buildSearchHaystack(entry: CollectionViewItem) {
@@ -24,9 +26,34 @@ function buildSearchHaystack(entry: CollectionViewItem) {
     .toLowerCase();
 }
 
+function matchesFacet(entry: CollectionViewItem, filterType: string | null, filterValue: string | null): boolean {
+  if (!filterType || !filterValue) return true;
+  switch (filterType) {
+    case "distillery":
+      return entry.expression.distilleryName === filterValue;
+    case "bottler":
+      return entry.expression.bottlerName === filterValue;
+    case "region":
+      return entry.expression.country === filterValue;
+    case "peat": {
+      const tag = getPeatTag(entry.expression.tags) ?? "unspecified";
+      return tag === filterValue;
+    }
+    case "rating":
+      return entry.item.rating === Number(filterValue);
+    default:
+      return true;
+  }
+}
+
 export function CollectionBrowser({ collection }: { collection: CollectionViewItem[] }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
+
+  const filterType = searchParams.get("filterType");
+  const filterValue = searchParams.get("filterValue");
 
   const visible = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -34,9 +61,10 @@ export function CollectionBrowser({ collection }: { collection: CollectionViewIt
     return collection.filter((entry) => {
       const statusMatch = status === "all" ? true : entry.item.status === status;
       const textMatch = normalized ? buildSearchHaystack(entry).includes(normalized) : true;
-      return statusMatch && textMatch;
+      const facetMatch = matchesFacet(entry, filterType, filterValue);
+      return statusMatch && textMatch && facetMatch;
     });
-  }, [collection, query, status]);
+  }, [collection, query, status, filterType, filterValue]);
 
   const rows = useMemo(() => {
     const chunkSize = 5;
@@ -76,8 +104,16 @@ export function CollectionBrowser({ collection }: { collection: CollectionViewIt
       <div className="shelf-caption">
         <p>{visible.length} bottles on the shelf right now.</p>
         <div className="pill-row">
-          <span className="pill">Hover a bottle for quick details</span>
-          <span className="pill">Search matches flavor tags too</span>
+          {filterType && filterValue ? (
+            <button className="pill pill--filter" onClick={() => router.push("/collection")}>
+              {filterType}: {filterValue} &times;
+            </button>
+          ) : (
+            <>
+              <span className="pill">Hover a bottle for quick details</span>
+              <span className="pill">Search matches flavor tags too</span>
+            </>
+          )}
         </div>
       </div>
 

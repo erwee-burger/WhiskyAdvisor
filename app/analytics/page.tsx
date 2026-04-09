@@ -1,7 +1,13 @@
+import Link from "next/link";
+
 import { StatCard } from "@/components/stat-card";
 import { getAnalytics } from "@/lib/repository";
 
 export const dynamic = "force-dynamic";
+
+function collectionLink(filterType: string, filterValue: string) {
+  return `/collection?filterType=${encodeURIComponent(filterType)}&filterValue=${encodeURIComponent(filterValue)}`;
+}
 
 export default async function AnalyticsPage() {
   const analytics = await getAnalytics();
@@ -13,6 +19,11 @@ export default async function AnalyticsPage() {
   const safeTopDistilleries = Array.isArray(analytics?.topDistilleries) ? analytics.topDistilleries : [];
   const safeTopBottlers = Array.isArray(analytics?.topBottlers) ? analytics.topBottlers : [];
   const ratedBottlesCount = analytics.ratingDistribution.reduce((total, entry) => total + entry.count, 0);
+
+  const topRegion = analytics.regionSplit[0]?.region;
+  const topPeat = analytics.peatProfile[0]?.tag;
+  const topDistillery = analytics.topDistilleries[0]?.name;
+  const topBottler = analytics.topBottlers[0]?.name;
 
   return (
     <div className="page">
@@ -61,10 +72,10 @@ export default async function AnalyticsPage() {
           </div>
           <div className="card-list">
             {safeRegionSplit.map((entry) => (
-              <div className="advisor-card" key={entry.region}>
+              <Link className="advisor-card advisor-card--link" href={collectionLink("region", entry.region)} key={entry.region}>
                 <strong>{entry.region}</strong>
                 <p className="muted">{entry.count} bottles</p>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -77,10 +88,10 @@ export default async function AnalyticsPage() {
           </div>
           <div className="card-list">
             {safePeatProfile.map((entry) => (
-              <div className="advisor-card" key={entry.tag}>
+              <Link className="advisor-card advisor-card--link" href={collectionLink("peat", entry.tag)} key={entry.tag}>
                 <strong>{entry.tag}</strong>
                 <p className="muted">{entry.count} bottles</p>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -93,10 +104,10 @@ export default async function AnalyticsPage() {
           </div>
           <div className="card-list">
             {safeRatingDistribution.map((entry) => (
-              <div className="advisor-card" key={entry.rating}>
+              <Link className="advisor-card advisor-card--link" href={collectionLink("rating", String(entry.rating))} key={entry.rating}>
                 <strong>{"★".repeat(entry.rating)}{"☆".repeat(3 - entry.rating)} — {entry.label}</strong>
                 <p className="muted">{entry.count} {entry.count === 1 ? "bottle" : "bottles"}</p>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -112,10 +123,10 @@ export default async function AnalyticsPage() {
           </div>
           <div className="card-list">
             {safeTopDistilleries.map((entry) => (
-              <div className="advisor-card" key={entry.name}>
+              <Link className="advisor-card advisor-card--link" href={collectionLink("distillery", entry.name)} key={entry.name}>
                 <strong>{entry.name}</strong>
                 <p className="muted">{entry.count} bottles</p>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -128,10 +139,10 @@ export default async function AnalyticsPage() {
           </div>
           <div className="card-list">
             {safeTopBottlers.map((entry) => (
-              <div className="advisor-card" key={entry.name}>
+              <Link className="advisor-card advisor-card--link" href={collectionLink("bottler", entry.name)} key={entry.name}>
                 <strong>{entry.name}</strong>
                 <p className="muted">{entry.count} bottles</p>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -145,10 +156,26 @@ export default async function AnalyticsPage() {
           </div>
         </div>
         <div className="stats-grid">
-          <StatCard label="Top region" value={analytics.regionSplit[0]?.region ?? "None yet"} />
-          <StatCard label="Top peat" value={analytics.peatProfile[0]?.tag ?? "None yet"} />
-          <StatCard label="Top distillery" value={analytics.topDistilleries[0]?.name ?? "None yet"} />
-          <StatCard label="Top bottler" value={analytics.topBottlers[0]?.name ?? "None yet"} />
+          <StatCard
+            label="Top region"
+            value={topRegion ?? "None yet"}
+            href={topRegion ? collectionLink("region", topRegion) : undefined}
+          />
+          <StatCard
+            label="Top peat"
+            value={topPeat ?? "None yet"}
+            href={topPeat ? collectionLink("peat", topPeat) : undefined}
+          />
+          <StatCard
+            label="Top distillery"
+            value={topDistillery ?? "None yet"}
+            href={topDistillery ? collectionLink("distillery", topDistillery) : undefined}
+          />
+          <StatCard
+            label="Top bottler"
+            value={topBottler ?? "None yet"}
+            href={topBottler ? collectionLink("bottler", topBottler) : undefined}
+          />
         </div>
       </section>
     </div>
