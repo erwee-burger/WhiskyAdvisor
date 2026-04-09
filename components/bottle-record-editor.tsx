@@ -221,136 +221,138 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
         </div>
       ) : null}
 
-      {notice ? <div className={`status-note status-note-${notice.tone}`}>{notice.text}</div> : null}
+      <form onSubmit={handleSave}>
+        <div className="editor-scroll-box">
+          <div className="form-grid">
+            <div className="field full-span">
+              <label htmlFor="frontImage">Front image</label>
+              <input accept="image/*" id="frontImage" name="frontImage" onChange={handleFileChange} type="file" />
+            </div>
 
-      <form className="form-grid" onSubmit={handleSave}>
-        <div className="field full-span">
-          <label htmlFor="frontImage">Front image</label>
-          <input accept="image/*" id="frontImage" name="frontImage" onChange={handleFileChange} type="file" />
-        </div>
+            <div className="field full-span">
+              <div className="image-preview-card">
+                <div className="image-preview-frame">
+                  <Image
+                    alt={`${entry.expression.name} current front image`}
+                    className="image-preview"
+                    height={180}
+                    src={previewUrl}
+                    unoptimized
+                    width={180}
+                  />
+                </div>
+                <div className="image-preview-copy">
+                  <strong>{previewLabel}</strong>
+                  <p>Replace this image if you want a new front bottle view in the collection cabinet.</p>
+                </div>
+              </div>
+            </div>
 
-        <div className="field full-span">
-          <div className="image-preview-card">
-            <div className="image-preview-frame">
-              <Image
-                alt={`${entry.expression.name} current front image`}
-                className="image-preview"
-                height={180}
-                src={previewUrl}
-                unoptimized
-                width={180}
+            <div className="field full-span form-section-title">
+              <label>Identity</label>
+              <p>Core bottle details that should always read clearly.</p>
+            </div>
+            <div className="field">
+              <label htmlFor="distilleryName">Distillery</label>
+              <input defaultValue={entry.expression.distilleryName ?? ""} id="distilleryName" name="distilleryName" />
+            </div>
+            <div className="field">
+              <label htmlFor="bottlerName">Bottler</label>
+              <input defaultValue={entry.expression.bottlerName ?? ""} id="bottlerName" name="bottlerName" />
+            </div>
+            <div className="field">
+              <label htmlFor="brand">Brand</label>
+              <input defaultValue={entry.expression.brand ?? ""} id="brand" name="brand" placeholder="Label brand or series name" />
+            </div>
+            <div className="field full-span">
+              <label htmlFor="name">Bottle name</label>
+              <input defaultValue={entry.expression.name} id="name" name="name" required />
+            </div>
+            <div className="field">
+              <label htmlFor="country">Country</label>
+              <input defaultValue={entry.expression.country ?? ""} id="country" name="country" />
+            </div>
+            <div className="field">
+              <label htmlFor="abv">ABV</label>
+              <input defaultValue={entry.expression.abv ?? ""} id="abv" min={0} name="abv" step="0.1" type="number" />
+            </div>
+            <div className="field">
+              <label htmlFor="ageStatement">Age statement</label>
+              <input defaultValue={entry.expression.ageStatement ?? ""} id="ageStatement" min={0} name="ageStatement" type="number" />
+            </div>
+            <div className="field">
+              <label htmlFor="barcode">Barcode</label>
+              <input defaultValue={entry.expression.barcode ?? ""} id="barcode" name="barcode" />
+            </div>
+            <div className="field full-span">
+              <label htmlFor="tags">Tags</label>
+              <input
+                defaultValue={entry.expression.tags.join(", ")}
+                id="tags"
+                name="tags"
+                placeholder="smoke, sherry-cask, coastal"
               />
             </div>
-            <div className="image-preview-copy">
-              <strong>{previewLabel}</strong>
-              <p>Replace this image if you want a new front bottle view in the collection cabinet.</p>
+            <div className="field full-span">
+              <label htmlFor="description">Description</label>
+              <textarea defaultValue={entry.expression.description ?? ""} id="description" name="description" />
+            </div>
+
+            <div className="field full-span form-section-title">
+              <label>Collection</label>
+              <p>Your bottle-specific tracking fields.</p>
+            </div>
+            <div className="field">
+              <label htmlFor="status">Status</label>
+              <select defaultValue={entry.item.status} id="status" name="status">
+                <option value="owned">Owned</option>
+                <option value="wishlist">Wishlist</option>
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="fillState">Bottle state</label>
+              <select defaultValue={entry.item.fillState} id="fillState" name="fillState">
+                <option value="sealed">Sealed</option>
+                <option value="open">Open</option>
+                <option value="finished">Finished</option>
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="purchaseCurrency">Currency</label>
+              <input
+                defaultValue={entry.item.purchaseCurrency ?? "ZAR"}
+                id="purchaseCurrency"
+                maxLength={3}
+                name="purchaseCurrency"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="purchasePrice">Purchase price</label>
+              <input
+                defaultValue={entry.item.purchasePrice ?? ""}
+                id="purchasePrice"
+                min={0}
+                name="purchasePrice"
+                step="0.01"
+                type="number"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="purchaseDate">Purchase date</label>
+              <input defaultValue={entry.item.purchaseDate?.slice(0, 10) ?? ""} id="purchaseDate" name="purchaseDate" type="date" />
+            </div>
+            <div className="field">
+              <label htmlFor="purchaseSource">Purchase source</label>
+              <input defaultValue={entry.item.purchaseSource ?? ""} id="purchaseSource" name="purchaseSource" />
+            </div>
+            <div className="field full-span">
+              <label htmlFor="personalNotes">Personal note</label>
+              <textarea defaultValue={entry.item.personalNotes ?? ""} id="personalNotes" name="personalNotes" />
             </div>
           </div>
         </div>
 
-        <div className="field full-span form-section-title">
-          <label>Identity</label>
-          <p>Core bottle details that should always read clearly.</p>
-        </div>
-        <div className="field">
-          <label htmlFor="distilleryName">Distillery</label>
-          <input defaultValue={entry.expression.distilleryName ?? ""} id="distilleryName" name="distilleryName" />
-        </div>
-        <div className="field">
-          <label htmlFor="bottlerName">Bottler</label>
-          <input defaultValue={entry.expression.bottlerName ?? ""} id="bottlerName" name="bottlerName" />
-        </div>
-        <div className="field">
-          <label htmlFor="brand">Brand</label>
-          <input defaultValue={entry.expression.brand ?? ""} id="brand" name="brand" placeholder="Label brand or series name" />
-        </div>
-        <div className="field full-span">
-          <label htmlFor="name">Bottle name</label>
-          <input defaultValue={entry.expression.name} id="name" name="name" required />
-        </div>
-        <div className="field">
-          <label htmlFor="country">Country</label>
-          <input defaultValue={entry.expression.country ?? ""} id="country" name="country" />
-        </div>
-        <div className="field">
-          <label htmlFor="abv">ABV</label>
-          <input defaultValue={entry.expression.abv ?? ""} id="abv" min={0} name="abv" step="0.1" type="number" />
-        </div>
-        <div className="field">
-          <label htmlFor="ageStatement">Age statement</label>
-          <input defaultValue={entry.expression.ageStatement ?? ""} id="ageStatement" min={0} name="ageStatement" type="number" />
-        </div>
-        <div className="field">
-          <label htmlFor="barcode">Barcode</label>
-          <input defaultValue={entry.expression.barcode ?? ""} id="barcode" name="barcode" />
-        </div>
-        <div className="field full-span">
-          <label htmlFor="tags">Tags</label>
-          <input
-            defaultValue={entry.expression.tags.join(", ")}
-            id="tags"
-            name="tags"
-            placeholder="smoke, sherry-cask, coastal"
-          />
-        </div>
-        <div className="field full-span">
-          <label htmlFor="description">Description</label>
-          <textarea defaultValue={entry.expression.description ?? ""} id="description" name="description" />
-        </div>
-
-        <div className="field full-span form-section-title">
-          <label>Collection</label>
-          <p>Your bottle-specific tracking fields.</p>
-        </div>
-        <div className="field">
-          <label htmlFor="status">Status</label>
-          <select defaultValue={entry.item.status} id="status" name="status">
-            <option value="owned">Owned</option>
-            <option value="wishlist">Wishlist</option>
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="fillState">Bottle state</label>
-          <select defaultValue={entry.item.fillState} id="fillState" name="fillState">
-            <option value="sealed">Sealed</option>
-            <option value="open">Open</option>
-            <option value="finished">Finished</option>
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="purchaseCurrency">Currency</label>
-          <input
-            defaultValue={entry.item.purchaseCurrency ?? "ZAR"}
-            id="purchaseCurrency"
-            maxLength={3}
-            name="purchaseCurrency"
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="purchasePrice">Purchase price</label>
-          <input
-            defaultValue={entry.item.purchasePrice ?? ""}
-            id="purchasePrice"
-            min={0}
-            name="purchasePrice"
-            step="0.01"
-            type="number"
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="purchaseDate">Purchase date</label>
-          <input defaultValue={entry.item.purchaseDate?.slice(0, 10) ?? ""} id="purchaseDate" name="purchaseDate" type="date" />
-        </div>
-        <div className="field">
-          <label htmlFor="purchaseSource">Purchase source</label>
-          <input defaultValue={entry.item.purchaseSource ?? ""} id="purchaseSource" name="purchaseSource" />
-        </div>
-        <div className="field full-span">
-          <label htmlFor="personalNotes">Personal note</label>
-          <textarea defaultValue={entry.item.personalNotes ?? ""} id="personalNotes" name="personalNotes" />
-        </div>
-
-        <div className="field full-span editor-actions">
+        <div className="editor-actions">
           <button className={`button${isSaving ? " button-active" : ""}`} disabled={isSaving || isDeleting} type="submit">
             {renderButtonLabel("Save changes", isSaving)}
           </button>
@@ -363,6 +365,8 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
             {renderButtonLabel("Delete bottle", isDeleting)}
           </button>
         </div>
+
+        {notice ? <div className={`status-note status-note-${notice.tone}`}>{notice.text}</div> : null}
       </form>
     </section>
   );

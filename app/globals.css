@@ -556,10 +556,21 @@ textarea {
   font-size: 0.9rem;
 }
 
+.editor-scroll-box {
+  max-height: 520px;
+  overflow-y: auto;
+  padding-right: 8px;
+  border: 1px solid rgba(255, 225, 190, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  background: rgba(17, 11, 9, 0.3);
+}
+
 .editor-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  padding-top: 14px;
 }
 
 .field {
