@@ -5,27 +5,12 @@ import { DefaultChatTransport } from "ai";
 import { useEffect, useRef, useState } from "react";
 import type { UIMessage } from "ai";
 
-const STORAGE_KEY = "advisor-messages";
-const MAX_MESSAGES = 20;
-const SESSION_KEY = "advisor-opening-done";
-
 const DEFAULT_CHIPS = [
   "What should I open tonight?",
   "What's missing from my shelf?",
   "Which bottle have I neglected the longest?",
   "Surprise me with an insight."
 ];
-
-interface SerializedMessage {
-  id: string;
-  role: string;
-  parts: Array<{ type: string; text: string }>;
-}
-
-function saveMessages(messages: SerializedMessage[]) {
-  const capped = messages.slice(-MAX_MESSAGES);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(capped));
-}
 
 function extractSuggestions(content: string): { text: string; suggestions: string[] } {
   const match = content.match(/\{"suggestions":\s*\[([^\]]*)\]\}/);
@@ -39,21 +24,9 @@ function extractSuggestions(content: string): { text: string; suggestions: strin
   }
 }
 
-function serializeMessage(msg: UIMessage): SerializedMessage {
-  return {
-    id: msg.id,
-    role: msg.role,
-    parts: msg.parts.map((p: { type: string; text?: string }) => ({
-      type: p.type,
-      text: p.type === "text" ? (p.text ?? "") : ""
-    }))
-  };
-}
-
 export function AdvisorChat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [chips, setChips] = useState<string[]>(DEFAULT_CHIPS);
-  const [isSessionOpened, setIsSessionOpened] = useState(false);
   const [input, setInput] = useState("");
 
   const { messages, sendMessage, status } = useChat({
@@ -64,31 +37,13 @@ export function AdvisorChat() {
 
   const isLoading = status === "streaming" || status === "submitted";
 
-  // Fire opening message once per session
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (sessionStorage.getItem(SESSION_KEY)) return;
-    if (messages.length > 0 || isSessionOpened) return;
-
-    sessionStorage.setItem(SESSION_KEY, "1");
-    setIsSessionOpened(true);
-
-    sendMessage({
-      parts: [{ type: "text", text: "__opening__" }]
-    });
-  }, [isSessionOpened, messages.length, sendMessage]);
-
   // Scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Save messages to localStorage and extract suggestions
+  // Extract suggestions from last assistant message
   useEffect(() => {
-    const serialized = messages.map(serializeMessage);
-    saveMessages(serialized);
-
-    // Extract suggestions from last assistant message
     let lastAssistantMessage: UIMessage | undefined;
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === "assistant") {
@@ -122,15 +77,10 @@ export function AdvisorChat() {
     }
   }
 
-  const displayMessages = messages.filter((m) => {
-    const textPart = m.parts.find((p) => p.type === "text");
-    return textPart && "text" in textPart && (textPart as { text: string }).text !== "__opening__";
-  });
-
   return (
     <div className="advisor-chat stack">
       <div className="advisor-chat__messages">
-        {displayMessages.map((m) => {
+        {messages.map((m) => {
           const textPart = m.parts.find((p) => p.type === "text");
           const text = textPart && "text" in textPart ? (textPart as { text: string }).text : "";
           const { text: cleanText } = extractSuggestions(text);

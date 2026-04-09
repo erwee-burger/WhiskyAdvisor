@@ -98,14 +98,6 @@ RULES:
 
   // Convert UIMessage to the format expected by streamText
   const messages: ModelMessage[] = uiMessages.map(m => {
-    // Handle __opening__ sentinel
-    if (m.parts && m.parts.length === 1 && "text" in m.parts[0] && (m.parts[0] as { text: string }).text === "__opening__") {
-      return {
-        role: m.role as "user" | "assistant",
-        content: "Please greet me warmly and share one genuinely interesting insight from my collection. Keep it to 2-3 sentences. End with a follow-up suggestions JSON block."
-      };
-    }
-
     // Convert parts to content string
     const content = m.parts
       ?.map(p => ("text" in p ? (p as { text: string }).text : ""))
