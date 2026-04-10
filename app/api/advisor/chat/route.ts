@@ -124,7 +124,7 @@ RULES:
               "Search query. Be specific — include the distillery or bottle name when relevant."
             )
           }),
-          execute: async ({ query: searchQuery }) => {
+          execute: async ({ query: searchQuery }): Promise<string> => {
             const results = await webSearch(searchQuery);
             return results || "No results found for that query.";
           }
