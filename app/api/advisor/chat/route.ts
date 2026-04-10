@@ -1,4 +1,4 @@
-import { streamText, createUIMessageStreamResponse } from "ai";
+import { streamText, createUIMessageStreamResponse, tool } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import type { UIMessage } from "ai";
@@ -116,10 +116,10 @@ RULES:
 
   const tools = enableSearch
     ? {
-        searchWeb: {
+        searchWeb: tool({
           description:
             "Search the internet for whisky information — distillery history, tasting notes, production methods, industry news, bottles not in the collection, current pricing, new releases, awards, comparisons, etc.",
-          parameters: z.object({
+          inputSchema: z.object({
             query: z.string().describe(
               "Search query. Be specific — include the distillery or bottle name when relevant."
             )
@@ -128,7 +128,7 @@ RULES:
             const results = await webSearch(query);
             return results || "No results found for that query.";
           }
-        }
+        })
       }
     : undefined;
 
