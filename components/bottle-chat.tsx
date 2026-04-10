@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { UIMessage } from "ai";
 
 const DEFAULT_CHIPS = [
@@ -33,15 +33,20 @@ export function BottleChat({ bottleId, bottleName }: BottleChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [chips, setChips] = useState<string[]>(DEFAULT_CHIPS);
   const [input, setInput] = useState("");
+  const [enableSearch, setEnableSearch] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { messages, sendMessage, status } = useChat({
-    transport: new DefaultChatTransport({
-      api: "/api/advisor/chat",
-      body: { bottleId }
-    })
-  });
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: enableSearch ? "/api/advisor/chat?search=1" : "/api/advisor/chat",
+        body: { bottleId }
+      }),
+    [enableSearch, bottleId]
+  );
+
+  const { messages, sendMessage, status } = useChat({ transport });
 
   const isLoading = status === "streaming" || status === "submitted";
 
@@ -125,13 +130,29 @@ export function BottleChat({ bottleId, bottleName }: BottleChatProps) {
             <span className="bottle-chat__header-eyebrow">Advisor</span>
             <span className="bottle-chat__header-name">{shortName}</span>
           </span>
-          <button
-            className="bottle-chat__close"
-            onClick={() => setIsOpen(false)}
-            aria-label="Close chat"
-          >
-            ✕
-          </button>
+          <div className="bottle-chat__header-actions">
+            <button
+              type="button"
+              className={`chat-search-toggle${enableSearch ? " chat-search-toggle--on" : ""}`}
+              onClick={() => setEnableSearch((v) => !v)}
+              title={enableSearch ? "Web search enabled — click to disable" : "Enable web search"}
+              aria-pressed={enableSearch}
+              aria-label="Toggle web search"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+                <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M8 11h6M11 8v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+            <button
+              className="bottle-chat__close"
+              onClick={() => setIsOpen(false)}
+              aria-label="Close chat"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         <div className="bottle-chat__messages">
@@ -155,7 +176,7 @@ export function BottleChat({ bottleId, bottleName }: BottleChatProps) {
           })}
           {isLoading && (
             <div className="bottle-chat__message bottle-chat__message--assistant">
-              <span className="bottle-chat__thinking">thinking…</span>
+              <span className="bottle-chat__thinking">{enableSearch ? "searching & thinking…" : "thinking…"}</span>
             </div>
           )}
           <div ref={bottomRef} />

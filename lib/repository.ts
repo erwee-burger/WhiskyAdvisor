@@ -5,7 +5,7 @@ import { buildCollectionAnalytics } from "@/lib/analytics";
 import { buildComparison } from "@/lib/comparison";
 import { createId } from "@/lib/id";
 import { readStore, writeStore } from "@/lib/mock-store";
-import { analyzeBottleImage, buildDraftFromExpression } from "@/lib/openai";
+import { analyzeBottleImage, buildDraftFromExpression, enrichBottleExpressionWithSearch } from "@/lib/openai";
 import { buildPalateProfile } from "@/lib/profile";
 import type {
   CollectionItem,
@@ -266,12 +266,17 @@ export async function createDraftFromPhoto(
   const store = await readStore();
   const aiResult = await analyzeBottleImage(fileName, imageBase64, mimeType);
 
+  // Always enrich with internet search — label data takes precedence over search results
+  const enrichedExpression = aiResult?.expression
+    ? await enrichBottleExpressionWithSearch(aiResult.expression)
+    : undefined;
+
   const draft: IntakeDraft = {
     id: createId("draft"),
     collectionItemId: createId("item"),
     source: aiResult ? "hybrid" : "photo",
     rawAiResponse: aiResult?.rawAiResponse,
-    expression: aiResult?.expression ?? { name: fileName.replace(/\.[^.]+$/, ""), tags: [] },
+    expression: enrichedExpression ?? aiResult?.expression ?? { name: fileName.replace(/\.[^.]+$/, ""), tags: [] },
     collection: {
       purchaseCurrency: "ZAR",
       status: "owned",

@@ -159,6 +159,76 @@ export async function analyzeBottleImage(
   return { expression, rawAiResponse: { enrichmentText: text } };
 }
 
+export async function enrichBottleExpressionWithSearch(
+  expression: Partial<Expression> & Pick<Expression, "name">
+): Promise<Partial<Expression> & Pick<Expression, "name">> {
+  if (!process.env.TAVILY_API_KEY || !process.env.OPENAI_API_KEY) {
+    return expression;
+  }
+
+  const { webSearch } = await import("@/lib/search");
+
+  const searchQuery = [
+    expression.name,
+    expression.distilleryName,
+    expression.ageStatement ? `${expression.ageStatement} year` : null,
+    "whisky"
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const searchResults = await webSearch(searchQuery);
+  if (!searchResults) return expression;
+
+  const enrichPrompt = [
+    `You are a whisky data extraction assistant.`,
+    `Based on internet search results for "${expression.name}", extract additional information to fill gaps in the existing data.`,
+    `Return a single JSON object. Only include fields where you have new or better information than what is already present.`,
+    `Label data takes precedence — only override an existing field if you have high-confidence official information (e.g. distillery website).`,
+    `If a field already has a value and you are not more confident, omit it from your response.`,
+    `Return ONLY valid JSON — no markdown, no explanations.`,
+    ``,
+    `Existing data:`,
+    JSON.stringify({
+      name: expression.name,
+      distilleryName: expression.distilleryName ?? null,
+      bottlerName: expression.bottlerName ?? null,
+      brand: expression.brand ?? null,
+      country: expression.country ?? null,
+      abv: expression.abv ?? null,
+      ageStatement: expression.ageStatement ?? null,
+      description: expression.description ?? null,
+      tags: expression.tags ?? []
+    }),
+    ``,
+    `Search results:`,
+    searchResults,
+    ``,
+    `Fields you may return (only those with new/better info): name, distilleryName, bottlerName, brand, country, abv (number), ageStatement (integer), description, tags (string[])`,
+    `Output format: {"field": value, ...}`
+  ].join("\n");
+
+  const payload = await callOpenAi(enrichPrompt);
+  const text = getResponseText(payload);
+  const enriched = extractJson<BottlePayload>(text);
+
+  if (!enriched) return expression;
+
+  // Merge: label-detected values take precedence; fill gaps with search-enriched data
+  return {
+    name: expression.name,
+    distilleryName: expression.distilleryName ?? normalizeText(enriched.distilleryName),
+    bottlerName: expression.bottlerName ?? normalizeText(enriched.bottlerName),
+    brand: expression.brand ?? normalizeText(enriched.brand),
+    country: expression.country ?? normalizeText(enriched.country),
+    abv: expression.abv ?? normalizeNumber(enriched.abv),
+    ageStatement: expression.ageStatement ?? normalizeNumber(enriched.ageStatement),
+    barcode: expression.barcode ?? normalizeText(enriched.barcode),
+    description: expression.description ?? normalizeText(enriched.description),
+    tags: expression.tags?.length ? expression.tags : normalizeTags(enriched.tags)
+  };
+}
+
 export function buildDraftFromExpression(
   expression: Expression,
   source: IntakeDraft["source"],
