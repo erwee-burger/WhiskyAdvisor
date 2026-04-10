@@ -11,7 +11,9 @@ async function tavilySearch(query: string): Promise<string> {
     })
   });
 
-  if (!response.ok) return "";
+  if (!response.ok) {
+    throw new Error(`Tavily error ${response.status}`);
+  }
 
   const data = await response.json() as {
     answer?: string;
@@ -50,15 +52,21 @@ async function openAiSearch(query: string): Promise<string> {
 }
 
 export async function webSearch(query: string): Promise<string> {
-  try {
-    if (process.env.TAVILY_API_KEY) {
+  if (process.env.TAVILY_API_KEY) {
+    try {
       return await tavilySearch(query);
+    } catch {
+      // Tavily failed (quota exceeded, network error, etc.) — fall through to OpenAI
     }
-    if (process.env.OPENAI_API_KEY) {
-      return await openAiSearch(query);
-    }
-    return "";
-  } catch {
-    return "";
   }
+
+  if (process.env.OPENAI_API_KEY) {
+    try {
+      return await openAiSearch(query);
+    } catch {
+      return "";
+    }
+  }
+
+  return "";
 }
