@@ -1,4 +1,4 @@
-import { streamText, createUIMessageStreamResponse, tool } from "ai";
+import { streamText, createUIMessageStreamResponse, tool, stepCountIs } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import type { UIMessage } from "ai";
@@ -137,7 +137,7 @@ RULES:
     system: systemPrompt,
     messages,
     tools,
-    maxSteps: tools ? 3 : 1
+    ...(tools ? { stopWhen: stepCountIs(3) } : {})
   });
 
   return createUIMessageStreamResponse({
