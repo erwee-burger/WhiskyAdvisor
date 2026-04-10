@@ -1621,6 +1621,41 @@ td {
   cursor: default;
 }
 
+/* ── Search toggle (shared between advisor-chat and bottle-chat) ─────────── */
+
+.chat-search-toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background: none;
+  border: 1px solid rgba(255, 239, 213, 0.2);
+  border-radius: 6px;
+  color: rgba(243, 233, 216, 0.4);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.chat-search-toggle:hover {
+  color: rgba(243, 233, 216, 0.75);
+  border-color: rgba(255, 239, 213, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.chat-search-toggle--on {
+  color: var(--accent, #d49d45);
+  border-color: rgba(212, 157, 69, 0.6);
+  background: rgba(212, 157, 69, 0.12);
+}
+
+.chat-search-toggle--on:hover {
+  background: rgba(212, 157, 69, 0.18);
+  border-color: rgba(212, 157, 69, 0.8);
+}
+
 /* ── Bottle Chat (floating popup) ─────────────────────────────────────────── */
 
 .bottle-chat__fab {
@@ -1711,6 +1746,13 @@ td {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.bottle-chat__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
 }
 
 .bottle-chat__close {

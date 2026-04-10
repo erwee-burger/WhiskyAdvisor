@@ -7,6 +7,7 @@ const serverEnvSchema = z.object({
   OPENAI_MODEL: z.string().default("gpt-5"),
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  TAVILY_API_KEY: z.string().min(1).optional(),
   APP_LOCK_ENABLED: z
     .string()
     .default("false")
@@ -30,6 +31,7 @@ export function getServerEnv() {
     OPENAI_MODEL: process.env.OPENAI_MODEL,
     SUPABASE_URL: process.env.SUPABASE_URL,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    TAVILY_API_KEY: process.env.TAVILY_API_KEY,
     APP_LOCK_ENABLED: process.env.APP_LOCK_ENABLED,
     APP_ACCESS_TOKEN: process.env.APP_ACCESS_TOKEN
   });

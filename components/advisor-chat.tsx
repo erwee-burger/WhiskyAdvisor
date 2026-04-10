@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { UIMessage } from "ai";
 
 const DEFAULT_CHIPS = [
@@ -28,12 +28,17 @@ export function AdvisorChat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [chips, setChips] = useState<string[]>(DEFAULT_CHIPS);
   const [input, setInput] = useState("");
+  const [enableSearch, setEnableSearch] = useState(false);
 
-  const { messages, sendMessage, status } = useChat({
-    transport: new DefaultChatTransport({
-      api: "/api/advisor/chat"
-    })
-  });
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: enableSearch ? "/api/advisor/chat?search=1" : "/api/advisor/chat"
+      }),
+    [enableSearch]
+  );
+
+  const { messages, sendMessage, status } = useChat({ transport });
 
   const isLoading = status === "streaming" || status === "submitted";
 
@@ -95,7 +100,7 @@ export function AdvisorChat() {
         })}
         {isLoading && (
           <div className="advisor-chat__message advisor-chat__message--assistant">
-            <p className="advisor-chat__thinking">thinking…</p>
+            <p className="advisor-chat__thinking">{enableSearch ? "searching & thinking…" : "thinking…"}</p>
           </div>
         )}
         <div ref={bottomRef} />
@@ -118,6 +123,20 @@ export function AdvisorChat() {
         className="advisor-chat__input-row"
         onSubmit={handleSubmit}
       >
+        <button
+          type="button"
+          className={`chat-search-toggle${enableSearch ? " chat-search-toggle--on" : ""}`}
+          onClick={() => setEnableSearch((v) => !v)}
+          title={enableSearch ? "Web search enabled — click to disable" : "Enable web search"}
+          aria-pressed={enableSearch}
+          aria-label="Toggle web search"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+            <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <path d="M8 11h6M11 8v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
         <input
           className="advisor-chat__input"
           value={input}
