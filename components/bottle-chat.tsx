@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { UIMessage } from "ai";
 
 const DEFAULT_CHIPS = [
@@ -34,17 +34,30 @@ export function BottleChat({ bottleId, bottleName }: BottleChatProps) {
   const [chips, setChips] = useState<string[]>(DEFAULT_CHIPS);
   const [input, setInput] = useState("");
   const [enableSearch, setEnableSearch] = useState(false);
+  const enableSearchRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        api: enableSearch ? "/api/advisor/chat?search=1" : "/api/advisor/chat",
-        body: { bottleId }
-      }),
-    [enableSearch, bottleId]
-  );
+  const [transport] = useState(() => {
+    const t = new DefaultChatTransport({
+      api: "/api/advisor/chat",
+      body: { bottleId }
+    });
+    Object.defineProperty(t, "api", {
+      get: () =>
+        enableSearchRef.current
+          ? "/api/advisor/chat?search=1"
+          : "/api/advisor/chat",
+      configurable: true
+    });
+    return t;
+  });
+
+  function toggleSearch() {
+    const next = !enableSearch;
+    setEnableSearch(next);
+    enableSearchRef.current = next;
+  }
 
   const { messages, sendMessage, status } = useChat({ transport });
 
@@ -134,7 +147,7 @@ export function BottleChat({ bottleId, bottleName }: BottleChatProps) {
             <button
               type="button"
               className={`chat-search-toggle${enableSearch ? " chat-search-toggle--on" : ""}`}
-              onClick={() => setEnableSearch((v) => !v)}
+              onClick={toggleSearch}
               title={enableSearch ? "Web search enabled — click to disable" : "Enable web search"}
               aria-pressed={enableSearch}
               aria-label="Toggle web search"
