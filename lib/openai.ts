@@ -95,7 +95,32 @@ function normalizeTags(tags: unknown): string[] {
     .slice(0, 20);
 }
 
-function buildPrompt(fileName: string): string {
+const BOTTLE_FIELDS = [
+  "Fields:",
+  "  name (string) — full product name",
+  "  distilleryName (string|null) — producing distillery",
+  "  bottlerName (string|null) — bottling entity if different from distillery",
+  "  brand (string|null) — brand name if distinct from distillery",
+  "  country (string|null)",
+  "  abv (number|null)",
+  "  ageStatement (integer|null)",
+  "  barcode (string|null)",
+  "  description (string|null) — short neutral summary of confirmed facts only",
+  "  tags (string[]) — up to 20 lowercase hyphenated tags covering:",
+  "    whisky style (e.g. single-malt, blended-scotch, world-single-malt)",
+  "    peat level (e.g. peated, heavily-peated, unpeated) — omit if unknown",
+  "    cask influence (e.g. sherry-cask, bourbon-cask, wine-cask, rum-cask)",
+  "    bottler kind (e.g. independent-bottler) — omit for official bottlings",
+  "    release series name as a tag if notable (e.g. special-release)",
+  "    cask type as tag (e.g. double-wood, ex-bourbon, amontillado)",
+  "    production flags only when confirmed: nas, limited, natural-colour, chill-filtered",
+  "    up to 6 flavour descriptors (e.g. spicy, dried-fruit, vanilla, smoky)",
+  "    numeric context if useful: e.g. 12yo, 700ml (only if confirmed)",
+  "",
+  'Output format: {"name":null,"distilleryName":null,"bottlerName":null,"brand":null,"country":null,"abv":null,"ageStatement":null,"barcode":null,"description":null,"tags":[]}'
+].join("\n");
+
+function buildImagePrompt(fileName: string): string {
   return [
     "You are a whisky bottle identification and data extraction assistant.",
     "Analyze the provided whisky bottle image. Use web search when you need to verify or fill in details not clearly visible on the label.",
@@ -106,29 +131,39 @@ function buildPrompt(fileName: string): string {
     "For abv: return number if clearly visible or confirmed via search, else null.",
     `File hint: ${fileName}`,
     "",
-    "Fields:",
-    "  name (string) — full product name as on label",
-    "  distilleryName (string|null) — producing distillery",
-    "  bottlerName (string|null) — bottling entity if different from distillery",
-    "  brand (string|null) — brand name if distinct from distillery",
-    "  country (string|null)",
-    "  abv (number|null)",
-    "  ageStatement (integer|null)",
-    "  barcode (string|null) — if visible",
-    "  description (string|null) — short neutral summary of confirmed facts only",
-    "  tags (string[]) — up to 20 lowercase hyphenated tags covering:",
-    "    whisky style (e.g. single-malt, blended-scotch, world-single-malt)",
-    "    peat level (e.g. peated, heavily-peated, unpeated) — omit if unknown",
-    "    cask influence (e.g. sherry-cask, bourbon-cask, wine-cask, rum-cask)",
-    "    bottler kind (e.g. independent-bottler) — omit for official bottlings",
-    "    release series name as a tag if notable (e.g. special-release)",
-    "    cask type as tag (e.g. double-wood, ex-bourbon, amontillado)",
-    "    production flags only when confirmed: nas, limited, natural-colour, chill-filtered",
-    "    up to 6 flavour descriptors (e.g. spicy, dried-fruit, vanilla, smoky)",
-    "    numeric context if useful: e.g. 12yo, 700ml (only if confirmed)",
-    "",
-    'Output format: {"name":null,"distilleryName":null,"bottlerName":null,"brand":null,"country":null,"abv":null,"ageStatement":null,"barcode":null,"description":null,"tags":[]}'
+    BOTTLE_FIELDS
   ].join("\n");
+}
+
+function buildNameLookupPrompt(name: string): string {
+  return [
+    "You are a whisky bottle data extraction assistant.",
+    `Look up this whisky: "${name}"`,
+    "Use web search to find accurate details. Return a single JSON object.",
+    "Return ONLY valid JSON — no markdown, no explanations.",
+    "Only include fields you can confirm with high confidence (0.8+).",
+    "For ageStatement: return integer or null for NAS.",
+    "",
+    BOTTLE_FIELDS
+  ].join("\n");
+}
+
+function buildExpression(
+  parsed: BottlePayload,
+  fallbackName: string
+): Partial<Expression> & Pick<Expression, "name"> {
+  return {
+    name: normalizeText(parsed.name) ?? fallbackName,
+    distilleryName: normalizeText(parsed.distilleryName),
+    bottlerName: normalizeText(parsed.bottlerName),
+    brand: normalizeText(parsed.brand),
+    country: normalizeText(parsed.country),
+    abv: normalizeNumber(parsed.abv),
+    ageStatement: normalizeNumber(parsed.ageStatement),
+    barcode: normalizeText(parsed.barcode),
+    description: normalizeText(parsed.description),
+    tags: normalizeTags(parsed.tags)
+  };
 }
 
 export async function analyzeBottleImage(
@@ -141,14 +176,22 @@ export async function analyzeBottleImage(
 } | null> {
   const { OPENAI_API_KEY } = getServerEnv();
 
-  if (!OPENAI_API_KEY || !imageBase64) {
+  if (!OPENAI_API_KEY) {
     return null;
   }
 
-  const prompt = buildPrompt(fileName);
+  // Text-only path: no image provided, use web search to look up by name
+  if (!imageBase64) {
+    const prompt = buildNameLookupPrompt(fileName);
+    const payload = await callOpenAi(prompt, undefined, undefined, true);
+    const text = getResponseText(payload);
+    const parsed = extractJson<BottlePayload>(text);
+    if (!parsed) return null;
+    return { expression: buildExpression(parsed, fileName), rawAiResponse: { enrichmentText: text } };
+  }
 
-  // Attempt single call with web search. If the API rejects vision + web_search
-  // together, fall back to vision-only.
+  // Vision path: image provided, attempt with web search, fall back to vision-only
+  const prompt = buildImagePrompt(fileName);
   let payload: unknown = null;
   try {
     payload = await callOpenAi(prompt, imageBase64, mimeType, true);
@@ -160,25 +203,8 @@ export async function analyzeBottleImage(
 
   const text = getResponseText(payload);
   const parsed = extractJson<BottlePayload>(text);
-
-  if (!parsed) {
-    return null;
-  }
-
-  const expression: Partial<Expression> & Pick<Expression, "name"> = {
-    name: normalizeText(parsed.name) ?? fileName.replace(/\.[^.]+$/, ""),
-    distilleryName: normalizeText(parsed.distilleryName),
-    bottlerName: normalizeText(parsed.bottlerName),
-    brand: normalizeText(parsed.brand),
-    country: normalizeText(parsed.country),
-    abv: normalizeNumber(parsed.abv),
-    ageStatement: normalizeNumber(parsed.ageStatement),
-    barcode: normalizeText(parsed.barcode),
-    description: normalizeText(parsed.description),
-    tags: normalizeTags(parsed.tags)
-  };
-
-  return { expression, rawAiResponse: { enrichmentText: text } };
+  if (!parsed) return null;
+  return { expression: buildExpression(parsed, fileName.replace(/\.[^.]+$/, "")), rawAiResponse: { enrichmentText: text } };
 }
 
 export function buildDraftFromExpression(

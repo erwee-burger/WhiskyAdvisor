@@ -413,11 +413,11 @@ export function AddBottleForm() {
           ) : null}
 
           <div className="field">
-            <label htmlFor="fileName">Or enter a label description</label>
+            <label htmlFor="fileName">Or search by bottle name</label>
             <input
               id="fileName"
               name="fileName"
-              placeholder="springbank-front.jpg or Port Charlotte 10"
+              placeholder="Springbank 15, Port Charlotte 10..."
             />
           </div>
           <button className={`button${busyAction === "photo" ? " button-active" : ""}`} disabled={isBusy} type="submit">

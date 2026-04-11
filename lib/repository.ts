@@ -269,7 +269,7 @@ export async function createDraftFromPhoto(
   const draft: IntakeDraft = {
     id: createId("draft"),
     collectionItemId: createId("item"),
-    source: aiResult ? "hybrid" : "photo",
+    source: aiResult ? (imageBase64 ? "hybrid" : "search") : "photo",
     rawAiResponse: aiResult?.rawAiResponse,
     expression: aiResult?.expression ?? { name: fileName.replace(/\.[^.]+$/, ""), tags: [] },
     collection: {

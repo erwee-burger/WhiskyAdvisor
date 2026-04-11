@@ -2,7 +2,7 @@
 
 export type CollectionStatus = "owned" | "wishlist";
 export type FillState = "sealed" | "open" | "finished";
-export type IntakeSource = "photo" | "barcode" | "hybrid";
+export type IntakeSource = "photo" | "barcode" | "hybrid" | "search";
 
 export interface Expression {
   id: string;
