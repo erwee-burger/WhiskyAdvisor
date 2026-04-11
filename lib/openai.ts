@@ -1,20 +1,28 @@
 // lib/openai.ts
+import { getServerEnv } from "@/lib/env";
 import { createId } from "@/lib/id";
 import type { CollectionItem, Expression, IntakeDraft } from "@/lib/types";
 
-async function callOpenAi(prompt: string, imageBase64?: string, mimeType = "image/jpeg") {
-  if (!process.env.OPENAI_API_KEY) {
+async function callOpenAi(
+  prompt: string,
+  imageBase64?: string,
+  mimeType = "image/jpeg",
+  useWebSearch = false
+) {
+  const { OPENAI_API_KEY, OPENAI_MODEL } = getServerEnv();
+
+  if (!OPENAI_API_KEY) {
     return null;
   }
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: process.env.OPENAI_MODEL ?? "gpt-4o",
+      model: OPENAI_MODEL,
       messages: [
         {
           role: "user",
@@ -25,7 +33,8 @@ async function callOpenAi(prompt: string, imageBase64?: string, mimeType = "imag
               : [])
           ]
         }
-      ]
+      ],
+      ...(useWebSearch ? { web_search_options: {} } : {})
     })
   });
 
@@ -89,12 +98,12 @@ function normalizeTags(tags: unknown): string[] {
 function buildPrompt(fileName: string): string {
   return [
     "You are a whisky bottle identification and data extraction assistant.",
-    "Analyze the provided whisky bottle image and return a single JSON object.",
-    "Return ONLY valid JSON — no markdown, no explanations.",
-    "Source priority: 1. Visible label text  2. Packaging cues  3. Internet sources for exact variant only when highly confident.",
+    "Analyze the provided whisky bottle image. Use web search when you need to verify or fill in details not clearly visible on the label.",
+    "Return a single JSON object. Return ONLY valid JSON — no markdown, no explanations.",
+    "Source priority: 1. Visible label text  2. Packaging cues  3. Web search for exact variant when needed.",
     "If confidence for a field is below 0.8, return null for that field.",
     "For ageStatement: return integer or null for NAS.",
-    "For abv: return number if clearly visible, else null.",
+    "For abv: return number if clearly visible or confirmed via search, else null.",
     `File hint: ${fileName}`,
     "",
     "Fields:",
@@ -130,12 +139,25 @@ export async function analyzeBottleImage(
   expression: Partial<Expression> & Pick<Expression, "name">;
   rawAiResponse: { enrichmentText: string };
 } | null> {
-  if (!process.env.OPENAI_API_KEY || !imageBase64) {
+  const { OPENAI_API_KEY } = getServerEnv();
+
+  if (!OPENAI_API_KEY || !imageBase64) {
     return null;
   }
 
   const prompt = buildPrompt(fileName);
-  const payload = await callOpenAi(prompt, imageBase64, mimeType);
+
+  // Attempt single call with web search. If the API rejects vision + web_search
+  // together, fall back to vision-only.
+  let payload: unknown = null;
+  try {
+    payload = await callOpenAi(prompt, imageBase64, mimeType, true);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.includes("400")) throw err;
+    payload = await callOpenAi(prompt, imageBase64, mimeType, false);
+  }
+
   const text = getResponseText(payload);
   const parsed = extractJson<BottlePayload>(text);
 
@@ -157,76 +179,6 @@ export async function analyzeBottleImage(
   };
 
   return { expression, rawAiResponse: { enrichmentText: text } };
-}
-
-export async function enrichBottleExpressionWithSearch(
-  expression: Partial<Expression> & Pick<Expression, "name">
-): Promise<Partial<Expression> & Pick<Expression, "name">> {
-  if (!process.env.TAVILY_API_KEY || !process.env.OPENAI_API_KEY) {
-    return expression;
-  }
-
-  const { webSearch } = await import("@/lib/search");
-
-  const searchQuery = [
-    expression.name,
-    expression.distilleryName,
-    expression.ageStatement ? `${expression.ageStatement} year` : null,
-    "whisky"
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  const searchResults = await webSearch(searchQuery);
-  if (!searchResults) return expression;
-
-  const enrichPrompt = [
-    `You are a whisky data extraction assistant.`,
-    `Based on internet search results for "${expression.name}", extract additional information to fill gaps in the existing data.`,
-    `Return a single JSON object. Only include fields where you have new or better information than what is already present.`,
-    `Label data takes precedence — only override an existing field if you have high-confidence official information (e.g. distillery website).`,
-    `If a field already has a value and you are not more confident, omit it from your response.`,
-    `Return ONLY valid JSON — no markdown, no explanations.`,
-    ``,
-    `Existing data:`,
-    JSON.stringify({
-      name: expression.name,
-      distilleryName: expression.distilleryName ?? null,
-      bottlerName: expression.bottlerName ?? null,
-      brand: expression.brand ?? null,
-      country: expression.country ?? null,
-      abv: expression.abv ?? null,
-      ageStatement: expression.ageStatement ?? null,
-      description: expression.description ?? null,
-      tags: expression.tags ?? []
-    }),
-    ``,
-    `Search results:`,
-    searchResults,
-    ``,
-    `Fields you may return (only those with new/better info): name, distilleryName, bottlerName, brand, country, abv (number), ageStatement (integer), description, tags (string[])`,
-    `Output format: {"field": value, ...}`
-  ].join("\n");
-
-  const payload = await callOpenAi(enrichPrompt);
-  const text = getResponseText(payload);
-  const enriched = extractJson<BottlePayload>(text);
-
-  if (!enriched) return expression;
-
-  // Merge: label-detected values take precedence; fill gaps with search-enriched data
-  return {
-    name: expression.name,
-    distilleryName: expression.distilleryName ?? normalizeText(enriched.distilleryName),
-    bottlerName: expression.bottlerName ?? normalizeText(enriched.bottlerName),
-    brand: expression.brand ?? normalizeText(enriched.brand),
-    country: expression.country ?? normalizeText(enriched.country),
-    abv: expression.abv ?? normalizeNumber(enriched.abv),
-    ageStatement: expression.ageStatement ?? normalizeNumber(enriched.ageStatement),
-    barcode: expression.barcode ?? normalizeText(enriched.barcode),
-    description: expression.description ?? normalizeText(enriched.description),
-    tags: expression.tags?.length ? expression.tags : normalizeTags(enriched.tags)
-  };
 }
 
 export function buildDraftFromExpression(
