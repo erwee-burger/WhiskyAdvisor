@@ -133,7 +133,7 @@ RULES:
     : undefined;
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai(process.env.OPENAI_MODEL ?? "gpt-5.4"),
     system: systemPrompt,
     messages,
     tools,
