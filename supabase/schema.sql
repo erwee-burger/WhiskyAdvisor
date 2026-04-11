@@ -99,7 +99,7 @@ create table if not exists intake_drafts (
   id text primary key,
   collection_item_id text not null,
   matched_expression_id text,
-  source text not null check (source in ('photo', 'barcode', 'hybrid')),
+  source text not null check (source in ('photo', 'barcode', 'hybrid', 'search')),
   barcode text,
   raw_expression jsonb not null default '{}'::jsonb,
   identification jsonb,
