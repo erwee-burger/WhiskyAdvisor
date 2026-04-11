@@ -37,9 +37,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json(response);
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Photo intake failed." },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : "Photo intake failed.";
+    console.error("[intake-photo]", message, error);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
