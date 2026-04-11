@@ -1,4 +1,4 @@
-// lib/search.ts
+// lib/search.ts — uses Responses API so web_search_preview works with GPT-5.4
 import { getServerEnv } from "@/lib/env";
 
 export async function webSearch(query: string): Promise<string> {
@@ -7,7 +7,7 @@ export async function webSearch(query: string): Promise<string> {
   if (!OPENAI_API_KEY) return "";
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${OPENAI_API_KEY}`,
@@ -15,17 +15,26 @@ export async function webSearch(query: string): Promise<string> {
       },
       body: JSON.stringify({
         model: OPENAI_MODEL,
-        messages: [{ role: "user", content: query }]
+        tools: [{ type: "web_search_preview" }],
+        input: query
       })
     });
 
     if (!response.ok) return "";
 
     const data = await response.json() as {
-      choices?: Array<{ message?: { content?: string } }>;
+      output?: Array<{ type: string; content?: Array<{ type: string; text?: string }> }>;
     };
 
-    return data.choices?.[0]?.message?.content ?? "";
+    if (!Array.isArray(data.output)) return "";
+    for (let i = data.output.length - 1; i >= 0; i--) {
+      const item = data.output[i];
+      if (item.type === "message" && Array.isArray(item.content)) {
+        const textPart = item.content.find((c) => c.type === "output_text");
+        if (textPart?.text) return textPart.text;
+      }
+    }
+    return "";
   } catch {
     return "";
   }

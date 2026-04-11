@@ -3,17 +3,15 @@ import { getServerEnv } from "@/lib/env";
 import { createId } from "@/lib/id";
 import type { CollectionItem, Expression, IntakeDraft } from "@/lib/types";
 
-async function callOpenAi(
+// Chat Completions API — used for vision (image input)
+async function callChatCompletions(
   prompt: string,
-  imageBase64?: string,
-  mimeType = "image/jpeg",
-  useWebSearch = false
+  imageBase64: string,
+  mimeType: string
 ) {
   const { OPENAI_API_KEY, OPENAI_MODEL } = getServerEnv();
 
-  if (!OPENAI_API_KEY) {
-    return null;
-  }
+  if (!OPENAI_API_KEY) return null;
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -28,28 +26,64 @@ async function callOpenAi(
           role: "user",
           content: [
             { type: "text", text: prompt },
-            ...(imageBase64
-              ? [{ type: "image_url", image_url: { url: `data:${mimeType};base64,${imageBase64}` } }]
-              : [])
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${imageBase64}` } }
           ]
         }
-      ],
-      ...(useWebSearch ? { web_search_options: {} } : {})
+      ]
     })
   });
 
-  if (!response.ok) {
-    throw new Error(`OpenAI request failed with ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`OpenAI request failed with ${response.status}`);
   return response.json();
 }
 
-function getResponseText(payload: unknown): string {
+function getChatCompletionsText(payload: unknown): string {
   if (!payload || typeof payload !== "object") return "";
   const p = payload as { choices?: Array<{ message?: { content?: string } }> };
   const message = p.choices?.[0]?.message;
   return typeof message?.content === "string" ? message.content : "";
+}
+
+// Responses API — supports web_search_preview tool natively with GPT-5.4
+async function callResponsesApi(prompt: string, imageBase64?: string, mimeType?: string) {
+  const { OPENAI_API_KEY, OPENAI_MODEL } = getServerEnv();
+
+  if (!OPENAI_API_KEY) return null;
+
+  const inputContent: unknown[] = [{ type: "input_text", text: prompt }];
+  if (imageBase64 && mimeType) {
+    inputContent.push({ type: "input_image", image_url: `data:${mimeType};base64,${imageBase64}` });
+  }
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      tools: [{ type: "web_search_preview" }],
+      input: [{ role: "user", content: inputContent }]
+    })
+  });
+
+  if (!response.ok) throw new Error(`OpenAI Responses API failed with ${response.status}`);
+  return response.json();
+}
+
+function getResponsesApiText(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
+  const p = payload as { output?: Array<{ type: string; content?: Array<{ type: string; text?: string }> }> };
+  if (!Array.isArray(p.output)) return "";
+  for (let i = p.output.length - 1; i >= 0; i--) {
+    const item = p.output[i];
+    if (item.type === "message" && Array.isArray(item.content)) {
+      const textPart = item.content.find((c) => c.type === "output_text");
+      if (textPart?.text) return textPart.text;
+    }
+  }
+  return "";
 }
 
 function extractJson<T>(text: string): T | null {
@@ -180,28 +214,28 @@ export async function analyzeBottleImage(
     return null;
   }
 
-  // Text-only path: no image provided, use web search to look up by name
+  // Text-only path: use Responses API with web_search_preview (GPT-5.4 native)
   if (!imageBase64) {
     const prompt = buildNameLookupPrompt(fileName);
-    const payload = await callOpenAi(prompt, undefined, undefined, true);
-    const text = getResponseText(payload);
+    const payload = await callResponsesApi(prompt);
+    const text = getResponsesApiText(payload);
     const parsed = extractJson<BottlePayload>(text);
     if (!parsed) return null;
     return { expression: buildExpression(parsed, fileName), rawAiResponse: { enrichmentText: text } };
   }
 
-  // Vision path: image provided, attempt with web search, fall back to vision-only
+  // Vision path: Responses API supports image + web search together.
+  // Fall back to Chat Completions (vision-only) if Responses API rejects the request.
   const prompt = buildImagePrompt(fileName);
-  let payload: unknown = null;
+  let text = "";
   try {
-    payload = await callOpenAi(prompt, imageBase64, mimeType, true);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (!msg.includes("400")) throw err;
-    payload = await callOpenAi(prompt, imageBase64, mimeType, false);
+    const payload = await callResponsesApi(prompt, imageBase64, mimeType);
+    text = getResponsesApiText(payload);
+  } catch {
+    const payload = await callChatCompletions(prompt, imageBase64, mimeType);
+    text = getChatCompletionsText(payload);
   }
 
-  const text = getResponseText(payload);
   const parsed = extractJson<BottlePayload>(text);
   if (!parsed) return null;
   return { expression: buildExpression(parsed, fileName.replace(/\.[^.]+$/, "")), rawAiResponse: { enrichmentText: text } };
