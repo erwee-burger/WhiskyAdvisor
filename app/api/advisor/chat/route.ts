@@ -16,6 +16,7 @@ import {
 } from "@/lib/advisor-context";
 import { getDashboardData, getItemById } from "@/lib/repository";
 import { webSearch } from "@/lib/search";
+import { getServerEnv } from "@/lib/env";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,8 @@ export async function POST(req: Request) {
   const body = (await req.json()) as { messages: UIMessage[]; bottleId?: string };
   const uiMessages = body.messages || [];
   const bottleId = body.bottleId ?? null;
+
+  const { OPENAI_MODEL } = getServerEnv();
 
   // Extract the last user message as the query for context triggering
   let query = "";
@@ -133,7 +136,7 @@ RULES:
     : undefined;
 
   const result = streamText({
-    model: openai(process.env.OPENAI_MODEL ?? "gpt-5.4"),
+    model: openai(OPENAI_MODEL),
     system: systemPrompt,
     messages,
     tools,

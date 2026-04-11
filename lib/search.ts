@@ -2,7 +2,7 @@
 import { getServerEnv } from "@/lib/env";
 
 export async function webSearch(query: string): Promise<string> {
-  const { OPENAI_API_KEY } = getServerEnv();
+  const { OPENAI_API_KEY, OPENAI_MODEL } = getServerEnv();
 
   if (!OPENAI_API_KEY) return "";
 
@@ -14,7 +14,7 @@ export async function webSearch(query: string): Promise<string> {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "gpt-4o-search-preview",
+        model: OPENAI_MODEL,
         messages: [{ role: "user", content: query }]
       })
     });
