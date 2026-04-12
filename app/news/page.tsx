@@ -2,7 +2,7 @@
 import { NewsFeed } from "@/components/news-feed";
 import { getLatestSuccessfulSnapshot } from "@/lib/news-store";
 import { getNewsPreferences } from "@/lib/news-preferences-store";
-import type { NewsFeedItem, NewsSummaryCard, NewsBudgetPreferences } from "@/lib/types";
+import type { NewsFeedItem, NewsSummaryCard } from "@/lib/types";
 
 export default async function NewsPage() {
   const preferences = await getNewsPreferences();
