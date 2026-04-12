@@ -5,6 +5,7 @@ import { validateGptOffer, APPROVED_SOURCE_KEYS } from "@/lib/news-gpt";
 describe("validateGptOffer", () => {
   const validOffer = {
     source: "whiskybrother",
+    kind: "special",
     name: "Glenfarclas 12",
     price: 799,
     url: "https://whiskybrother.com/products/glenfarclas-12",
