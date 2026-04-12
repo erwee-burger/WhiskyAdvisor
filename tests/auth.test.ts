@@ -11,7 +11,7 @@ const mockCookies = vi.mocked(cookies);
 
 function setupCookies(value: string | undefined) {
   mockCookies.mockResolvedValue({
-    get: (name: string) => (name === "whisky_access" && value !== undefined ? { value } : undefined)
+    get: (name: string) => (name === "whisky_access" && value !== undefined ? { name, value } : undefined)
   });
 }
 
