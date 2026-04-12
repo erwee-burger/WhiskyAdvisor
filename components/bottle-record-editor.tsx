@@ -199,6 +199,7 @@ export function BottleRecordEditor({ entry, isOwner = true }: { entry: Collectio
   }
 
   function enterEditMode(field: BottleDetailFieldId) {
+    if (!isOwner) return;
     setIsEditing(true);
     setFocusedField(field);
   }
