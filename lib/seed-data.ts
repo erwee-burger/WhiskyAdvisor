@@ -1,8 +1,8 @@
-import type { WhiskyStore } from "@/lib/types";
+import type { TastingEntry, WhiskyStore } from "@/lib/types";
 
 const today = "2026-04-05T09:00:00.000Z";
 
-export const seedStore: WhiskyStore = {
+export const seedStore: WhiskyStore & { tastingEntries: TastingEntry[] } = {
   expressions: [
     {
       id: "expr_lagavulin_16",
@@ -215,5 +215,6 @@ export const seedStore: WhiskyStore = {
       label: "Front label"
     }
   ],
+  tastingEntries: [],
   drafts: []
 };

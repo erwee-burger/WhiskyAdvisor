@@ -16,7 +16,7 @@ export function detectContextTriggers(query: string): ContextTriggers {
   const drinkNow = /open tonight|drink now|what should i have|what should i open|pour tonight/.test(q);
   const wishlist = /buy next|next purchase|wishlist|should i get|worth (it|buying)/.test(q);
   const analytics = /how many|collection stats|analytics|how much|total|count/.test(q);
-  const tastings = /my notes|rating|rated|my review|favorites|favourites/.test(q);
+  const tastings = /my notes|tasting notes|rating|rated|my review|favorites|favourites/.test(q);
   const deals = /special|deal|discount|on sale|new release|just arrived|what.s new/.test(q);
 
   // Extract a bottle name if the query mentions one — grab text after keywords like "my" or "about"

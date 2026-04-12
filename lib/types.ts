@@ -62,6 +62,14 @@ export interface ItemImage {
   label?: string;
 }
 
+export interface TastingEntry {
+  id: string;
+  collectionItemId: string;
+  tastedAt: string;
+  rating?: 1 | 2 | 3;
+  notes?: string;
+}
+
 /**
  * Represents a bottle entry being drafted during photo/barcode intake.
  * @property rawAiResponse - Raw text outputs from OpenAI identification and enrichment passes
@@ -85,6 +93,8 @@ export interface CollectionViewItem {
   item: CollectionItem;
   expression: Expression;
   images: ItemImage[];
+  tastingEntries?: TastingEntry[];
+  latestTasting?: TastingEntry;
   priceSnapshot?: {
     retail?: { low: number; high: number; currency: string };
     auction?: { low: number; high: number; currency: string };
@@ -189,6 +199,7 @@ export interface WhiskyStore {
   expressions: Expression[];
   collectionItems: CollectionItem[];
   itemImages: ItemImage[];
+  tastingEntries?: TastingEntry[];
   drafts: IntakeDraft[];
   distilleries?: { id: string; name: string }[];
   bottlers?: { id: string; name: string }[];
