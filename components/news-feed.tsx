@@ -98,10 +98,9 @@ export function NewsFeed({
     ? newArrivals
     : newArrivals.filter(item => item.source === activeRetailerFilter);
 
-  const retailers = [
-    "all",
-    ...Array.from(new Set([...specials, ...newArrivals].map(item => item.source)))
-  ];
+  // Always show all known retailers, even if they have 0 items
+  const knownRetailers = ["whiskybrother", "bottegawhiskey", "mothercityliquor", "whiskyemporium", "normangoodfellows"];
+  const retailers = ["all", ...knownRetailers];
 
   return (
     <>
