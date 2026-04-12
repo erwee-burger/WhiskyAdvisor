@@ -4,7 +4,12 @@ import {
   APPROVED_SOURCE_KEYS,
   validateAndDedupe,
   buildRetailerPrompt,
-  enforceRetailerOfferRules
+  enforceRetailerOfferRules,
+  isApprovedOfferUrl,
+  canonicalizeRetailerProductUrl,
+  parseWhiskyBrotherCollectionHtml,
+  parseBottegaCollectionHtml,
+  parseMotherCityCollectionHtml
 } from "@/lib/news-gpt";
 
 describe("validateGptOffer", () => {
@@ -70,6 +75,21 @@ describe("validateGptOffer", () => {
       ])
     );
     expect(APPROVED_SOURCE_KEYS).toHaveLength(4);
+  });
+
+  it("accepts Norman Goodfellows product urls with or without www", () => {
+    expect(isApprovedOfferUrl("normangoodfellows", "https://www.ngf.co.za/product/sample-bottle/")).toBe(true);
+    expect(isApprovedOfferUrl("normangoodfellows", "https://ngf.co.za/product/sample-bottle/")).toBe(true);
+  });
+});
+
+describe("retailer url helpers", () => {
+  it("canonicalizes Shopify collection product urls to direct product urls", () => {
+    expect(
+      canonicalizeRetailerProductUrl(
+        "https://www.whiskybrother.com/collections/new-whisky-arrivals/products/sample-bottle?variant=1"
+      )
+    ).toBe("https://www.whiskybrother.com/products/sample-bottle");
   });
 });
 
@@ -206,6 +226,96 @@ describe("buildRetailerPrompt", () => {
     expect(prompt).toContain("https://www.ngf.co.za/promotions/");
     expect(prompt).toContain("Norman Goodfellows does not have a dedicated new arrivals page.");
     expect(prompt).toContain("Always return newArrivals: [] for source key normangoodfellows.");
+  });
+});
+
+describe("direct retailer parsers", () => {
+  it("parses Whisky Brother collection items and canonicalizes product urls", () => {
+    const html = `
+      <div class="grid-item grid-product">
+        <a class="grid-item__link" href="/collections/new-whisky-arrivals/products/sample-bottle"></a>
+        <img data-src="//www.whiskybrother.com/cdn/shop/files/sample_{width}x.jpg?v=1">
+        <div class="grid-product__title">Sample Bottle</div>
+        <span class="grid-product__price--current"><span class="visually-hidden">R 1,490.00</span></span>
+        <span class="grid-product__price--original"><span class="visually-hidden">R 1,690.00</span></span>
+      </div>
+    `;
+
+    const result = parseWhiskyBrotherCollectionHtml(
+      html,
+      "https://www.whiskybrother.com/collections/new-whisky-arrivals",
+      "new_release"
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.url).toBe("https://www.whiskybrother.com/products/sample-bottle");
+    expect(result[0]?.price).toBe(1490);
+    expect(result[0]?.originalPrice).toBe(1690);
+    expect(result[0]?.inStock).toBe(true);
+  });
+
+  it("parses Bottega mixed category pages and keeps whisky items only", () => {
+    const html = `
+      <ul class="products">
+        <li class="product instock product_cat-scottish-whisky product_cat-new-arrival">
+          <a class="woocommerce-LoopProduct-link" href="https://bottegawhiskey.com/product/ardbeg-uigeadail/">
+            <img src="https://bottegawhiskey.com/ardbeg.jpg">
+            <h2 class="woocommerce-loop-product__title">Ardbeg Uigeadail</h2>
+            <span class="price"><span class="woocommerce-Price-amount amount">R1,399.00</span></span>
+          </a>
+        </li>
+        <li class="product instock product_cat-cognac product_cat-new-arrival">
+          <a class="woocommerce-LoopProduct-link" href="https://bottegawhiskey.com/product/beau-geste-cognac/">
+            <img src="https://bottegawhiskey.com/cognac.jpg">
+            <h2 class="woocommerce-loop-product__title">Beau Geste Cognac</h2>
+            <span class="price"><span class="woocommerce-Price-amount amount">R6,790.00</span></span>
+          </a>
+        </li>
+      </ul>
+    `;
+
+    const result = parseBottegaCollectionHtml(
+      html,
+      "https://bottegawhiskey.com/product-category/new-arrival/?orderby=date",
+      "new_release"
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.name).toBe("Ardbeg Uigeadail");
+  });
+
+  it("parses Mother City sale pages and filters non-whisky items using Shopify meta types", () => {
+    const html = `
+      <script>
+        var meta = {"products":[
+          {"handle":"glengoyne-15-year-old","type":"Whisky"},
+          {"handle":"piper-heidsieck-cuvee-brut","type":"Champagne & Sparkling"}
+        ],"page":{"pageType":"collection"}};
+      </script>
+      <div class="productitem">
+        <a class="productitem--image-link" href="/collections/sale/products/glengoyne-15-year-old"></a>
+        <img class="productitem--image-primary" src="//mothercityliquor.co.za/glengoyne.jpg">
+        <div class="productitem--title"><a>Glengoyne 15 Year Old</a></div>
+        <div class="price__current"><span class="money">R1,349.99</span></div>
+        <div class="price__compare-at"><span class="money">R1,649.99</span></div>
+      </div>
+      <div class="productitem">
+        <a class="productitem--image-link" href="/collections/sale/products/piper-heidsieck-cuvee-brut"></a>
+        <img class="productitem--image-primary" src="//mothercityliquor.co.za/piper.jpg">
+        <div class="productitem--title"><a>Piper-Heidsieck Cuvee Brut</a></div>
+        <div class="price__current"><span class="money">R899.99</span></div>
+      </div>
+    `;
+
+    const result = parseMotherCityCollectionHtml(
+      html,
+      "https://mothercityliquor.co.za/collections/sale?sort_by=created-descending",
+      "special"
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.name).toBe("Glengoyne 15 Year Old");
+    expect(result[0]?.url).toBe("https://mothercityliquor.co.za/products/glengoyne-15-year-old");
   });
 });
 

@@ -1,5 +1,6 @@
 // lib/news-gpt.ts
 
+import * as cheerio from "cheerio";
 import { getServerEnv } from "@/lib/env";
 import type { PalateProfile, NewsBudgetPreferences } from "@/lib/types";
 
@@ -13,11 +14,42 @@ export const APPROVED_SOURCE_DOMAINS: Record<string, string> = {
 
 export const APPROVED_SOURCE_KEYS = Object.keys(APPROVED_SOURCE_DOMAINS);
 
+const RETAILER_COLLECTION_URLS: Record<string, { specials: string; newArrivals: string | null }> = {
+  whiskybrother: {
+    specials: "https://www.whiskybrother.com/collections/whisky-specials",
+    newArrivals: "https://www.whiskybrother.com/collections/new-whisky-arrivals"
+  },
+  bottegawhiskey: {
+    specials: "https://bottegawhiskey.com/product-category/specials-sale/?orderby=date",
+    newArrivals: "https://bottegawhiskey.com/product-category/new-arrival/?orderby=date"
+  },
+  mothercityliquor: {
+    specials: "https://mothercityliquor.co.za/collections/sale?sort_by=created-descending",
+    newArrivals: "https://mothercityliquor.co.za/collections/new-whisky-arrivals?sort_by=created-descending"
+  },
+  normangoodfellows: {
+    specials: "https://www.ngf.co.za/promotions/",
+    newArrivals: null
+  }
+};
+
+const DISCOVERY_HEADERS = {
+  "user-agent": "Mozilla/5.0 (compatible; WhiskyAdvisor/1.0; +https://whiskyadvisor.local)",
+  "accept-language": "en-US,en;q=0.9"
+};
+
 const OBVIOUS_NON_WHISKY_KEYWORDS = [
   "tequila",
   "mezcal",
   "gin",
   "vodka",
+  "cognac",
+  "armagnac",
+  "brandy",
+  "prosecco",
+  "sparkling",
+  "brut",
+  "calvados",
   "liqueur",
   "champagne",
   "mcc",
@@ -32,6 +64,10 @@ const OBVIOUS_NON_WHISKY_KEYWORDS = [
 function isObviousNonWhiskyOffer(offer: GptOffer): boolean {
   const haystack = `${offer.name} ${offer.url}`.toLowerCase();
   return OBVIOUS_NON_WHISKY_KEYWORDS.some(keyword => haystack.includes(keyword));
+}
+
+function isLikelyWhiskyText(text: string): boolean {
+  return /\b(whisk|whiskey|bourbon|rye|single malt|single grain|blended malt|blended whisky|scotch|irish|islay|speyside|highland|campbeltown|japanese)\b/i.test(text);
 }
 
 const RETAILER_HINTS: Record<string, { specials: string; newArrivals: string; extraRules?: string[] }> = {
@@ -80,7 +116,7 @@ const RETAILER_HINTS: Record<string, { specials: string; newArrivals: string; ex
 
 export interface GptOffer {
   source: string;
-  kind: "special" | "new_release";
+  kind: OfferKind;
   name: string;
   price: number;
   originalPrice?: number;
@@ -112,6 +148,204 @@ export interface GptNewsResponse {
   };
 }
 
+export function isApprovedOfferUrl(source: string, url: string): boolean {
+  const domain = APPROVED_SOURCE_DOMAINS[source];
+  if (!domain) {
+    return false;
+  }
+
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    const canonicalDomain = domain.toLowerCase().replace(/^www\./, "");
+    return hostname === canonicalDomain || hostname === `www.${canonicalDomain}`;
+  } catch {
+    return false;
+  }
+}
+
+export function canonicalizeRetailerProductUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.hash = "";
+    parsed.search = "";
+    parsed.pathname = parsed.pathname.replace(/^\/collections\/[^/]+\/products\//, "/products/");
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+export function parsePriceText(text: string): number | undefined {
+  const matches = [...text.matchAll(/R\s*([\d,.]+)/gi)].map(match => match[1]);
+  if (matches.length === 0) {
+    return undefined;
+  }
+
+  const numeric = Number(matches[matches.length - 1]?.replace(/,/g, ""));
+  return Number.isFinite(numeric) ? numeric : undefined;
+}
+
+function toAbsoluteProductUrl(pageUrl: string, rawUrl: string | undefined): string | undefined {
+  if (!rawUrl) {
+    return undefined;
+  }
+
+  try {
+    return canonicalizeRetailerProductUrl(new URL(rawUrl, pageUrl).toString());
+  } catch {
+    return undefined;
+  }
+}
+
+function normaliseImageUrl(pageUrl: string, rawUrl: string | undefined): string | undefined {
+  if (!rawUrl) {
+    return undefined;
+  }
+
+  const cleaned = rawUrl.trim().replace("{width}", "720");
+  if (!cleaned || cleaned.startsWith("data:")) {
+    return undefined;
+  }
+
+  try {
+    return new URL(cleaned, pageUrl).toString();
+  } catch {
+    return undefined;
+  }
+}
+
+function formatZar(value: number): string {
+  return `R${value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
+}
+
+function computeDiscountPct(price: number, originalPrice: number | undefined): number | undefined {
+  if (!originalPrice || originalPrice <= price) {
+    return undefined;
+  }
+
+  return Math.max(1, Math.round(((originalPrice - price) / originalPrice) * 100));
+}
+
+function inferOfferRelevanceScore(name: string, kind: OfferKind, discountPct: number | undefined): number {
+  let score = kind === "special" ? 60 : 58;
+
+  if (discountPct) {
+    score += Math.min(12, Math.round(discountPct / 3));
+  }
+
+  if (/\b(18|21|25|30|40)\s*year\b/i.test(name)) {
+    score += 8;
+  } else if (/\b(10|12|15|16|17)\s*year\b/i.test(name)) {
+    score += 4;
+  }
+
+  if (/\b(cask strength|single cask|limited|edition|release|batch|annual)\b/i.test(name)) {
+    score += 6;
+  }
+
+  if (/\b(macallan|springbank|kilkerran|octomore|laphroaig|ardbeg|lagavulin|hibiki|yamazaki|hakushu)\b/i.test(name)) {
+    score += 5;
+  }
+
+  return Math.min(95, score);
+}
+
+function buildOfferWhyItMatters(
+  name: string,
+  kind: OfferKind,
+  price: number,
+  originalPrice: number | undefined,
+  discountPct: number | undefined
+): string {
+  if (kind === "special" && originalPrice && discountPct) {
+    return `${name} is listed at ${formatZar(price)}, down from ${formatZar(originalPrice)} (${discountPct}% off).`;
+  }
+
+  if (kind === "special") {
+    return `${name} is currently featured on the retailer's specials page at ${formatZar(price)}.`;
+  }
+
+  if (/\b(limited|edition|release|batch|single cask|cask strength)\b/i.test(name)) {
+    return `${name} has just landed on the retailer's new arrivals page and looks like a notable release.`;
+  }
+
+  return `${name} has just landed on the retailer's new arrivals page at ${formatZar(price)}.`;
+}
+
+function buildParsedOffer(input: {
+  source: string;
+  kind: OfferKind;
+  listingUrl: string;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  url: string;
+  imageUrl?: string;
+  inStock: boolean;
+}): GptOffer {
+  const discountPct = computeDiscountPct(input.price, input.originalPrice);
+
+  return {
+    source: input.source,
+    kind: input.kind,
+    name: input.name.trim(),
+    price: input.price,
+    originalPrice: input.originalPrice,
+    discountPct,
+    url: input.url,
+    imageUrl: input.imageUrl,
+    inStock: input.inStock,
+    relevanceScore: inferOfferRelevanceScore(input.name, input.kind, discountPct),
+    whyItMatters: buildOfferWhyItMatters(input.name, input.kind, input.price, input.originalPrice, discountPct),
+    citations: [...new Set([input.listingUrl, input.url])]
+  };
+}
+
+function getShopifyHandle(url: string): string | undefined {
+  try {
+    const match = new URL(url).pathname.match(/\/products\/([^/?#]+)/);
+    return match?.[1];
+  } catch {
+    return undefined;
+  }
+}
+
+function isWhiskyLikeType(type: string | undefined): boolean {
+  if (!type) {
+    return false;
+  }
+
+  return /(whisk|bourbon|rye|scotch|single-malt|single malt|blended malt|grain)/i.test(type);
+}
+
+function hasWhiskyLikeWooCommerceCategory(classNames: string[]): boolean {
+  return classNames.some(className =>
+    className.startsWith("product_cat-") && /(whisk|bourbon|rye|scotch)/i.test(className)
+  );
+}
+
+function extractShopifyMetaTypeByHandle(html: string): Map<string, string | undefined> {
+  const match = html.match(/var meta = (\{"products":\[.*?\],"page":\{.*?\}\});/s);
+  if (!match?.[1]) {
+    return new Map();
+  }
+
+  try {
+    const payload = JSON.parse(match[1]) as { products?: Array<{ handle?: string; type?: string }> };
+    const entries = (payload.products ?? [])
+      .filter(product => typeof product.handle === "string")
+      .map(product => [product.handle as string, typeof product.type === "string" ? product.type : undefined] as const);
+    return new Map(entries);
+  } catch {
+    return new Map();
+  }
+}
+
+type OfferKind = "special" | "new_release";
+
 /** Validates a single GPT-returned offer. Throws a descriptive Error on failure. */
 export function validateGptOffer(raw: unknown): GptOffer {
   if (!raw || typeof raw !== "object") throw new Error("offer: must be an object");
@@ -133,8 +367,9 @@ export function validateGptOffer(raw: unknown): GptOffer {
     throw new Error("url: must be a string");
   }
 
-  const domain = APPROVED_SOURCE_DOMAINS[String(o.source)];
-  if (!o.url.includes(domain)) {
+  const source = String(o.source);
+  const domain = APPROVED_SOURCE_DOMAINS[source];
+  if (!isApprovedOfferUrl(source, o.url)) {
     throw new Error(`url: "${o.url}" does not belong to domain "${domain}"`);
   }
 
@@ -296,20 +531,6 @@ function buildSummaryCardsPrompt(
   ].join("\n");
 }
 
-function getResponsesText(payload: unknown): string {
-  if (!payload || typeof payload !== "object") return "";
-  const p = payload as { output?: Array<{ type: string; content?: Array<{ type: string; text?: string }> }> };
-  if (!Array.isArray(p.output)) return "";
-  for (let i = p.output.length - 1; i >= 0; i--) {
-    const item = p.output[i];
-    if (item.type === "message" && Array.isArray(item.content)) {
-      const part = item.content.find(c => c.type === "output_text");
-      if (part?.text) return part.text;
-    }
-  }
-  return "";
-}
-
 function extractJson<T>(text: string): T | null {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) return null;
@@ -320,17 +541,304 @@ function extractJson<T>(text: string): T | null {
   }
 }
 
+export function parseWhiskyBrotherCollectionHtml(
+  html: string,
+  pageUrl: string,
+  kind: OfferKind
+): GptOffer[] {
+  const $ = cheerio.load(html);
+
+  return $(".grid-item.grid-product").toArray().flatMap(element => {
+    const item = $(element);
+    const name = item.find(".grid-product__title").first().text().trim();
+    const url = toAbsoluteProductUrl(pageUrl, item.find("a.grid-item__link").first().attr("href"));
+    const imageUrl = normaliseImageUrl(
+      pageUrl,
+      item.find("img").first().attr("data-src") ?? item.find("img").first().attr("src")
+    );
+    const price = parsePriceText(
+      item.find(".grid-product__price--current .visually-hidden").first().text()
+      || item.find(".grid-product__price--current").first().text()
+    );
+    const originalPrice = parsePriceText(
+      item.find(".grid-product__price--original .visually-hidden").first().text()
+      || item.find(".grid-product__price--original").first().text()
+    );
+    const inStock = item.find(".grid-product__tag--sold-out").length === 0;
+
+    if (!name || !url || price === undefined) {
+      return [];
+    }
+
+    return [buildParsedOffer({
+      source: "whiskybrother",
+      kind,
+      listingUrl: pageUrl,
+      name,
+      price,
+      originalPrice,
+      url,
+      imageUrl,
+      inStock
+    })];
+  });
+}
+
+function parseWooCommerceCollectionHtml(
+  html: string,
+  pageUrl: string,
+  source: "bottegawhiskey" | "normangoodfellows",
+  kind: OfferKind
+): GptOffer[] {
+  const $ = cheerio.load(html);
+
+  return $("li.product").toArray().flatMap(element => {
+    const item = $(element);
+    const classNames = (item.attr("class") ?? "").split(/\s+/).filter(Boolean);
+    const name = item.find("h2.woocommerce-loop-product__title").first().text().trim();
+    const url = toAbsoluteProductUrl(pageUrl, item.find("a.woocommerce-LoopProduct-link").first().attr("href"));
+    const imageUrl = normaliseImageUrl(
+      pageUrl,
+      item.find("img").first().attr("src")
+      ?? item.find("img").first().attr("data-lazy-src")
+    );
+    const price = parsePriceText(
+      item.find("ins .woocommerce-Price-amount").last().text()
+      || item.find(".price .woocommerce-Price-amount").last().text()
+    );
+    const originalPrice = parsePriceText(item.find("del .woocommerce-Price-amount").first().text());
+    const inStock = classNames.includes("instock") && !classNames.includes("outofstock");
+
+    if (!name || !url || price === undefined) {
+      return [];
+    }
+
+    const fallbackOfferShape: GptOffer = {
+      source,
+      kind,
+      name,
+      price,
+      url,
+      imageUrl,
+      inStock,
+      relevanceScore: 50,
+      whyItMatters: "",
+      citations: []
+    };
+    const hasWhiskyCategory = hasWhiskyLikeWooCommerceCategory(classNames);
+    const isWhiskyItem = hasWhiskyCategory
+      || isLikelyWhiskyText(`${name} ${url}`);
+
+    if (!isWhiskyItem || (!hasWhiskyCategory && isObviousNonWhiskyOffer(fallbackOfferShape))) {
+      return [];
+    }
+
+    return [buildParsedOffer({
+      source,
+      kind,
+      listingUrl: pageUrl,
+      name,
+      price,
+      originalPrice,
+      url,
+      imageUrl,
+      inStock
+    })];
+  });
+}
+
+export function parseBottegaCollectionHtml(
+  html: string,
+  pageUrl: string,
+  kind: OfferKind
+): GptOffer[] {
+  return parseWooCommerceCollectionHtml(html, pageUrl, "bottegawhiskey", kind);
+}
+
+export function parseMotherCityCollectionHtml(
+  html: string,
+  pageUrl: string,
+  kind: OfferKind
+): GptOffer[] {
+  const $ = cheerio.load(html);
+  const typesByHandle = extractShopifyMetaTypeByHandle(html);
+  const isSalePage = pageUrl.includes("/collections/sale");
+
+  return $(".productitem").toArray().flatMap(element => {
+    const item = $(element);
+    const name = item.find(".productitem--title a").first().text().trim()
+      || item.find(".visually-hidden").last().text().trim();
+    const url = toAbsoluteProductUrl(pageUrl, item.find("a.productitem--image-link").first().attr("href"));
+    const imageUrl = normaliseImageUrl(pageUrl, item.find("img.productitem--image-primary").first().attr("src"));
+    const price = parsePriceText(
+      item.find(".price__current .money, .price__current .trans-money").first().text()
+    );
+    const originalPrice = parsePriceText(
+      item.find(".price__compare-at .money, .price__compare-at .trans-money").first().text()
+    );
+    const inStock = item.find(".productitem__badge--soldout").length === 0;
+    const handle = url ? getShopifyHandle(url) : undefined;
+    const productType = handle ? typesByHandle.get(handle) : undefined;
+    const fallbackOfferShape: GptOffer = {
+      source: "mothercityliquor",
+      kind,
+      name,
+      price: price ?? 0,
+      url: url ?? "",
+      imageUrl,
+      inStock,
+      relevanceScore: 50,
+      whyItMatters: "",
+      citations: []
+    };
+
+    if (!name || !url || price === undefined) {
+      return [];
+    }
+
+    if (isSalePage && productType && !isWhiskyLikeType(productType)) {
+      return [];
+    }
+
+    if (isSalePage && !productType && isObviousNonWhiskyOffer(fallbackOfferShape)) {
+      return [];
+    }
+
+    return [buildParsedOffer({
+      source: "mothercityliquor",
+      kind,
+      listingUrl: pageUrl,
+      name,
+      price,
+      originalPrice,
+      url,
+      imageUrl,
+      inStock
+    })];
+  });
+}
+
+async function fetchHtml(url: string): Promise<string> {
+  const response = await fetch(url, {
+    headers: DISCOVERY_HEADERS,
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} for ${url}`);
+  }
+
+  return response.text();
+}
+
+async function discoverNormanGoodfellowsSpecials(pageUrl: string): Promise<GptOffer[]> {
+  const html = await fetchHtml(pageUrl);
+  const $ = cheerio.load(html);
+
+  const promoLinks = $("article.ngf-term-grid-item a.ngf-term-grid-link").toArray()
+    .map(link => toAbsoluteProductUrl(pageUrl, $(link).attr("href")))
+    .filter((value): value is string => Boolean(value))
+    .filter(link => /(whisk|bourbon|rye)/i.test(link));
+  const uniquePromoLinks = [...new Set(promoLinks)];
+
+  if (uniquePromoLinks.length === 0) {
+    return [];
+  }
+
+  const nestedPages = await Promise.all(
+    uniquePromoLinks.map(async link => {
+      try {
+        return await fetchHtml(link);
+      } catch (error) {
+        console.warn(`[news-gpt] normangoodfellows: failed to read promotion detail ${link} - ${error instanceof Error ? error.message : String(error)}`);
+        return "";
+      }
+    })
+  );
+
+  return nestedPages.flatMap((nestedHtml, index) => {
+    if (!nestedHtml) {
+      return [];
+    }
+
+    return parseWooCommerceCollectionHtml(
+      nestedHtml,
+      uniquePromoLinks[index] ?? pageUrl,
+      "normangoodfellows",
+      "special"
+    );
+  });
+}
+
+function createOfferCountMap(): Record<string, { specials: number; newArrivals: number }> {
+  return Object.fromEntries(
+    APPROVED_SOURCE_KEYS.map(source => [source, { specials: 0, newArrivals: 0 }])
+  ) as Record<string, { specials: number; newArrivals: number }>;
+}
+
+function countOffersBySource(offers: GptOffer[]): Record<string, { specials: number; newArrivals: number }> {
+  const counts = createOfferCountMap();
+
+  for (const offer of offers) {
+    if (!counts[offer.source]) {
+      continue;
+    }
+
+    if (offer.kind === "special") {
+      counts[offer.source].specials += 1;
+    } else {
+      counts[offer.source].newArrivals += 1;
+    }
+  }
+
+  return counts;
+}
+
+function logOfferCounts(
+  stage: string,
+  counts: Record<string, { specials: number; newArrivals: number }>,
+  rejectionCountsBySource?: Record<string, number>
+) {
+  for (const source of APPROVED_SOURCE_KEYS) {
+    const rejections = rejectionCountsBySource?.[source] ?? 0;
+    const rejectionSuffix = rejections > 0 ? `, ${rejections} rejected` : "";
+    console.log(
+      `[news-gpt] ${stage} ${source}: ${counts[source].specials} specials, ${counts[source].newArrivals} new arrivals${rejectionSuffix}`
+    );
+  }
+}
+
 export function validateAndDedupe(
   rawSpecials: unknown[],
   rawNewArrivals: unknown[]
-): { specials: GptOffer[]; newArrivals: GptOffer[]; rejectionCount: number } {
+): {
+  specials: GptOffer[];
+  newArrivals: GptOffer[];
+  rejectionCount: number;
+  rejectionCountsBySource: Record<string, number>;
+} {
   const rejections: string[] = [];
+  const rejectionCountsBySource = Object.fromEntries(
+    APPROVED_SOURCE_KEYS.map(source => [source, 0])
+  ) as Record<string, number>;
+
+  const countRejection = (offer: unknown) => {
+    if (!offer || typeof offer !== "object") {
+      return;
+    }
+
+    const source = String((offer as { source?: unknown }).source ?? "");
+    if (source in rejectionCountsBySource) {
+      rejectionCountsBySource[source] += 1;
+    }
+  };
 
   const validatedSpecials: GptOffer[] = [];
   for (const offer of rawSpecials) {
     try {
       validatedSpecials.push(validateGptOffer({ ...(offer as object), kind: "special" }));
     } catch (e) {
+      countRejection(offer);
       rejections.push(`special: ${(e as Error).message}`);
     }
   }
@@ -340,6 +848,7 @@ export function validateAndDedupe(
     try {
       validatedNewArrivals.push(validateGptOffer({ ...(offer as object), kind: "new_release" }));
     } catch (e) {
+      countRejection(offer);
       rejections.push(`new_release: ${(e as Error).message}`);
     }
   }
@@ -358,7 +867,8 @@ export function validateAndDedupe(
   return {
     specials: deduped(validatedSpecials),
     newArrivals: deduped(validatedNewArrivals),
-    rejectionCount: rejections.length
+    rejectionCount: rejections.length,
+    rejectionCountsBySource
   };
 }
 
@@ -441,48 +951,70 @@ function extractCard(raw: unknown): GptSummaryCardShape | undefined {
 }
 
 async function discoverRetailerOffers(
-  source: string,
-  apiKey: string,
-  model: string
-): Promise<{ specials: unknown[]; newArrivals: unknown[] }> {
+  source: string
+): Promise<{ source: string; specials: unknown[]; newArrivals: unknown[] }> {
   try {
     console.log(`[news-gpt] discovering retailer: ${source}`);
-
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model,
-        tools: [{ type: "web_search_preview" }],
-        input: [{ role: "user", content: [{ type: "input_text", text: buildRetailerPrompt(source) }] }]
-      })
-    });
-
-    if (!response.ok) {
-      const body = await response.text().catch(() => "");
-      console.warn(`[news-gpt] ${source}: Responses API ${response.status} - skipping. ${body}`);
-      return { specials: [], newArrivals: [] };
+    const urls = RETAILER_COLLECTION_URLS[source];
+    if (!urls) {
+      throw new Error(`Unknown retailer source: ${source}`);
     }
 
-    const payload = await response.json();
-    const text = getResponsesText(payload);
-    const raw = extractJson<Record<string, unknown>>(text);
+    switch (source) {
+      case "whiskybrother": {
+        const [specialsHtml, newArrivalsHtml] = await Promise.all([
+          fetchHtml(urls.specials),
+          urls.newArrivals ? fetchHtml(urls.newArrivals) : Promise.resolve("")
+        ]);
 
-    if (!raw) {
-      console.warn(`[news-gpt] ${source}: no parseable JSON in response - skipping`);
-      return { specials: [], newArrivals: [] };
+        return {
+          source,
+          specials: parseWhiskyBrotherCollectionHtml(specialsHtml, urls.specials, "special"),
+          newArrivals: urls.newArrivals
+            ? parseWhiskyBrotherCollectionHtml(newArrivalsHtml, urls.newArrivals, "new_release")
+            : []
+        };
+      }
+      case "bottegawhiskey": {
+        const [specialsHtml, newArrivalsHtml] = await Promise.all([
+          fetchHtml(urls.specials),
+          urls.newArrivals ? fetchHtml(urls.newArrivals) : Promise.resolve("")
+        ]);
+
+        return {
+          source,
+          specials: parseBottegaCollectionHtml(specialsHtml, urls.specials, "special"),
+          newArrivals: urls.newArrivals
+            ? parseBottegaCollectionHtml(newArrivalsHtml, urls.newArrivals, "new_release")
+            : []
+        };
+      }
+      case "mothercityliquor": {
+        const [specialsHtml, newArrivalsHtml] = await Promise.all([
+          fetchHtml(urls.specials),
+          urls.newArrivals ? fetchHtml(urls.newArrivals) : Promise.resolve("")
+        ]);
+
+        return {
+          source,
+          specials: parseMotherCityCollectionHtml(specialsHtml, urls.specials, "special"),
+          newArrivals: urls.newArrivals
+            ? parseMotherCityCollectionHtml(newArrivalsHtml, urls.newArrivals, "new_release")
+            : []
+        };
+      }
+      case "normangoodfellows":
+        return {
+          source,
+          specials: await discoverNormanGoodfellowsSpecials(urls.specials),
+          newArrivals: []
+        };
+      default:
+        return { source, specials: [], newArrivals: [] };
     }
-
-    return {
-      specials: Array.isArray(raw.specials) ? raw.specials : [],
-      newArrivals: Array.isArray(raw.newArrivals) ? raw.newArrivals : []
-    };
   } catch (err) {
     console.warn(`[news-gpt] ${source}: ${err instanceof Error ? err.message : String(err)} - skipping`);
-    return { specials: [], newArrivals: [] };
+    return { source, specials: [], newArrivals: [] };
   }
 }
 
@@ -532,13 +1064,19 @@ export async function discoverNewsWithGpt(
   prefs: NewsBudgetPreferences
 ): Promise<GptNewsResponse> {
   const { OPENAI_API_KEY, OPENAI_MODEL } = getServerEnv();
-  if (!OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY not configured");
-  }
 
   const retailerResults = await Promise.all(
-    APPROVED_SOURCE_KEYS.map(source => discoverRetailerOffers(source, OPENAI_API_KEY, OPENAI_MODEL))
+    APPROVED_SOURCE_KEYS.map(source => discoverRetailerOffers(source))
   );
+
+  const rawCounts = createOfferCountMap();
+  for (const result of retailerResults) {
+    rawCounts[result.source] = {
+      specials: result.specials.length,
+      newArrivals: result.newArrivals.length
+    };
+  }
+  logOfferCounts("raw", rawCounts);
 
   const allRawSpecials: unknown[] = [];
   const allRawNewArrivals: unknown[] = [];
@@ -547,21 +1085,33 @@ export async function discoverNewsWithGpt(
     allRawNewArrivals.push(...result.newArrivals);
   }
 
-  const { specials, newArrivals, rejectionCount } = validateAndDedupe(allRawSpecials, allRawNewArrivals);
+  const { specials, newArrivals, rejectionCount, rejectionCountsBySource } = validateAndDedupe(
+    allRawSpecials,
+    allRawNewArrivals
+  );
+  logOfferCounts("validated", countOffersBySource([...specials, ...newArrivals]), rejectionCountsBySource);
+
   const filtered = enforceRetailerOfferRules(specials, newArrivals);
+  logOfferCounts("filtered", countOffersBySource([...filtered.specials, ...filtered.newArrivals]));
 
   if (rejectionCount > 0) {
     console.warn(`[news-gpt] ${rejectionCount} offers rejected during validation`);
   }
   console.log(`[news-gpt] discovered: ${filtered.specials.length} specials, ${filtered.newArrivals.length} new arrivals`);
 
-  const summaryCards = await generateSummaryCards(
-    [...filtered.specials, ...filtered.newArrivals],
-    profile,
-    prefs,
-    OPENAI_API_KEY,
-    OPENAI_MODEL
-  );
+  const summaryCards = OPENAI_API_KEY
+    ? await generateSummaryCards(
+      [...filtered.specials, ...filtered.newArrivals],
+      profile,
+      prefs,
+      OPENAI_API_KEY,
+      OPENAI_MODEL
+    )
+    : {};
+
+  if (!OPENAI_API_KEY) {
+    console.warn("[news-gpt] OPENAI_API_KEY not configured - skipping summary cards");
+  }
 
   return { specials: filtered.specials, newArrivals: filtered.newArrivals, summaryCards };
 }
