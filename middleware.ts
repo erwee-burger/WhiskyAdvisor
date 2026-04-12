@@ -15,6 +15,14 @@ function isPublicPath(pathname: string) {
   );
 }
 
+export function isGuestViewablePath(pathname: string) {
+  return (
+    pathname === "/collection" ||
+    pathname.startsWith("/collection/") ||
+    pathname === "/news"
+  );
+}
+
 export function middleware(request: NextRequest) {
   const lockEnabled = process.env.APP_LOCK_ENABLED?.toLowerCase() === "true";
   const accessToken = process.env.APP_ACCESS_TOKEN;
@@ -26,6 +34,10 @@ export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
   if (isPublicPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  if (isGuestViewablePath(pathname)) {
     return NextResponse.next();
   }
 
