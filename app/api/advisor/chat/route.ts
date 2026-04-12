@@ -12,11 +12,14 @@ import {
   buildWishlistBlock,
   buildRatingsBlock,
   buildBottleDetailBlock,
-  buildFullBottleContextBlock
+  buildFullBottleContextBlock,
+  buildDealsContextBlock
 } from "@/lib/advisor-context";
 import { getDashboardData, getItemById } from "@/lib/repository";
 import { webSearch } from "@/lib/search";
 import { getServerEnv } from "@/lib/env";
+import { getLatestSuccessfulSnapshot } from "@/lib/news-store";
+import { getNewsPreferences } from "@/lib/news-preferences-store";
 
 export const runtime = "nodejs";
 
@@ -76,6 +79,25 @@ export async function POST(req: Request) {
 
   if (triggers.tastings) {
     contextBlocks.push(buildRatingsBlock(collection));
+  }
+
+  if (triggers.deals) {
+    try {
+      const newsPrefs = await getNewsPreferences();
+      const snapshot = await getLatestSuccessfulSnapshot(newsPrefs);
+      if (snapshot) {
+        contextBlocks.push(
+          buildDealsContextBlock(
+            snapshot.specials,
+            snapshot.newArrivals,
+            snapshot.fetchedAt,
+            newsPrefs
+          )
+        );
+      }
+    } catch {
+      // Non-fatal: advisor still works without news context
+    }
   }
 
   if (triggers.bottleName) {

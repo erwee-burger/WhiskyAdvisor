@@ -1,4 +1,4 @@
-import type { CollectionViewItem, PalateProfile, AdvisorSuggestion, ScoredNewsItem } from "@/lib/types";
+import type { CollectionViewItem, PalateProfile, AdvisorSuggestion, NewsFeedItem, NewsBudgetPreferences } from "@/lib/types";
 import { buildCollectionAnalytics } from "@/lib/analytics";
 
 export interface ContextTriggers {
@@ -163,39 +163,41 @@ export function buildFullBottleContextBlock(item: CollectionViewItem): string {
 }
 
 export function buildDealsContextBlock(
-  specials: ScoredNewsItem[],
-  newReleases: ScoredNewsItem[],
-  fetchedAt: string | null
+  specials: NewsFeedItem[],
+  newArrivals: NewsFeedItem[],
+  fetchedAt: string | null,
+  preferences: NewsBudgetPreferences
 ): string {
   const dateStr = fetchedAt ? new Date(fetchedAt).toLocaleDateString("en-ZA") : "unknown date";
+  const budgetLine = preferences.stretchBudgetCapZar !== null
+    ? `Budget: up to R${preferences.softBudgetCapZar} normally, stretch to R${preferences.stretchBudgetCapZar}`
+    : `Budget: up to R${preferences.softBudgetCapZar} (no fixed stretch ceiling)`;
+
   const top5Specials = [...specials]
-    .sort((a, b) => b.palateScore - a.palateScore)
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
     .slice(0, 5)
-    .map(i => `  - ${i.name} at R${i.price}${i.discountPct ? ` (-${i.discountPct}%)` : ""} — ${i.source}`);
-  const top5Releases = [...newReleases]
-    .sort((a, b) => b.palateScore - a.palateScore)
+    .map(i => {
+      const discount = i.discountPct ? ` (-${i.discountPct}%)` : "";
+      const badge = i.budgetFit === "in_budget" ? " [in budget]" : ` [${i.budgetFit.replace("_", " ")}]`;
+      const reason = i.whyItMatters ? ` — ${i.whyItMatters}` : "";
+      return `  - ${i.name} at R${i.price}${discount}${badge} — ${i.source}${reason}`;
+    });
+
+  const top5Arrivals = [...newArrivals]
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
     .slice(0, 5)
-    .map(i => `  - ${i.name} at R${i.price} — ${i.source}`);
+    .map(i => {
+      const badge = i.budgetFit === "in_budget" ? " [in budget]" : ` [${i.budgetFit.replace("_", " ")}]`;
+      const reason = i.whyItMatters ? ` — ${i.whyItMatters}` : "";
+      return `  - ${i.name} at R${i.price}${badge} — ${i.source}${reason}`;
+    });
 
   return [
     `CURRENT DEALS & NEW RELEASES (as of ${dateStr}):`,
+    budgetLine,
     "Specials:",
     ...top5Specials,
     "New arrivals:",
-    ...top5Releases
+    ...top5Arrivals
   ].join("\n");
-}
-
-export function buildFullDealsBlock(specials: ScoredNewsItem[]): string {
-  const lines = specials.map(i =>
-    `  - ${i.name} at R${i.price}${i.discountPct ? ` (-${i.discountPct}%)` : ""} [palate match: ${i.palateScore}] — ${i.source} (${i.url})`
-  );
-  return ["ALL CURRENT SPECIALS:", ...lines].join("\n");
-}
-
-export function buildFullReleasesBlock(releases: ScoredNewsItem[]): string {
-  const lines = releases.map(i =>
-    `  - ${i.name} at R${i.price} [palate match: ${i.palateScore}] — ${i.source} (${i.url})`
-  );
-  return ["ALL NEW RELEASES:", ...lines].join("\n");
 }
