@@ -37,7 +37,7 @@ export async function POST() {
 
   const refreshId = await createRefresh();
   if (!refreshId) {
-    // Supabase not configured — silently succeed with 0 items
+    // Supabase not configured - silently succeed with 0 items
     return NextResponse.json({ ok: true, count: 0, note: "Supabase not configured" });
   }
 
@@ -65,7 +65,10 @@ export async function POST() {
     await markRefreshSuccess(refreshId);
 
     const count = discovered.specials.length + discovered.newArrivals.length;
-    console.log(`[api/news/refresh] success — ${count} items in refresh ${refreshId}`);
+    if (count === 0) {
+      console.warn("[api/news/refresh] zero items discovered - check GPT logs for validation failures");
+    }
+    console.log(`[api/news/refresh] success - ${count} items in refresh ${refreshId}`);
     return NextResponse.json({ ok: true, count });
   } catch (err) {
     const errorText = err instanceof Error ? err.message : String(err);

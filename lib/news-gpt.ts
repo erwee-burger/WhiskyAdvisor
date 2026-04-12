@@ -5,14 +5,37 @@ import type { PalateProfile, NewsBudgetPreferences } from "@/lib/types";
 
 // Source keys map to their canonical domain strings (used for URL validation)
 export const APPROVED_SOURCE_DOMAINS: Record<string, string> = {
-  whiskybrother:    "whiskybrother.com",
-  bottegawhiskey:   "bottegawhiskey.com",
+  whiskybrother: "whiskybrother.com",
+  bottegawhiskey: "bottegawhiskey.com",
   mothercityliquor: "mothercityliquor.co.za",
-  whiskyemporium:   "whiskyemporium.co.za",
+  whiskyemporium: "whiskyemporium.co.za",
   normangoodfellows: "www.ngf.co.za"
 };
 
 export const APPROVED_SOURCE_KEYS = Object.keys(APPROVED_SOURCE_DOMAINS);
+
+const RETAILER_HINTS: Record<string, { specials: string; newArrivals: string }> = {
+  whiskybrother: {
+    specials: "Look for sale, discounted, or on-special whisky items",
+    newArrivals: "Look for a 'New In' or 'New Arrivals' section listing recently added products"
+  },
+  bottegawhiskey: {
+    specials: "Look for discounted or on-special whisky items",
+    newArrivals: "Look for recently added or newly listed products"
+  },
+  mothercityliquor: {
+    specials: "Look for a specials or deals section",
+    newArrivals: "Look for new products or recently added stock"
+  },
+  whiskyemporium: {
+    specials: "Look for specials, sales, or discounted whiskies",
+    newArrivals: "Look for a new arrivals section or recently added stock"
+  },
+  normangoodfellows: {
+    specials: "Look for sale items or whiskies on special at ngf.co.za",
+    newArrivals: "Look for new arrivals or newly listed whiskies at ngf.co.za"
+  }
+};
 
 export interface GptOffer {
   source: string;
@@ -74,11 +97,11 @@ export function validateGptOffer(raw: unknown): GptOffer {
     throw new Error(`url: "${o.url}" does not belong to domain "${domain}"`);
   }
 
-  // Reject bare domain roots — require at least one path segment beyond "/"
+  // Reject bare domain roots - require at least one path segment beyond "/"
   try {
     const parsed = new URL(o.url);
     if (parsed.pathname === "/" || parsed.pathname === "") {
-      throw new Error(`url: "${o.url}" has no product path — must point to a specific product page`);
+      throw new Error(`url: "${o.url}" has no product path - must point to a specific product page`);
     }
   } catch (e) {
     if ((e as Error).message.startsWith("url:")) throw e;
@@ -110,10 +133,80 @@ export function validateGptOffer(raw: unknown): GptOffer {
   };
 }
 
-function buildNewsDiscoveryPrompt(
+export function buildRetailerPrompt(source: string): string {
+  const domain = APPROVED_SOURCE_DOMAINS[source];
+  const hints = RETAILER_HINTS[source];
+
+  if (!domain || !hints) {
+    throw new Error(`Unknown retailer source: ${source}`);
+  }
+
+  return [
+    `You are a whisky retail intelligence agent. Search the live website: ${domain}`,
+    "",
+    "Find ALL current SPECIALS (discounted whiskies) and ALL NEW ARRIVALS at this retailer.",
+    "",
+    `SPECIALS: ${hints.specials}`,
+    `NEW ARRIVALS: ${hints.newArrivals}`,
+    "",
+    "IMPORTANT RULES:",
+    "- Include ALL items you find regardless of price - do not filter by price",
+    `- Only include items from ${domain} - no other retailers`,
+    `- Every item must have a direct product page URL on ${domain}`,
+    `- Use source key: \"${source}\" for every item`,
+    "- If you find no specials, return specials: []",
+    "- If you find no new arrivals, return newArrivals: []",
+    "- Do not invent items - only include things you can verify are currently listed",
+    "",
+    "Score each item: relevanceScore 0-100 based on whisky quality and general interest only.",
+    "Write a whyItMatters sentence (1-2 sentences) about what makes this bottle notable.",
+    "",
+    "Return ONLY a single valid JSON object with no markdown, no explanation.",
+    "Required shape:",
+    JSON.stringify({
+      specials: [
+        {
+          source,
+          kind: "special",
+          name: "Example 12 Year",
+          price: 799,
+          originalPrice: 950,
+          discountPct: 16,
+          url: `https://${domain}/products/example-12`,
+          imageUrl: null,
+          inStock: true,
+          relevanceScore: 75,
+          whyItMatters: "Solid sherry cask expression at a good discount.",
+          citations: [`https://${domain}/products/example-12`]
+        }
+      ],
+      newArrivals: [
+        {
+          source,
+          kind: "new_release",
+          name: "New Release Name",
+          price: 1200,
+          url: `https://${domain}/products/new-release`,
+          imageUrl: null,
+          inStock: true,
+          relevanceScore: 68,
+          whyItMatters: "First time this expression has appeared at this retailer.",
+          citations: [`https://${domain}/products/new-release`]
+        }
+      ]
+    }, null, 2)
+  ].join("\n");
+}
+
+function buildSummaryCardsPrompt(
+  offers: GptOffer[],
   profile: PalateProfile | null,
   prefs: NewsBudgetPreferences
 ): string {
+  const offerLines = offers.map(o =>
+    `- [${o.source}] ${o.name} - R${o.price} (${o.kind})`
+  ).join("\n");
+
   const budgetLines = [
     `Normal budget cap: R${prefs.softBudgetCapZar}`,
     prefs.stretchBudgetCapZar !== null
@@ -123,86 +216,37 @@ function buildNewsDiscoveryPrompt(
 
   const palateLines = profile
     ? [
-        profile.favoredRegions.length
-          ? `Preferred regions: ${profile.favoredRegions.join(", ")}`
-          : null,
-        profile.favoredCaskStyles.length
-          ? `Favoured cask styles: ${profile.favoredCaskStyles.join(", ")}`
-          : null,
-        profile.favoredPeatTag
-          ? `Peat preference: ${profile.favoredPeatTag}`
-          : null,
-        profile.favoredFlavorTags.length
-          ? `Top flavour tags: ${profile.favoredFlavorTags.join(", ")}`
-          : null
+        profile.favoredRegions.length ? `Preferred regions: ${profile.favoredRegions.join(", ")}` : null,
+        profile.favoredCaskStyles.length ? `Favoured cask styles: ${profile.favoredCaskStyles.join(", ")}` : null,
+        profile.favoredPeatTag ? `Peat preference: ${profile.favoredPeatTag}` : null,
+        profile.favoredFlavorTags.length ? `Top flavour tags: ${profile.favoredFlavorTags.join(", ")}` : null
       ].filter(Boolean)
-    : ["No palate profile available yet — score items on general quality and value"];
+    : ["No palate profile - pick on general quality and value"];
 
   return [
-    "You are a South African whisky retail intelligence agent.",
-    "Search the live websites of ONLY these five approved SA retailers:",
-    "  - whiskybrother.com  (source key: whiskybrother)",
-    "  - bottegawhiskey.com  (source key: bottegawhiskey)",
-    "  - mothercityliquor.co.za  (source key: mothercityliquor)",
-    "  - whiskyemporium.co.za  (source key: whiskyemporium)",
-    "  - www.ngf.co.za  (source key: normangoodfellows)",
+    "You are a whisky advisor. From the list of current offers below, pick three summary cards.",
     "",
-    "Find current SPECIALS (discounted whiskies) and NEW ARRIVALS at each retailer.",
-    "Only include offers that have ALL of: an approved retailer domain, a direct product URL, and a ZAR price.",
-    "Keep the same bottle from different retailers as separate entries.",
+    "AVAILABLE OFFERS:",
+    offerLines,
     "",
     "USER BUDGET:",
     ...budgetLines,
     "",
-    "USER PALATE PROFILE:",
+    "USER PALATE:",
     ...palateLines,
     "",
-    "For each offer, write a 'whyItMatters' rationale (1–2 sentences) that references the user's palate or budget.",
-    "Score each offer with a relevanceScore 0–100 that reflects quality, value, and palate fit.",
-    "Budget should influence scoring: bottles within the normal cap score higher, all else equal.",
+    "Pick exactly three cards:",
+    "  bestValue       - best price-to-quality bottle within the normal budget cap",
+    "  worthStretching - one bottle worth exceeding the normal budget cap for (must be genuinely exceptional)",
+    "  mostInteresting - most unusual or noteworthy item regardless of budget",
     "",
-    "Also produce three summary cards:",
-    "  bestValue       — best price-to-quality bottle currently available",
-    "  worthStretching — one bottle worth exceeding the normal budget cap for",
-    "  mostInteresting — most unusual or noteworthy new arrival",
-    "",
-    "Return ONLY a single valid JSON object with no markdown, no explanation.",
-    "Required shape:",
+    "Each card must reference a real item from the list above.",
+    "Return ONLY valid JSON with no markdown:",
     JSON.stringify({
-      specials: [
-        {
-          source: "whiskybrother",
-          kind: "special",
-          name: "Example 12 Year",
-          price: 799,
-          originalPrice: 950,
-          discountPct: 16,
-          url: "https://whiskybrother.com/products/example-12",
-          imageUrl: null,
-          inStock: true,
-          relevanceScore: 75,
-          whyItMatters: "Solid value sherry cask within budget.",
-          citations: ["https://whiskybrother.com/products/example-12"]
-        }
-      ],
-      newArrivals: [
-        {
-          source: "whiskyemporium",
-          kind: "new_release",
-          name: "New Distillery Release",
-          price: 1200,
-          url: "https://www.whiskyemporium.co.za/products/new-distillery",
-          imageUrl: null,
-          inStock: true,
-          relevanceScore: 68,
-          whyItMatters: "First release from this distillery — rare on the SA market.",
-          citations: ["https://www.whiskyemporium.co.za/products/new-distillery"]
-        }
-      ],
       summaryCards: {
-        bestValue:       { title: "Example 12 Year", subtitle: "16% off at Whisky Brother", price: 799, url: "https://whiskybrother.com/products/example-12", whyItMatters: "Best r/quality this week.", source: "whiskybrother" },
-        worthStretching: { title: "Premium Expression", subtitle: "Limited release at Whisky Emporium", price: 2200, url: "https://...", whyItMatters: "Rare cask, exceptional score.", source: "whiskyemporium" },
-        mostInteresting: { title: "New Distillery Release", subtitle: "New arrival at Whisky Emporium", price: 1200, url: "https://...", whyItMatters: "First SA release.", source: "whiskyemporium" }
+        bestValue: { title: "Example 12 Year", subtitle: "16% off at Whisky Brother", price: 799, url: "https://whiskybrother.com/products/example-12", whyItMatters: "Best r/quality this week.", source: "whiskybrother" },
+        worthStretching: { title: "Premium Expression", subtitle: "Limited release", price: 2200, url: "https://...", whyItMatters: "Rare cask.", source: "whiskyemporium" },
+        mostInteresting: { title: "New Distillery Release", subtitle: "New arrival", price: 1200, url: "https://...", whyItMatters: "First SA release.", source: "whiskyemporium" }
       }
     }, null, 2)
   ].join("\n");
@@ -232,35 +276,34 @@ function extractJson<T>(text: string): T | null {
   }
 }
 
-function validateGptNewsResponse(raw: unknown): GptNewsResponse {
-  if (!raw || typeof raw !== "object") {
-    throw new Error("GPT response is not an object");
-  }
-  const r = raw as Record<string, unknown>;
+export function validateAndDedupe(
+  rawSpecials: unknown[],
+  rawNewArrivals: unknown[]
+): { specials: GptOffer[]; newArrivals: GptOffer[]; rejectionCount: number } {
+  const rejections: string[] = [];
 
-  const specials = Array.isArray(r.specials) ? r.specials : [];
-  const newArrivals = Array.isArray(r.newArrivals) ? r.newArrivals : [];
-
-  // Validate each offer; skip any that fail validation (log and continue)
   const validatedSpecials: GptOffer[] = [];
-  for (const offer of specials) {
+  for (const offer of rawSpecials) {
     try {
       validatedSpecials.push(validateGptOffer({ ...(offer as object), kind: "special" }));
     } catch (e) {
-      console.warn("[news-gpt] skipping invalid special:", (e as Error).message, offer);
+      rejections.push(`special: ${(e as Error).message}`);
     }
   }
 
   const validatedNewArrivals: GptOffer[] = [];
-  for (const offer of newArrivals) {
+  for (const offer of rawNewArrivals) {
     try {
       validatedNewArrivals.push(validateGptOffer({ ...(offer as object), kind: "new_release" }));
     } catch (e) {
-      console.warn("[news-gpt] skipping invalid new arrival:", (e as Error).message, offer);
+      rejections.push(`new_release: ${(e as Error).message}`);
     }
   }
 
-  // De-duplicate by URL within each section
+  if (rejections.length > 0) {
+    console.warn("[news-gpt] validation rejections:", rejections.join(" | "));
+  }
+
   const seen = new Set<string>();
   const deduped = (arr: GptOffer[]) => arr.filter(o => {
     if (seen.has(o.url)) return false;
@@ -268,18 +311,10 @@ function validateGptNewsResponse(raw: unknown): GptNewsResponse {
     return true;
   });
 
-  const cards = (r.summaryCards && typeof r.summaryCards === "object")
-    ? (r.summaryCards as Record<string, unknown>)
-    : {};
-
   return {
-    specials:     deduped(validatedSpecials),
-    newArrivals:  deduped(validatedNewArrivals),
-    summaryCards: {
-      bestValue:       extractCard(cards.bestValue),
-      worthStretching: extractCard(cards.worthStretching),
-      mostInteresting: extractCard(cards.mostInteresting)
-    }
+    specials: deduped(validatedSpecials),
+    newArrivals: deduped(validatedNewArrivals),
+    rejectionCount: rejections.length
   };
 }
 
@@ -288,49 +323,133 @@ function extractCard(raw: unknown): GptSummaryCardShape | undefined {
   const c = raw as Record<string, unknown>;
   if (typeof c.title !== "string" || !c.title) return undefined;
   return {
-    title:         String(c.title),
-    subtitle:      typeof c.subtitle === "string" ? c.subtitle : undefined,
-    price:         typeof c.price === "number" ? c.price : undefined,
-    url:           typeof c.url === "string" ? c.url : undefined,
-    whyItMatters:  typeof c.whyItMatters === "string" ? c.whyItMatters : undefined,
-    source:        typeof c.source === "string" ? c.source : undefined
+    title: String(c.title),
+    subtitle: typeof c.subtitle === "string" ? c.subtitle : undefined,
+    price: typeof c.price === "number" ? c.price : undefined,
+    url: typeof c.url === "string" ? c.url : undefined,
+    whyItMatters: typeof c.whyItMatters === "string" ? c.whyItMatters : undefined,
+    source: typeof c.source === "string" ? c.source : undefined
   };
 }
 
-/** Main entry point: calls GPT via Responses API and returns validated, deduplicated offers. */
+async function discoverRetailerOffers(
+  source: string,
+  apiKey: string,
+  model: string
+): Promise<{ specials: unknown[]; newArrivals: unknown[] }> {
+  try {
+    console.log(`[news-gpt] discovering retailer: ${source}`);
+
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        tools: [{ type: "web_search_preview" }],
+        input: [{ role: "user", content: [{ type: "input_text", text: buildRetailerPrompt(source) }] }]
+      })
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      console.warn(`[news-gpt] ${source}: Responses API ${response.status} - skipping. ${body}`);
+      return { specials: [], newArrivals: [] };
+    }
+
+    const payload = await response.json();
+    const text = getResponsesText(payload);
+    const raw = extractJson<Record<string, unknown>>(text);
+
+    if (!raw) {
+      console.warn(`[news-gpt] ${source}: no parseable JSON in response - skipping`);
+      return { specials: [], newArrivals: [] };
+    }
+
+    return {
+      specials: Array.isArray(raw.specials) ? raw.specials : [],
+      newArrivals: Array.isArray(raw.newArrivals) ? raw.newArrivals : []
+    };
+  } catch (err) {
+    console.warn(`[news-gpt] ${source}: ${err instanceof Error ? err.message : String(err)} - skipping`);
+    return { specials: [], newArrivals: [] };
+  }
+}
+
+async function generateSummaryCards(
+  offers: GptOffer[],
+  profile: PalateProfile | null,
+  prefs: NewsBudgetPreferences,
+  apiKey: string,
+  model: string
+): Promise<GptNewsResponse["summaryCards"]> {
+  if (offers.length === 0) return {};
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: buildSummaryCardsPrompt(offers, profile, prefs) }]
+      })
+    });
+
+    if (!response.ok) return {};
+
+    const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+    const text = payload.choices?.[0]?.message?.content ?? "";
+    const raw = extractJson<Record<string, unknown>>(text);
+
+    if (!raw?.summaryCards || typeof raw.summaryCards !== "object") return {};
+
+    const cards = raw.summaryCards as Record<string, unknown>;
+    return {
+      bestValue: extractCard(cards.bestValue),
+      worthStretching: extractCard(cards.worthStretching),
+      mostInteresting: extractCard(cards.mostInteresting)
+    };
+  } catch {
+    return {};
+  }
+}
+
 export async function discoverNewsWithGpt(
   profile: PalateProfile | null,
   prefs: NewsBudgetPreferences
 ): Promise<GptNewsResponse> {
   const { OPENAI_API_KEY, OPENAI_MODEL } = getServerEnv();
 
-  const prompt = buildNewsDiscoveryPrompt(profile, prefs);
+  const retailerResults = await Promise.all(
+    APPROVED_SOURCE_KEYS.map(source => discoverRetailerOffers(source, OPENAI_API_KEY, OPENAI_MODEL))
+  );
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization:  `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      tools: [{ type: "web_search_preview" }],
-      input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }]
-    })
-  });
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(`Responses API ${response.status}: ${body}`);
+  const allRawSpecials: unknown[] = [];
+  const allRawNewArrivals: unknown[] = [];
+  for (const result of retailerResults) {
+    allRawSpecials.push(...result.specials);
+    allRawNewArrivals.push(...result.newArrivals);
   }
 
-  const payload = await response.json();
-  const text = getResponsesText(payload);
+  const { specials, newArrivals, rejectionCount } = validateAndDedupe(allRawSpecials, allRawNewArrivals);
 
-  const raw = extractJson<unknown>(text);
-  if (!raw) {
-    throw new Error(`GPT returned no parseable JSON. Raw text length: ${text.length}`);
+  if (rejectionCount > 0) {
+    console.warn(`[news-gpt] ${rejectionCount} offers rejected during validation`);
   }
+  console.log(`[news-gpt] discovered: ${specials.length} specials, ${newArrivals.length} new arrivals`);
 
-  return validateGptNewsResponse(raw);
+  const summaryCards = await generateSummaryCards(
+    [...specials, ...newArrivals],
+    profile,
+    prefs,
+    OPENAI_API_KEY,
+    OPENAI_MODEL
+  );
+
+  return { specials, newArrivals, summaryCards };
 }

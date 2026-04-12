@@ -1,6 +1,10 @@
-// tests/news-gpt-validation.test.ts
 import { describe, it, expect } from "vitest";
-import { validateGptOffer, APPROVED_SOURCE_KEYS } from "@/lib/news-gpt";
+import {
+  validateGptOffer,
+  APPROVED_SOURCE_KEYS,
+  validateAndDedupe,
+  buildRetailerPrompt
+} from "@/lib/news-gpt";
 
 describe("validateGptOffer", () => {
   const validOffer = {
@@ -66,5 +70,104 @@ describe("validateGptOffer", () => {
       ])
     );
     expect(APPROVED_SOURCE_KEYS).toHaveLength(5);
+  });
+});
+
+describe("validateAndDedupe", () => {
+  it("passes through valid specials and new arrivals", () => {
+    const result = validateAndDedupe(
+      [
+        {
+          source: "whiskybrother",
+          name: "Special Bottle",
+          price: 899,
+          url: "https://whiskybrother.com/products/special-bottle",
+          inStock: true,
+          relevanceScore: 70,
+          whyItMatters: "Discounted core range bottle.",
+          citations: ["https://whiskybrother.com/products/special-bottle"]
+        }
+      ],
+      [
+        {
+          source: "whiskyemporium",
+          name: "Fresh Arrival",
+          price: 1299,
+          url: "https://whiskyemporium.co.za/products/fresh-arrival",
+          inStock: true,
+          relevanceScore: 80,
+          whyItMatters: "Brand new listing.",
+          citations: ["https://whiskyemporium.co.za/products/fresh-arrival"]
+        }
+      ]
+    );
+
+    expect(result.rejectionCount).toBe(0);
+    expect(result.specials).toHaveLength(1);
+    expect(result.specials[0]?.kind).toBe("special");
+    expect(result.newArrivals).toHaveLength(1);
+    expect(result.newArrivals[0]?.kind).toBe("new_release");
+  });
+
+  it("counts invalid items as rejections", () => {
+    const result = validateAndDedupe(
+      [
+        {
+          source: "whiskybrother",
+          name: "",
+          price: 899,
+          url: "https://whiskybrother.com/products/bad-special"
+        }
+      ],
+      [
+        {
+          source: "whiskyemporium",
+          name: "Missing Price"
+        }
+      ]
+    );
+
+    expect(result.rejectionCount).toBe(2);
+    expect(result.specials).toHaveLength(0);
+    expect(result.newArrivals).toHaveLength(0);
+  });
+
+  it("deduplicates duplicate urls across sections", () => {
+    const duplicateUrl = "https://whiskybrother.com/products/shared-bottle";
+
+    const result = validateAndDedupe(
+      [
+        {
+          source: "whiskybrother",
+          name: "Shared Bottle",
+          price: 999,
+          url: duplicateUrl,
+          citations: [duplicateUrl]
+        }
+      ],
+      [
+        {
+          source: "whiskybrother",
+          name: "Shared Bottle",
+          price: 999,
+          url: duplicateUrl,
+          citations: [duplicateUrl]
+        }
+      ]
+    );
+
+    expect(result.specials).toHaveLength(1);
+    expect(result.newArrivals).toHaveLength(0);
+    expect(result.rejectionCount).toBe(0);
+  });
+});
+
+describe("buildRetailerPrompt", () => {
+  it("includes the retailer domain, source key, and no-price-filter instruction", () => {
+    const prompt = buildRetailerPrompt("whiskybrother");
+
+    expect(prompt).toContain("whiskybrother.com");
+    expect(prompt).toContain('Use source key: "whiskybrother"');
+    expect(prompt).toContain("Include ALL items you find regardless of price");
   });
 });
