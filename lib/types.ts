@@ -207,7 +207,17 @@ export interface WhiskyStore {
   citations?: unknown[];
 }
 
-export interface NewsItem {
+// ── News v2 ──────────────────────────────────────────────────────────────────
+
+export type BudgetFit = "in_budget" | "stretch" | "over_budget" | "above_budget";
+
+export interface NewsBudgetPreferences {
+  softBudgetCapZar: number;
+  stretchBudgetCapZar: number | null;
+}
+
+export interface NewsFeedItem {
+  id: string;
   source: string;
   kind: "special" | "new_release";
   name: string;
@@ -217,11 +227,27 @@ export interface NewsItem {
   url: string;
   imageUrl?: string;
   inStock: boolean;
+  relevanceScore: number;
+  budgetFit: BudgetFit;
+  whyItMatters: string | null;
+  citations: string[];
 }
 
-export interface ScoredNewsItem extends NewsItem {
-  id: string;
-  fetchedAt: string;
-  palateScore: number;
-  palateStars: 0 | 1 | 2 | 3;
+export interface NewsSummaryCard {
+  cardType: "best_value" | "worth_stretching" | "most_interesting";
+  title: string;
+  subtitle?: string;
+  price?: number;
+  url?: string;
+  whyItMatters?: string;
+  source?: string;
+}
+
+export interface NewsSnapshotResponse {
+  specials: NewsFeedItem[];
+  newArrivals: NewsFeedItem[];
+  summaryCards: NewsSummaryCard[];
+  fetchedAt: string | null;
+  stale: boolean;
+  preferences: NewsBudgetPreferences;
 }
