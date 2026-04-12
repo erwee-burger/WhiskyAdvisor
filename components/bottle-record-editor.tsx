@@ -113,7 +113,13 @@ function buildHeroSummary(values: BottleDetailFormState) {
   };
 }
 
-export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
+const GUEST_HIDDEN_COLLECTION_FIELDS: BottleDetailFieldId[] = [
+  "purchasePrice",
+  "purchaseCurrency",
+  "personalNotes"
+];
+
+export function BottleRecordEditor({ entry, isOwner = true }: { entry: CollectionViewItem; isOwner?: boolean }) {
   const router = useRouter();
   const fieldRefs = useRef<Partial<Record<BottleDetailFieldId, FocusableControl | null>>>({});
   const initialValues = useMemo(() => buildBottleDetailFormState(entry), [entry]);
@@ -849,7 +855,7 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
             <span className="detail-field-label">{definition.label}</span>
           </div>
           <div className="detail-field-tools">
-            {aiFieldId ? (
+            {isOwner && aiFieldId ? (
               <button
                 aria-label={`Ask AI about ${definition.label}`}
                 className="detail-icon-button"
@@ -860,15 +866,17 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
                 <SparkleIcon />
               </button>
             ) : null}
-            <button
-              aria-label={`Edit ${definition.label}`}
-              className="detail-icon-button"
-              onClick={() => enterEditMode(definition.id)}
-              title={`Edit ${definition.label}`}
-              type="button"
-            >
-              <PencilIcon />
-            </button>
+            {isOwner && (
+              <button
+                aria-label={`Edit ${definition.label}`}
+                className="detail-icon-button"
+                onClick={() => enterEditMode(definition.id)}
+                title={`Edit ${definition.label}`}
+                type="button"
+              >
+                <PencilIcon />
+              </button>
+            )}
           </div>
         </div>
 
@@ -883,7 +891,9 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
 
   const identityFields = bottleDetailFieldDefinitions.filter((field) => field.section === "identity");
   const specFields = bottleDetailFieldDefinitions.filter((field) => field.section === "specs");
-  const collectionFields = bottleDetailFieldDefinitions.filter((field) => field.section === "collection");
+  const collectionFields = bottleDetailFieldDefinitions
+    .filter((field) => field.section === "collection")
+    .filter((field) => isOwner || !GUEST_HIDDEN_COLLECTION_FIELDS.includes(field.id));
   const imageField = getBottleDetailFieldDefinition("frontImage");
 
   return (
@@ -895,17 +905,19 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
               <span className="detail-field-label">{imageField?.label ?? "Front image"}</span>
               <span className="detail-field-subcopy">{previewLabel}</span>
             </div>
-            <div className="detail-field-tools">
-              <button
-                aria-label="Edit front image"
-                className="detail-icon-button"
-                onClick={() => enterEditMode("frontImage")}
-                title="Edit front image"
-                type="button"
-              >
-                <PencilIcon />
-              </button>
-            </div>
+            {isOwner && (
+              <div className="detail-field-tools">
+                <button
+                  aria-label="Edit front image"
+                  className="detail-icon-button"
+                  onClick={() => enterEditMode("frontImage")}
+                  title="Edit front image"
+                  type="button"
+                >
+                  <PencilIcon />
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="bottle-stand">
@@ -971,42 +983,46 @@ export function BottleRecordEditor({ entry }: { entry: CollectionViewItem }) {
           ) : null}
 
           <div className="grid columns-2" style={{ marginTop: "16px" }}>
-            <div className="status-note">
-              {formatFieldValue("purchasePrice", formValues)}
-            </div>
+            {isOwner && (
+              <div className="status-note">
+                {formatFieldValue("purchasePrice", formValues)}
+              </div>
+            )}
             <div className="status-note">
               {formValues.description.trim() || "No bottle description saved yet"}
             </div>
           </div>
 
-          <div className="hero-actions">
-            {isEditing ? (
-              <>
-                <button className={`button${isSaving ? " button-active" : ""}`} disabled={isSaving || isDeleting} type="submit">
-                  {renderButtonLabel("Save changes", isSaving)}
-                </button>
-                <button className="button-subtle" disabled={isSaving || isDeleting} onClick={handleCancel} type="button">
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <div className="status-note">Use any pencil to enter edit mode for the full record.</div>
-            )}
-            <button
-              className="button-danger"
-              disabled={isSaving || isDeleting}
-              onClick={handleDelete}
-              type="button"
-            >
-              {renderButtonLabel("Delete bottle", isDeleting)}
-            </button>
-          </div>
+          {isOwner && (
+            <div className="hero-actions">
+              {isEditing ? (
+                <>
+                  <button className={`button${isSaving ? " button-active" : ""}`} disabled={isSaving || isDeleting} type="submit">
+                    {renderButtonLabel("Save changes", isSaving)}
+                  </button>
+                  <button className="button-subtle" disabled={isSaving || isDeleting} onClick={handleCancel} type="button">
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <div className="status-note">Use any pencil to enter edit mode for the full record.</div>
+              )}
+              <button
+                className="button-danger"
+                disabled={isSaving || isDeleting}
+                onClick={handleDelete}
+                type="button"
+              >
+                {renderButtonLabel("Delete bottle", isDeleting)}
+              </button>
+            </div>
+          )}
 
-          {isSaving || isDeleting ? (
+          {isOwner && (isSaving || isDeleting) && (
             <div className="panel-loader">
               {isDeleting ? "Deleting the bottle and cleaning up related data..." : "Saving your bottle changes..."}
             </div>
-          ) : null}
+          )}
         </div>
       </section>
 
