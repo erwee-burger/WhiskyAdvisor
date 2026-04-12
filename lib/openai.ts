@@ -141,7 +141,7 @@ const BOTTLE_FIELDS = [
   "    cask type as tag (e.g. double-wood, ex-bourbon, amontillado)",
   "    production flags only when confirmed: nas, limited, natural-colour, chill-filtered",
   "    up to 6 flavour descriptors (e.g. spicy, dried-fruit, vanilla, smoky)",
-  "    numeric context if useful: e.g. 12yo, 700ml (only if confirmed)",
+  "    numeric context if useful: e.g. 12yo (only if confirmed)",
   "",
   'Output format: {"name":null,"distilleryName":null,"bottlerName":null,"brand":null,"country":null,"abv":null,"ageStatement":null,"barcode":null,"description":null,"tags":[]}'
 ].join("\n");
