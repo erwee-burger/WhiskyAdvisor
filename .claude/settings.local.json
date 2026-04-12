@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(find /c/Users/erweeb/OneDrive*/Erwee/Whisky -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) ! -path \"*/node_modules/*\" ! -path \"*/.next/*\")",
+      "Bash(git push:*)",
+      "WebSearch",
+      "WebFetch(domain:developers.openai.com)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\erweeb\\OneDrive - VATit Processing (Pty) Ltd\\Erwee\\Whisky\\docs\\superpowers"
+    ]
+  }
+}

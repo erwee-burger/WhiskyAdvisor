@@ -1,0 +1,47 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - paragraph [ref=e6]: Private Cellar
+          - link "Whisky Advisor" [ref=e7] [cursor=pointer]:
+            - /url: /
+        - generic [ref=e8]:
+          - button "Open navigation menu" [ref=e9] [cursor=pointer]
+          - navigation:
+            - paragraph: Catalog your whiskies, track prices, and move between your private whisky tools quickly.
+            - generic:
+              - link "Dashboard":
+                - /url: /
+              - link "Collection":
+                - /url: /collection
+              - link "Add Bottle":
+                - /url: /add
+              - link "Analytics":
+                - /url: /analytics
+              - link "Advisor":
+                - /url: /advisor
+              - link "Compare":
+                - /url: /compare
+              - link "Export":
+                - /url: /export
+              - link "News":
+                - /url: /news
+    - main [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - paragraph [ref=e16]: News
+          - heading "What's on the shelves right now." [level=1] [ref=e17]
+          - button "Refresh ↻" [ref=e30] [cursor=pointer]
+        - generic [ref=e31]:
+          - heading "What's on special" [level=2] [ref=e32]
+          - paragraph [ref=e33]: No specials found right now — check back later.
+        - generic [ref=e34]:
+          - heading "New arrivals" [level=2] [ref=e35]
+          - paragraph [ref=e36]: No new arrivals right now — check back later.
+  - generic:
+    - generic:
+      - generic: Loading the next view...
+  - button "Open Next.js Dev Tools" [ref=e24] [cursor=pointer]:
+    - img [ref=e25]
+  - alert [ref=e28]
