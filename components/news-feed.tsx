@@ -133,7 +133,6 @@ export function NewsFeed({
         <NewsPreferencesPanel
           currentPreferences={prefs}
           onSave={handlePreferencesSave}
-          onClose={() => setShowPrefs(false)}
         />
       )}
 

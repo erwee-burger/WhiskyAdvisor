@@ -6,10 +6,9 @@ import type { NewsBudgetPreferences } from "@/lib/types";
 interface Props {
   currentPreferences: NewsBudgetPreferences;
   onSave: (prefs: NewsBudgetPreferences) => void;
-  onClose: () => void;
 }
 
-export function NewsPreferencesPanel({ currentPreferences, onSave, onClose }: Props) {
+export function NewsPreferencesPanel({ currentPreferences, onSave }: Props) {
   const [softCap, setSoftCap] = useState(String(currentPreferences.softBudgetCapZar));
   const [stretchCap, setStretchCap] = useState(
     currentPreferences.stretchBudgetCapZar !== null
