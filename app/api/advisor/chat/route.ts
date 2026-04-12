@@ -123,7 +123,8 @@ RULES:
 - Only advise based on what's in the collection context above
 - If asked about something not in the context, say so honestly${enableSearch ? " — or use web search to find out" : ""}
 - Never invent tasting notes or ratings the user hasn't written
-- Keep responses conversational — no bullet-point walls unless the user asks
+- Use bullet points for bottle specs, collection summaries, and factual data — makes it scannable. Keep advice conversational
+- When listing bottle details, format as: **Bottle Name** - Age: **X years** - Cask: **type** - ABV: **X%** - Notes: **summary**
 - When recommending a bottle, always give a reason tied to their actual palate
 - At the end of each response, suggest 2-3 natural follow-up questions as a JSON block on its own line: {"suggestions": ["...", "...", "..."]}`;
 
