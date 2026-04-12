@@ -1,11 +1,17 @@
-// components/news-summary-cards.tsx
 import type { NewsSummaryCard } from "@/lib/types";
-import { SOURCE_LABELS } from "@/lib/news-sources";
+
+const RETAILER_LABELS: Record<string, string> = {
+  whiskybrother: "Whisky Brother",
+  bottegawhiskey: "Bottega Whiskey",
+  mothercityliquor: "Mother City Liquor",
+  whiskyemporium: "Whisky Emporium",
+  normangoodfellows: "Norman Goodfellows"
+};
 
 const CARD_LABELS: Record<NewsSummaryCard["cardType"], string> = {
-  best_value:       "Best value today",
-  worth_stretching: "Worth stretching for",
-  most_interesting: "Most interesting new arrival"
+  best_value: "Best value",
+  worth_stretching: "Worth the stretch",
+  most_interesting: "Most interesting"
 };
 
 interface Props {
@@ -13,30 +19,25 @@ interface Props {
 }
 
 function formatPrice(price: number) {
-  return `R${price.toLocaleString("en-ZA")}`;
+  return `R ${price.toLocaleString("en-ZA")}`;
 }
 
-function SummaryCard({ card }: { card: NewsSummaryCard }) {
+function IntelCard({ card }: { card: NewsSummaryCard }) {
   const label = CARD_LABELS[card.cardType];
+  const cssClass = `intel-card ${card.cardType.replace("_", "-")}`;
+
   const inner = (
-    <div className="news-summary-card__inner">
-      <p className="news-summary-card__label">{label}</p>
-      <p className="news-summary-card__title">{card.title}</p>
-      {card.subtitle && (
-        <p className="news-summary-card__subtitle">{card.subtitle}</p>
-      )}
-      {card.price && (
-        <p className="news-summary-card__price">{formatPrice(card.price)}</p>
-      )}
+    <>
+      <span className="intel-card-label">{label}</span>
+      <div className="intel-card-title">{card.title}</div>
+      {card.subtitle && <div className="intel-card-sub">{card.subtitle}</div>}
+      {card.price && <div className="intel-card-price">{formatPrice(card.price)}</div>}
       {card.source && (
-        <p className="news-summary-card__source">
-          {SOURCE_LABELS[card.source] ?? card.source}
-        </p>
+        <div className="intel-card-retailer">
+          {RETAILER_LABELS[card.source] || card.source}
+        </div>
       )}
-      {card.whyItMatters && (
-        <p className="news-summary-card__reason">{card.whyItMatters}</p>
-      )}
-    </div>
+    </>
   );
 
   if (card.url) {
@@ -45,14 +46,14 @@ function SummaryCard({ card }: { card: NewsSummaryCard }) {
         href={card.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="news-summary-card news-summary-card--link"
+        className={cssClass}
       >
         {inner}
       </a>
     );
   }
 
-  return <div className="news-summary-card">{inner}</div>;
+  return <div className={cssClass}>{inner}</div>;
 }
 
 export function NewsSummaryCards({ cards }: Props) {
@@ -69,9 +70,9 @@ export function NewsSummaryCards({ cards }: Props) {
     .filter(Boolean) as NewsSummaryCard[];
 
   return (
-    <div className="news-summary-cards">
+    <div className="intel-grid">
       {sorted.map(card => (
-        <SummaryCard key={card.cardType} card={card} />
+        <IntelCard key={card.cardType} card={card} />
       ))}
     </div>
   );

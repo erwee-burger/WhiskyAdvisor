@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>News Page — Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --background: #090c12;
+      --panel: rgba(18, 23, 34, 0.9);
+      --panel-soft: rgba(26, 32, 43, 0.86);
+      --text: #f3e9d8;
+      --text-dark: #d5c6ad;
+      --muted: rgba(213, 198, 173, 0.74);
+      --accent: #d49d45;
+      --accent-strong: #5a1d26;
+      --line: rgba(231, 191, 116, 0.16);
+      --danger: #c65a34;
+      --shadow: 0 30px 90px rgba(0,0,0,0.42);
+      --radius-xl: 28px;
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --content-width: 1240px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 78% -18%, rgba(212,157,69,0.1), transparent 34%),
+        radial-gradient(circle at 14% -12%, rgba(90,29,38,0.18), transparent 34%),
+        linear-gradient(180deg, #101622 0%, #090c12 52%, #070a10 100%);
+      color: var(--text);
+      font-family: "Cormorant Garamond", Georgia, serif;
+    }
+
+    /* ── Nav (static placeholder) ───────────────────────────────── */
+    .top-nav {
+      position: fixed; top: 18px; left: 18px; right: 18px; z-index: 120;
+    }
+    .top-nav-inner {
+      max-width: var(--content-width); margin: 0 auto; padding: 14px 18px;
+      border-radius: 24px; border: 1px solid rgba(255,233,202,0.08);
+      background: linear-gradient(180deg, rgba(22,15,13,0.94), rgba(11,14,21,0.94));
+      box-shadow: 0 18px 50px rgba(0,0,0,0.32);
+      display: flex; align-items: center; justify-content: space-between;
+      backdrop-filter: blur(18px);
+    }
+    .nav-brand { font-size: 1.1rem; font-weight: 500; letter-spacing: 0.04em; }
+    .nav-links { display: flex; gap: 24px; font-size: 0.9rem; color: var(--muted); }
+    .nav-links span { cursor: pointer; transition: color 160ms; }
+    .nav-links span:hover, .nav-links span.active { color: var(--text); }
+    .nav-links span.active { color: var(--accent); }
+
+    /* ── Page ───────────────────────────────────────────────────── */
+    .page {
+      max-width: var(--content-width); margin: 0 auto;
+      padding: 112px 34px 60px;
+      display: grid; gap: 22px;
+    }
+
+    /* ── Hero ───────────────────────────────────────────────────── */
+    .hero {
+      padding: 32px 36px;
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(255,233,202,0.08);
+      background:
+        linear-gradient(135deg, rgba(212,157,69,0.07) 0%, transparent 60%),
+        linear-gradient(180deg, rgba(255,250,245,0.04), rgba(255,250,245,0.02));
+      position: relative; overflow: hidden;
+    }
+    .hero::after {
+      content: "";
+      position: absolute; right: -60px; top: -60px;
+      width: 320px; height: 320px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(212,157,69,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .eyebrow {
+      font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 10px; font-weight: 400;
+    }
+    .hero h1 {
+      font-size: clamp(1.8rem, 3.5vw, 3rem);
+      font-weight: 400; line-height: 1;
+      margin-bottom: 12px;
+    }
+    .hero p {
+      color: var(--muted); font-size: 1.05rem; font-weight: 300;
+      max-width: 480px; line-height: 1.5;
+    }
+    .hero-meta {
+      margin-top: 22px;
+      display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    }
+    .hero-timestamp {
+      font-size: 0.82rem; color: var(--muted);
+    }
+    .hero-timestamp strong { color: var(--text-dark); }
+
+    /* ── Buttons ────────────────────────────────────────────────── */
+    .button {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 10px 20px; border-radius: var(--radius-md);
+      border: none; cursor: pointer; font-size: 0.9rem; font-weight: 500;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #fff; transition: transform 160ms;
+    }
+    .button:hover { transform: translateY(-1px); }
+    .button:active { transform: translateY(1px) scale(0.985); }
+    .button-subtle {
+      background: rgba(255,255,255,0.06);
+      color: var(--text); border: 1px solid rgba(255,239,213,0.14);
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 9px 18px; border-radius: var(--radius-md);
+      cursor: pointer; font-size: 0.88rem; font-family: inherit;
+      transition: background 160ms, transform 160ms;
+    }
+    .button-subtle:hover { background: rgba(255,255,255,0.1); transform: translateY(-1px); }
+
+    /* ── Intelligence Cards (summary) ───────────────────────────── */
+    .intel-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .intel-card {
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--line);
+      background: var(--panel-soft);
+      backdrop-filter: blur(12px);
+      display: flex; flex-direction: column; gap: 10px;
+      position: relative; overflow: hidden;
+      transition: transform 160ms, border-color 160ms;
+    }
+    .intel-card:hover { transform: translateY(-2px); border-color: rgba(231,191,116,0.3); }
+    .intel-card::before {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(212,157,69,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .intel-card-label {
+      font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--accent); font-weight: 400;
+    }
+    .intel-card-title { font-size: 1.25rem; font-weight: 500; line-height: 1.15; }
+    .intel-card-sub { font-size: 0.88rem; color: var(--muted); line-height: 1.4; font-weight: 300; }
+    .intel-card-price {
+      font-size: 1.5rem; font-weight: 400; color: var(--accent); margin-top: auto; padding-top: 6px;
+    }
+    .intel-card-retailer {
+      font-size: 0.75rem; color: var(--muted); letter-spacing: 0.06em;
+    }
+
+    /* Tint variants per card type */
+    .intel-card.best-value::after {
+      content: ""; position: absolute; bottom: -20px; right: -20px;
+      width: 100px; height: 100px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(74,180,94,0.12) 0%, transparent 70%);
+    }
+    .intel-card.worth-stretching::after {
+      content: ""; position: absolute; bottom: -20px; right: -20px;
+      width: 100px; height: 100px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(212,157,69,0.15) 0%, transparent 70%);
+    }
+    .intel-card.most-interesting::after {
+      content: ""; position: absolute; bottom: -20px; right: -20px;
+      width: 100px; height: 100px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(147,88,200,0.12) 0%, transparent 70%);
+    }
+
+    /* ── Divider with label ─────────────────────────────────────── */
+    .section-header {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 18px;
+      border-bottom: 1px solid var(--line); padding-bottom: 14px;
+    }
+    .section-header h2 { font-size: 1.3rem; font-weight: 400; }
+    .section-header p { font-size: 0.85rem; color: var(--muted); }
+
+    /* ── Filter row ─────────────────────────────────────────────── */
+    .filter-row {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .filter-label { font-size: 0.78rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-right: 4px; }
+    .pill {
+      padding: 6px 14px; border-radius: 999px;
+      font-size: 0.82rem; cursor: pointer;
+      border: 1px solid rgba(231,191,116,0.18);
+      background: rgba(201,138,53,0.07); color: rgba(248,238,223,0.7);
+      transition: all 160ms; font-family: inherit;
+    }
+    .pill:hover { background: rgba(201,138,53,0.14); color: var(--text); }
+    .pill.active {
+      background: rgba(212,157,69,0.18); color: var(--accent);
+      border-color: rgba(212,157,69,0.4);
+    }
+
+    /* ── News Items Grid ────────────────────────────────────────── */
+    .items-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 14px;
+    }
+    .news-card {
+      padding: 20px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--line);
+      background: rgba(255,252,248,0.03);
+      display: flex; flex-direction: column; gap: 10px;
+      transition: transform 160ms, background 160ms, border-color 160ms;
+      cursor: pointer;
+    }
+    .news-card:hover {
+      transform: translateY(-2px);
+      background: rgba(255,252,248,0.05);
+      border-color: rgba(231,191,116,0.28);
+    }
+    .news-card-top {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+    }
+    .retailer-badge {
+      font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--accent); font-weight: 400;
+    }
+    .badge-row { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .badge {
+      font-size: 0.7rem; padding: 3px 8px; border-radius: 999px;
+      font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .badge-new {
+      background: rgba(212,157,69,0.15); color: var(--accent);
+      border: 1px solid rgba(212,157,69,0.3);
+    }
+    .badge-in-budget {
+      background: rgba(74,180,94,0.12); color: #6dbf7e;
+      border: 1px solid rgba(74,180,94,0.25);
+    }
+    .badge-stretch {
+      background: rgba(212,157,69,0.12); color: #d4a855;
+      border: 1px solid rgba(212,157,69,0.3);
+    }
+    .badge-over {
+      background: rgba(198,90,52,0.12); color: #d4785a;
+      border: 1px solid rgba(198,90,52,0.28);
+    }
+    .news-card-name { font-size: 1.1rem; font-weight: 500; line-height: 1.2; }
+    .news-card-price-row { display: flex; align-items: baseline; gap: 10px; }
+    .news-card-price { font-size: 1.35rem; font-weight: 400; color: var(--accent); }
+    .news-card-original {
+      font-size: 0.88rem; color: var(--muted);
+      text-decoration: line-through;
+    }
+    .news-card-discount {
+      font-size: 0.78rem; color: #6dbf7e; font-weight: 500;
+    }
+    .news-card-reason {
+      font-size: 0.88rem; color: var(--muted); line-height: 1.45;
+      font-weight: 300; font-style: italic;
+      border-top: 1px solid var(--line); padding-top: 10px; margin-top: 2px;
+    }
+
+    /* ── Preferences Panel ──────────────────────────────────────── */
+    .prefs-panel {
+      padding: 22px 24px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--line);
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 18px; align-items: end;
+    }
+    .field { display: flex; flex-direction: column; gap: 7px; }
+    .field label {
+      font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--muted);
+    }
+    .field input {
+      padding: 10px 14px; border-radius: var(--radius-md);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,239,213,0.14);
+      color: var(--text); font-size: 1rem; font-family: inherit;
+      outline: none; transition: border-color 160ms;
+      width: 100%;
+    }
+    .field input:focus { border-color: rgba(212,157,69,0.45); }
+    .field-hint { font-size: 0.78rem; color: var(--muted); font-style: italic; }
+    .prefs-toggle {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.82rem; color: var(--muted); cursor: pointer;
+      width: fit-content;
+    }
+
+    /* ── Section spacing ────────────────────────────────────────── */
+    .news-section { display: grid; gap: 16px; }
+
+    /* ── Stale notice ───────────────────────────────────────────── */
+    .stale-notice {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 18px; border-radius: var(--radius-md);
+      background: rgba(198,90,52,0.08);
+      border: 1px solid rgba(198,90,52,0.2);
+      font-size: 0.88rem; color: rgba(213,198,173,0.8);
+    }
+    .stale-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--danger); flex-shrink: 0;
+    }
+
+    /* ── Empty state ────────────────────────────────────────────── */
+    .empty-state {
+      padding: 48px 24px; text-align: center;
+      border: 1px dashed var(--line);
+      border-radius: var(--radius-lg);
+      color: var(--muted); font-size: 1rem; font-style: italic;
+    }
+
+    /* ── Responsive ─────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .intel-grid { grid-template-columns: 1fr 1fr; }
+      .intel-card:last-child { grid-column: 1 / -1; }
+      .prefs-panel { grid-template-columns: 1fr 1fr; }
+      .prefs-panel .button { grid-column: 1 / -1; width: fit-content; }
+    }
+    @media (max-width: 640px) {
+      .page { padding: 100px 18px 48px; }
+      .intel-grid { grid-template-columns: 1fr; }
+      .intel-card:last-child { grid-column: auto; }
+      .prefs-panel { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 1.9rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ──────────────────────────────────────────────────────── -->
+<nav class="top-nav">
+  <div class="top-nav-inner">
+    <div class="nav-brand">Whisky Advisor</div>
+    <div class="nav-links">
+      <span>Collection</span>
+      <span>Advisor</span>
+      <span class="active">News</span>
+      <span>Profile</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Page ─────────────────────────────────────────────────────── -->
+<main class="page">
+
+  <!-- Hero -->
+  <section class="hero">
+    <p class="eyebrow">Retailer Intelligence</p>
+    <h1>What's on the shelves right now.</h1>
+    <p>GPT-powered scan of SA whisky retailers — specials, new arrivals, and what's worth your attention today.</p>
+    <div class="hero-meta">
+      <span class="hero-timestamp">Last updated <strong>3 hours ago</strong></span>
+      <button class="button-subtle">
+        ↻ &ensp;Refresh
+      </button>
+      <button class="button-subtle" onclick="document.getElementById('prefs').style.display = document.getElementById('prefs').style.display === 'none' ? 'grid' : 'none'">
+        ◈ &ensp;Budget settings
+      </button>
+    </div>
+  </section>
+
+  <!-- Budget preferences (collapsible) -->
+  <div class="prefs-panel" id="prefs" style="display:none">
+    <div class="field">
+      <label>Soft budget cap</label>
+      <input type="number" placeholder="e.g. 1000" value="1000" />
+      <span class="field-hint">Items above this are flagged as a stretch.</span>
+    </div>
+    <div class="field">
+      <label>Stretch cap (optional)</label>
+      <input type="number" placeholder="No ceiling" />
+      <span class="field-hint">Leave blank to see everything, regardless of price.</span>
+    </div>
+    <button class="button">Save</button>
+  </div>
+
+  <!-- Stale notice (shown when data is old) -->
+  <!-- <div class="stale-notice"><div class="stale-dot"></div> Data is more than 12 hours old. Hit Refresh to get today's prices.</div> -->
+
+  <!-- GPT Intelligence Cards -->
+  <div class="news-section">
+    <div class="section-header">
+      <h2>Today's picks</h2>
+      <p>GPT's top three — curated for your palate and budget</p>
+    </div>
+    <div class="intel-grid">
+
+      <div class="intel-card best-value">
+        <span class="intel-card-label">Best value</span>
+        <div class="intel-card-title">GlenDronach 12 Year</div>
+        <div class="intel-card-sub">A classic Speyside at a price that's hard to ignore — especially if you enjoy sherry-forward drams. The richness here punches well above its cost.</div>
+        <div class="intel-card-price">R 649</div>
+        <div class="intel-card-retailer">Norman Goodfellows · 15% off</div>
+      </div>
+
+      <div class="intel-card worth-stretching">
+        <span class="intel-card-label">Worth the stretch</span>
+        <div class="intel-card-title">Springbank 15 Year</div>
+        <div class="intel-card-sub">Given your taste for coastal Scotch and your existing Springbank 10, this is the obvious next step. Rarely on special — take it.</div>
+        <div class="intel-card-price">R 1 480</div>
+        <div class="intel-card-retailer">Whisky Emporium · New arrival</div>
+      </div>
+
+      <div class="intel-card most-interesting">
+        <span class="intel-card-label">Most interesting</span>
+        <div class="intel-card-title">Waterford Sheestown 1.1</div>
+        <div class="intel-card-sub">Irish single farm origin — a unique terroir experiment. Nothing like this in your collection yet. Worth trying before the batch sells out.</div>
+        <div class="intel-card-price">R 895</div>
+        <div class="intel-card-retailer">Bottega Whiskey · In stock</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Specials -->
+  <div class="news-section">
+    <div class="section-header">
+      <h2>Specials</h2>
+      <p>Price reductions spotted today</p>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">Retailer</span>
+      <button class="pill active">All</button>
+      <button class="pill">Norman Goodfellows</button>
+      <button class="pill">Whisky Emporium</button>
+      <button class="pill">Bottega</button>
+      <button class="pill">Whisky Brother</button>
+      <button class="pill">Mother City</button>
+    </div>
+    <div class="items-grid">
+
+      <div class="news-card">
+        <div class="news-card-top">
+          <span class="retailer-badge">Norman Goodfellows</span>
+          <div class="badge-row">
+            <span class="badge badge-in-budget">In budget</span>
+          </div>
+        </div>
+        <div class="news-card-name">GlenDronach 12 Year Old</div>
+        <div class="news-card-price-row">
+          <span class="news-card-price">R 649</span>
+          <span class="news-card-original">R 765</span>
+          <span class="news-card-discount">−15%</span>
+        </div>
+        <div class="news-card-reason">"Strong sherry influence — aligns closely with your palate. The discount makes this a no-brainer purchase right now."</div>
+      </div>
+
+      <div class="news-card">
+        <div class="news-card-top">
+          <span class="retailer-badge">Whisky Emporium</span>
+          <div class="badge-row">
+            <span class="badge badge-in-budget">In budget</span>
+          </div>
+        </div>
+        <div class="news-card-name">Glenfarclas 15 Year Old</div>
+        <div class="news-card-price-row">
+          <span class="news-card-price">R 820</span>
+          <span class="news-card-original">R 950</span>
+          <span class="news-card-discount">−14%</span>
+        </div>
+        <div class="news-card-reason">"Another sherry-bomb Speyside at a good price. Comparable to your Aberlour in style, but with more body and depth."</div>
+      </div>
+
+      <div class="news-card">
+        <div class="news-card-top">
+          <span class="retailer-badge">Whisky Brother</span>
+          <div class="badge-row">
+            <span class="badge badge-stretch">Stretch</span>
+          </div>
+        </div>
+        <div class="news-card-name">Talisker 18 Year Old</div>
+        <div class="news-card-price-row">
+          <span class="news-card-price">R 1 250</span>
+          <span class="news-card-original">R 1 490</span>
+          <span class="news-card-discount">−16%</span>
+        </div>
+        <div class="news-card-reason">"You rate coastal/peated malts highly. Talisker 18 doesn't come up on special often — at this price it's genuinely exceptional value."</div>
+      </div>
+
+      <div class="news-card">
+        <div class="news-card-top">
+          <span class="retailer-badge">Mother City Liquor</span>
+          <div class="badge-row">
+            <span class="badge badge-in-budget">In budget</span>
+          </div>
+        </div>
+        <div class="news-card-name">Monkey Shoulder Blended Malt</div>
+        <div class="news-card-price-row">
+          <span class="news-card-price">R 449</span>
+          <span class="news-card-original">R 530</span>
+          <span class="news-card-discount">−15%</span>
+        </div>
+        <div class="news-card-reason">"Good everyday mixer or an easy gift. Nothing complex, but the price is right for what it is."</div>
+      </div>
+
+      <div class="news-card">
+        <div class="news-card-top">
+          <span class="retailer-badge">Bottega Whiskey</span>
+          <div class="badge-row">
+            <span class="badge badge-over">Over budget</span>
+          </div>
+        </div>
+        <div class="news-card-name">Dalmore 18 Year Old</div>
+        <div class="news-card-price-row">
+          <span class="news-card-price">R 2 100</span>
+          <span class="news-card-original">R 2 450</span>
+          <span class="news-card-discount">−14%</span>
+        </div>
+        <div class="news-card-reason">"Well above your usual range, but worth knowing about. Rich orange and dark chocolate character — right in your wheelhouse if you ever want to splurge."</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- New Arrivals -->
+  <div class="news-section">
+    <div class="section-header">
+      <h2>New arrivals</h2>
+      <p>Fresh stock spotted for the first time this week</p>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">Retailer</span>
+      <button class="pill active">All</button>
+      <button class="pill">Whisky Emporium</button>
+      <button class="pill">Bottega</button>
+    </div>
+    <div class="items-grid">
+
+      <div class="news-card">
+        <div class="news-card-top">
+          <span class="retailer-badge">Whisky Emporium</span>
+          <div class="badge-row">
+            <span class="badge badge-new">New</span>
+            <span class="badge badge-stretch">Stretch</span>
+          </div>
+        </div>
+        <div class="news-card-name">Springbank 15 Year Old</div>
+        <div class="news-card-price-row">
+          <span class="news-card-price">R 1 480</span>
+        </div>
+        <div class="news-card-reason">"Campbeltown maritime character, rum and bourbon cask finish. Given you already own the 10, this is the next logical bottle."</div>
+      </div>
+
+      <div class="news-card">
+        <div class="news-card-top">
+          <span class="retailer-badge">Bottega Whiskey</span>
+          <div class="badge-row">
+            <span class="badge badge-new">New</span>
+            <span class="badge badge-in-budget">In budget</span>
+          </div>
+        </div>
+        <div class="news-card-name">Waterford Sheestown 1.1</div>
+        <div class="news-card-price-row">
+          <span class="news-card-price">R 895</span>
+        </div>
+        <div class="news-card-reason">"Single farm origin Irish whisky — a style with nothing comparable in your collection. Grassy, complex, and genuinely different."</div>
+      </div>
+
+      <div class="news-card">
+        <div class="news-card-top">
+          <span class="retailer-badge">Whisky Emporium</span>
+          <div class="badge-row">
+            <span class="badge badge-new">New</span>
+            <span class="badge badge-in-budget">In budget</span>
+          </div>
+        </div>
+        <div class="news-card-name">Bunnahabhain 12 Year Old</div>
+        <div class="news-card-price-row">
+          <span class="news-card-price">R 760</span>
+        </div>
+        <div class="news-card-reason">"Unpeated Islay with a coastal, nutty character. A gentler entry point to the island style — fills a gap in your collection."</div>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // Filter pills — purely cosmetic demo
+  document.querySelectorAll('.filter-row').forEach(row => {
+    row.querySelectorAll('.pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        row.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+      });
+    });
+  });
+</script>
+
+</body>
+</html>

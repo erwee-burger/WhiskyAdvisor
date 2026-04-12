@@ -17,8 +17,9 @@ export default async function NewsPage() {
   return (
     <div className="page">
       <section className="hero">
-        <p className="eyebrow">News</p>
+        <p className="eyebrow">Retailer Intelligence</p>
         <h1>What&apos;s on the shelves right now.</h1>
+        <p>GPT-powered scan of SA whisky retailers — specials, new arrivals, and what&apos;s worth your attention today.</p>
       </section>
 
       <NewsFeed
