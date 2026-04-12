@@ -153,7 +153,7 @@ export function buildRetailerPrompt(source: string): string {
     "- Include ALL items you find regardless of price - do not filter by price",
     `- Only include items from ${domain} - no other retailers`,
     `- Every item must have a direct product page URL on ${domain}`,
-    `- Use source key: \"${source}\" for every item`,
+    `- Use source key: "${source}" for every item`,
     "- If you find no specials, return specials: []",
     "- If you find no new arrivals, return newArrivals: []",
     "- Do not invent items - only include things you can verify are currently listed",
@@ -424,6 +424,9 @@ export async function discoverNewsWithGpt(
   prefs: NewsBudgetPreferences
 ): Promise<GptNewsResponse> {
   const { OPENAI_API_KEY, OPENAI_MODEL } = getServerEnv();
+  if (!OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY not configured");
+  }
 
   const retailerResults = await Promise.all(
     APPROVED_SOURCE_KEYS.map(source => discoverRetailerOffers(source, OPENAI_API_KEY, OPENAI_MODEL))
