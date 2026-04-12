@@ -3,6 +3,7 @@ import type { NewsFeedItem, BudgetFit } from "@/lib/types";
 interface Props {
   item: NewsFeedItem;
   kind: "special" | "new_release";
+  showBudget: boolean;
 }
 
 const RETAILER_LABELS: Record<string, string> = {
@@ -24,7 +25,7 @@ function formatPrice(price: number) {
   return `R ${price.toLocaleString("en-ZA")}`;
 }
 
-export function NewsItem({ item, kind }: Props) {
+export function NewsItem({ item, kind, showBudget }: Props) {
   const isBadgeNew = kind === "new_release";
   const badgeClass = `news-card-badge news-card-badge-${item.budgetFit.replace("_", "-")}`;
 
@@ -40,7 +41,7 @@ export function NewsItem({ item, kind }: Props) {
         <span className="news-card-retailer">{RETAILER_LABELS[item.source] || item.source}</span>
         <div className="news-card-badges">
           {isBadgeNew && <span className="news-card-badge news-card-badge-new">New</span>}
-          <span className={badgeClass}>{BUDGET_LABELS[item.budgetFit]}</span>
+          {showBudget && <span className={badgeClass}>{BUDGET_LABELS[item.budgetFit]}</span>}
         </div>
       </div>
 

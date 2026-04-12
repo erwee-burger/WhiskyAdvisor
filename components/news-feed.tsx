@@ -14,6 +14,7 @@ interface NewsFeedProps {
   initialFetchedAt: string | null;
   initialStale: boolean;
   initialPreferences: NewsBudgetPreferences;
+  isOwner: boolean;
 }
 
 const RETAILER_LABELS: Record<string, string> = {
@@ -40,7 +41,8 @@ export function NewsFeed({
   initialSummaryCards,
   initialFetchedAt,
   initialStale,
-  initialPreferences
+  initialPreferences,
+  isOwner
 }: NewsFeedProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showPrefs, setShowPrefs] = useState(false);
@@ -110,25 +112,27 @@ export function NewsFeed({
           Last updated <strong>{fetchedAt ? formatTime(fetchedAt) : "never"}</strong>
           {stale && <span className="news-stale-indicator"> · Data is stale</span>}
         </span>
-        <div className="news-controls">
-          <button
-            className="button-subtle"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-          >
-            {isRefreshing ? "↻ Refreshing..." : "↻ Refresh"}
-          </button>
-          <button
-            className="button-subtle"
-            onClick={() => setShowPrefs(!showPrefs)}
-          >
-            ◈ Budget settings
-          </button>
-        </div>
+        {isOwner && (
+          <div className="news-controls">
+            <button
+              className="button-subtle"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? "↻ Refreshing..." : "↻ Refresh"}
+            </button>
+            <button
+              className="button-subtle"
+              onClick={() => setShowPrefs(!showPrefs)}
+            >
+              ◈ Budget settings
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Preferences panel (collapsible) */}
-      {showPrefs && (
+      {isOwner && showPrefs && (
         <NewsPreferencesPanel
           currentPreferences={prefs}
           onSave={handlePreferencesSave}
@@ -168,7 +172,7 @@ export function NewsFeed({
           {filteredSpecials.length > 0 ? (
             <div className="news-items-grid">
               {filteredSpecials.map(item => (
-                <NewsItem key={item.id} item={item} kind="special" />
+                <NewsItem key={item.id} item={item} kind="special" showBudget={isOwner} />
               ))}
             </div>
           ) : (
@@ -199,7 +203,7 @@ export function NewsFeed({
           {filteredArrivals.length > 0 ? (
             <div className="news-items-grid">
               {filteredArrivals.map(item => (
-                <NewsItem key={item.id} item={item} kind="new_release" />
+                <NewsItem key={item.id} item={item} kind="new_release" showBudget={isOwner} />
               ))}
             </div>
           ) : (
