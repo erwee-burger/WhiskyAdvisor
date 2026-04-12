@@ -7,7 +7,7 @@ vi.mock("next/headers", () => ({
 import { cookies } from "next/headers";
 import { getSessionMode } from "@/lib/auth";
 
-const mockCookies = cookies as ReturnType<typeof vi.fn>;
+const mockCookies = vi.mocked(cookies);
 
 function setupCookies(value: string | undefined) {
   mockCookies.mockResolvedValue({
