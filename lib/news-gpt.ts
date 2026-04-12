@@ -8,32 +8,73 @@ export const APPROVED_SOURCE_DOMAINS: Record<string, string> = {
   whiskybrother: "whiskybrother.com",
   bottegawhiskey: "bottegawhiskey.com",
   mothercityliquor: "mothercityliquor.co.za",
-  whiskyemporium: "whiskyemporium.co.za",
   normangoodfellows: "www.ngf.co.za"
 };
 
 export const APPROVED_SOURCE_KEYS = Object.keys(APPROVED_SOURCE_DOMAINS);
 
-const RETAILER_HINTS: Record<string, { specials: string; newArrivals: string }> = {
+const OBVIOUS_NON_WHISKY_KEYWORDS = [
+  "tequila",
+  "mezcal",
+  "gin",
+  "vodka",
+  "liqueur",
+  "champagne",
+  "mcc",
+  "vermouth",
+  "aperitif",
+  "grappa",
+  "pisco",
+  "soju",
+  "sake"
+];
+
+function isObviousNonWhiskyOffer(offer: GptOffer): boolean {
+  const haystack = `${offer.name} ${offer.url}`.toLowerCase();
+  return OBVIOUS_NON_WHISKY_KEYWORDS.some(keyword => haystack.includes(keyword));
+}
+
+const RETAILER_HINTS: Record<string, { specials: string; newArrivals: string; extraRules?: string[] }> = {
   whiskybrother: {
-    specials: "Look for sale, discounted, or on-special whisky items",
-    newArrivals: "Look for a 'New In' or 'New Arrivals' section listing recently added products"
+    specials: "Use https://www.whiskybrother.com/collections/whisky-specials and list all in-stock whiskies currently shown on that page",
+    newArrivals: "Use https://www.whiskybrother.com/collections/new-whisky-arrivals and return the first 10 in-stock whiskies shown on that page",
+    extraRules: [
+      "For specials, use https://www.whiskybrother.com/collections/whisky-specials as the source of truth and include every in-stock whisky on that page.",
+      "For new arrivals, use https://www.whiskybrother.com/collections/new-whisky-arrivals as the source of truth.",
+      "For new arrivals, return the first 10 in-stock whiskies from that page.",
+      "Do not include sold-out items from either Whisky Brother page.",
+      "If a sold-out item appears in the Whisky Brother new arrivals list, skip it and continue until you have 10 in-stock items if at least 10 exist."
+    ]
   },
   bottegawhiskey: {
-    specials: "Look for discounted or on-special whisky items",
-    newArrivals: "Look for recently added or newly listed products"
+    specials: "Use https://bottegawhiskey.com/product-category/specials-sale/?orderby=date and include all in-stock whiskies shown on that page",
+    newArrivals: "Use https://bottegawhiskey.com/product-category/new-arrival/?orderby=date and return the first 10 in-stock whiskies shown on that page",
+    extraRules: [
+      "For specials, use https://bottegawhiskey.com/product-category/specials-sale/?orderby=date as the source of truth and include every in-stock whisky on that page.",
+      "For new arrivals, use https://bottegawhiskey.com/product-category/new-arrival/?orderby=date as the source of truth.",
+      "For new arrivals, return the first 10 in-stock whiskies from that page.",
+      "These Bottega lists can include other spirits. Include whiskies or whiskeys only, and exclude tequila, gin, rum, mezcal, cognac, wine, and any other non-whisky products.",
+      "Do not include sold-out items from either Bottega page.",
+      "If a sold-out or non-whisky item appears in the Bottega new arrivals list, skip it and continue until you have 10 in-stock whiskies if at least 10 exist."
+    ]
   },
   mothercityliquor: {
-    specials: "Look for a specials or deals section",
-    newArrivals: "Look for new products or recently added stock"
-  },
-  whiskyemporium: {
-    specials: "Look for specials, sales, or discounted whiskies",
-    newArrivals: "Look for a new arrivals section or recently added stock"
+    specials: "Use https://mothercityliquor.co.za/collections/sale?sort_by=created-descending and include the whisky specials currently shown on that page",
+    newArrivals: "Use https://mothercityliquor.co.za/collections/new-whisky-arrivals?sort_by=created-descending and include the whiskies currently shown on that page",
+    extraRules: [
+      "For specials, use https://mothercityliquor.co.za/collections/sale?sort_by=created-descending as the source of truth.",
+      "The Mother City sale page can be mixed with other spirits. Include whiskies or whiskeys only and exclude tequila, gin, rum, vodka, liqueurs, and other non-whisky products.",
+      "For new arrivals, use https://mothercityliquor.co.za/collections/new-whisky-arrivals?sort_by=created-descending as the source of truth."
+    ]
   },
   normangoodfellows: {
-    specials: "Look for sale items or whiskies on special at ngf.co.za",
-    newArrivals: "Look for new arrivals or newly listed whiskies at ngf.co.za"
+    specials: "Use https://www.ngf.co.za/promotions/ and include the whisky specials currently shown on that page",
+    newArrivals: "Norman Goodfellows does not have a dedicated new arrivals page, so return newArrivals: []",
+    extraRules: [
+      "For specials, use https://www.ngf.co.za/promotions/ as the source of truth.",
+      "Norman Goodfellows does not have a dedicated new arrivals page.",
+      "Always return newArrivals: [] for source key normangoodfellows."
+    ]
   }
 };
 
@@ -141,6 +182,8 @@ export function buildRetailerPrompt(source: string): string {
     throw new Error(`Unknown retailer source: ${source}`);
   }
 
+  const retailerSpecificLines = hints.extraRules ?? [];
+
   return [
     `You are a whisky retail intelligence agent. Search the live website: ${domain}`,
     "",
@@ -148,6 +191,7 @@ export function buildRetailerPrompt(source: string): string {
     "",
     `SPECIALS: ${hints.specials}`,
     `NEW ARRIVALS: ${hints.newArrivals}`,
+    ...retailerSpecificLines,
     "",
     "IMPORTANT RULES:",
     "- Include ALL items you find regardless of price - do not filter by price",
@@ -245,8 +289,8 @@ function buildSummaryCardsPrompt(
     JSON.stringify({
       summaryCards: {
         bestValue: { title: "Example 12 Year", subtitle: "16% off at Whisky Brother", price: 799, url: "https://whiskybrother.com/products/example-12", whyItMatters: "Best r/quality this week.", source: "whiskybrother" },
-        worthStretching: { title: "Premium Expression", subtitle: "Limited release", price: 2200, url: "https://...", whyItMatters: "Rare cask.", source: "whiskyemporium" },
-        mostInteresting: { title: "New Distillery Release", subtitle: "New arrival", price: 1200, url: "https://...", whyItMatters: "First SA release.", source: "whiskyemporium" }
+        worthStretching: { title: "Premium Expression", subtitle: "Limited release", price: 2200, url: "https://...", whyItMatters: "Rare cask.", source: "bottegawhiskey" },
+        mostInteresting: { title: "New Distillery Release", subtitle: "New arrival", price: 1200, url: "https://...", whyItMatters: "First SA release.", source: "mothercityliquor" }
       }
     }, null, 2)
   ].join("\n");
@@ -315,6 +359,70 @@ export function validateAndDedupe(
     specials: deduped(validatedSpecials),
     newArrivals: deduped(validatedNewArrivals),
     rejectionCount: rejections.length
+  };
+}
+
+export function enforceRetailerOfferRules(
+  specials: GptOffer[],
+  newArrivals: GptOffer[]
+): { specials: GptOffer[]; newArrivals: GptOffer[] } {
+  const filteredSpecials = specials.filter(offer => {
+    if (offer.source === "whiskybrother" && !offer.inStock) {
+      return false;
+    }
+
+    if (offer.source === "bottegawhiskey") {
+      if (!offer.inStock) {
+        return false;
+      }
+
+      if (isObviousNonWhiskyOffer(offer)) {
+        return false;
+      }
+    }
+
+    if (offer.source === "mothercityliquor" && isObviousNonWhiskyOffer(offer)) {
+      return false;
+    }
+
+    return true;
+  });
+
+  let whiskyBrotherNewArrivalCount = 0;
+  let bottegaNewArrivalCount = 0;
+  const filteredNewArrivals = newArrivals.filter(offer => {
+    if (offer.source === "whiskybrother") {
+      if (!offer.inStock) {
+        return false;
+      }
+
+      whiskyBrotherNewArrivalCount += 1;
+      return whiskyBrotherNewArrivalCount <= 10;
+    }
+
+    if (offer.source === "bottegawhiskey") {
+      if (!offer.inStock) {
+        return false;
+      }
+
+      if (isObviousNonWhiskyOffer(offer)) {
+        return false;
+      }
+
+      bottegaNewArrivalCount += 1;
+      return bottegaNewArrivalCount <= 10;
+    }
+
+    if (offer.source === "normangoodfellows") {
+      return false;
+    }
+
+    return true;
+  });
+
+  return {
+    specials: filteredSpecials,
+    newArrivals: filteredNewArrivals
   };
 }
 
@@ -440,19 +548,20 @@ export async function discoverNewsWithGpt(
   }
 
   const { specials, newArrivals, rejectionCount } = validateAndDedupe(allRawSpecials, allRawNewArrivals);
+  const filtered = enforceRetailerOfferRules(specials, newArrivals);
 
   if (rejectionCount > 0) {
     console.warn(`[news-gpt] ${rejectionCount} offers rejected during validation`);
   }
-  console.log(`[news-gpt] discovered: ${specials.length} specials, ${newArrivals.length} new arrivals`);
+  console.log(`[news-gpt] discovered: ${filtered.specials.length} specials, ${filtered.newArrivals.length} new arrivals`);
 
   const summaryCards = await generateSummaryCards(
-    [...specials, ...newArrivals],
+    [...filtered.specials, ...filtered.newArrivals],
     profile,
     prefs,
     OPENAI_API_KEY,
     OPENAI_MODEL
   );
 
-  return { specials, newArrivals, summaryCards };
+  return { specials: filtered.specials, newArrivals: filtered.newArrivals, summaryCards };
 }

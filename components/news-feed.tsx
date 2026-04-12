@@ -21,7 +21,6 @@ const RETAILER_LABELS: Record<string, string> = {
   whiskybrother: "Whisky Brother",
   bottegawhiskey: "Bottega Whiskey",
   mothercityliquor: "Mother City Liquor",
-  whiskyemporium: "Whisky Emporium",
   normangoodfellows: "Norman Goodfellows"
 };
 
@@ -101,7 +100,7 @@ export function NewsFeed({
     : newArrivals.filter(item => item.source === activeRetailerFilter);
 
   // Always show all known retailers, even if they have 0 items
-  const knownRetailers = ["whiskybrother", "bottegawhiskey", "mothercityliquor", "whiskyemporium", "normangoodfellows"];
+  const knownRetailers = ["whiskybrother", "bottegawhiskey", "mothercityliquor", "normangoodfellows"];
   const retailers = ["all", ...knownRetailers];
 
   return (

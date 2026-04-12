@@ -3,7 +3,8 @@ import {
   validateGptOffer,
   APPROVED_SOURCE_KEYS,
   validateAndDedupe,
-  buildRetailerPrompt
+  buildRetailerPrompt,
+  enforceRetailerOfferRules
 } from "@/lib/news-gpt";
 
 describe("validateGptOffer", () => {
@@ -59,17 +60,16 @@ describe("validateGptOffer", () => {
     ).toThrow(/url/);
   });
 
-  it("APPROVED_SOURCE_KEYS contains exactly the 5 approved retailers", () => {
+  it("APPROVED_SOURCE_KEYS contains exactly the 4 approved retailers", () => {
     expect(APPROVED_SOURCE_KEYS).toEqual(
       expect.arrayContaining([
         "whiskybrother",
         "bottegawhiskey",
         "mothercityliquor",
-        "whiskyemporium",
         "normangoodfellows"
       ])
     );
-    expect(APPROVED_SOURCE_KEYS).toHaveLength(5);
+    expect(APPROVED_SOURCE_KEYS).toHaveLength(4);
   });
 });
 
@@ -90,14 +90,14 @@ describe("validateAndDedupe", () => {
       ],
       [
         {
-          source: "whiskyemporium",
+          source: "mothercityliquor",
           name: "Fresh Arrival",
           price: 1299,
-          url: "https://whiskyemporium.co.za/products/fresh-arrival",
+          url: "https://mothercityliquor.co.za/products/fresh-arrival",
           inStock: true,
           relevanceScore: 80,
           whyItMatters: "Brand new listing.",
-          citations: ["https://whiskyemporium.co.za/products/fresh-arrival"]
+          citations: ["https://mothercityliquor.co.za/products/fresh-arrival"]
         }
       ]
     );
@@ -121,7 +121,7 @@ describe("validateAndDedupe", () => {
       ],
       [
         {
-          source: "whiskyemporium",
+          source: "mothercityliquor",
           name: "Missing Price"
         }
       ]
@@ -169,5 +169,266 @@ describe("buildRetailerPrompt", () => {
     expect(prompt).toContain("whiskybrother.com");
     expect(prompt).toContain('Use source key: "whiskybrother"');
     expect(prompt).toContain("Include ALL items you find regardless of price");
+  });
+
+  it("pins Whisky Brother to the correct specials and new-arrivals pages with in-stock rules", () => {
+    const prompt = buildRetailerPrompt("whiskybrother");
+
+    expect(prompt).toContain("https://www.whiskybrother.com/collections/whisky-specials");
+    expect(prompt).toContain("https://www.whiskybrother.com/collections/new-whisky-arrivals");
+    expect(prompt).toContain("Do not include sold-out items from either Whisky Brother page.");
+    expect(prompt).toContain("return the first 10 in-stock whiskies");
+    expect(prompt).toContain("continue until you have 10 in-stock items if at least 10 exist");
+  });
+
+  it("pins Bottega to the correct category pages and whisky-only rules", () => {
+    const prompt = buildRetailerPrompt("bottegawhiskey");
+
+    expect(prompt).toContain("https://bottegawhiskey.com/product-category/specials-sale/?orderby=date");
+    expect(prompt).toContain("https://bottegawhiskey.com/product-category/new-arrival/?orderby=date");
+    expect(prompt).toContain("Include whiskies or whiskeys only");
+    expect(prompt).toContain("Do not include sold-out items from either Bottega page.");
+    expect(prompt).toContain("return the first 10 in-stock whiskies");
+  });
+
+  it("pins Mother City to the correct sale and new-arrivals pages with whisky-only sale rules", () => {
+    const prompt = buildRetailerPrompt("mothercityliquor");
+
+    expect(prompt).toContain("https://mothercityliquor.co.za/collections/sale?sort_by=created-descending");
+    expect(prompt).toContain("https://mothercityliquor.co.za/collections/new-whisky-arrivals?sort_by=created-descending");
+    expect(prompt).toContain("The Mother City sale page can be mixed with other spirits.");
+    expect(prompt).toContain("Include whiskies or whiskeys only");
+  });
+
+  it("pins Norman Goodfellows to promotions and no new-arrivals output", () => {
+    const prompt = buildRetailerPrompt("normangoodfellows");
+
+    expect(prompt).toContain("https://www.ngf.co.za/promotions/");
+    expect(prompt).toContain("Norman Goodfellows does not have a dedicated new arrivals page.");
+    expect(prompt).toContain("Always return newArrivals: [] for source key normangoodfellows.");
+  });
+});
+
+describe("enforceRetailerOfferRules", () => {
+  it("removes sold-out Whisky Brother items", () => {
+    const result = enforceRetailerOfferRules(
+      [
+        {
+          source: "whiskybrother",
+          kind: "special",
+          name: "WB Sold Out Special",
+          price: 900,
+          url: "https://whiskybrother.com/products/wb-sold-out-special",
+          inStock: false,
+          relevanceScore: 60,
+          whyItMatters: "",
+          citations: []
+        },
+        {
+          source: "mothercityliquor",
+          kind: "special",
+          name: "Other Retailer Special",
+          price: 850,
+          url: "https://mothercityliquor.co.za/products/other-special",
+          inStock: false,
+          relevanceScore: 60,
+          whyItMatters: "",
+          citations: []
+        }
+      ],
+      [
+        {
+          source: "whiskybrother",
+          kind: "new_release",
+          name: "WB Sold Out Arrival",
+          price: 1200,
+          url: "https://whiskybrother.com/products/wb-sold-out-arrival",
+          inStock: false,
+          relevanceScore: 60,
+          whyItMatters: "",
+          citations: []
+        }
+      ]
+    );
+
+    expect(result.specials).toHaveLength(1);
+    expect(result.specials[0]?.source).toBe("mothercityliquor");
+    expect(result.newArrivals).toHaveLength(0);
+  });
+
+  it("caps Whisky Brother new arrivals at the first 10 in-stock items", () => {
+    const newArrivals = Array.from({ length: 12 }, (_, index) => ({
+      source: "whiskybrother" as const,
+      kind: "new_release" as const,
+      name: `WB Arrival ${index + 1}`,
+      price: 1000 + index,
+      url: `https://whiskybrother.com/products/wb-arrival-${index + 1}`,
+      inStock: true,
+      relevanceScore: 60,
+      whyItMatters: "",
+      citations: []
+    }));
+
+    const result = enforceRetailerOfferRules([], newArrivals);
+
+    expect(result.newArrivals).toHaveLength(10);
+    expect(result.newArrivals[0]?.name).toBe("WB Arrival 1");
+    expect(result.newArrivals[9]?.name).toBe("WB Arrival 10");
+  });
+
+  it("removes sold-out and obvious non-whisky Bottega items", () => {
+    const result = enforceRetailerOfferRules(
+      [
+        {
+          source: "bottegawhiskey",
+          kind: "special",
+          name: "Don Julio Tequila",
+          price: 1000,
+          url: "https://bottegawhiskey.com/products/don-julio",
+          inStock: true,
+          relevanceScore: 60,
+          whyItMatters: "",
+          citations: []
+        },
+        {
+          source: "bottegawhiskey",
+          kind: "special",
+          name: "Ardbeg Uigeadail",
+          price: 1200,
+          url: "https://bottegawhiskey.com/products/ardbeg-uigeadail",
+          inStock: true,
+          relevanceScore: 70,
+          whyItMatters: "",
+          citations: []
+        }
+      ],
+      [
+        {
+          source: "bottegawhiskey",
+          kind: "new_release",
+          name: "Hendrick's Gin",
+          price: 900,
+          url: "https://bottegawhiskey.com/products/hendricks-gin",
+          inStock: true,
+          relevanceScore: 55,
+          whyItMatters: "",
+          citations: []
+        },
+        {
+          source: "bottegawhiskey",
+          kind: "new_release",
+          name: "Bunnahabhain 12",
+          price: 1100,
+          url: "https://bottegawhiskey.com/products/bunnahabhain-12",
+          inStock: false,
+          relevanceScore: 65,
+          whyItMatters: "",
+          citations: []
+        }
+      ]
+    );
+
+    expect(result.specials).toHaveLength(1);
+    expect(result.specials[0]?.name).toBe("Ardbeg Uigeadail");
+    expect(result.newArrivals).toHaveLength(0);
+  });
+
+  it("caps Bottega new arrivals at the first 10 in-stock whiskies", () => {
+    const newArrivals = [
+      ...Array.from({ length: 8 }, (_, index) => ({
+        source: "bottegawhiskey" as const,
+        kind: "new_release" as const,
+        name: `Bottega Whisky ${index + 1}`,
+        price: 1000 + index,
+        url: `https://bottegawhiskey.com/products/bottega-whisky-${index + 1}`,
+        inStock: true,
+        relevanceScore: 60,
+        whyItMatters: "",
+        citations: []
+      })),
+      {
+        source: "bottegawhiskey" as const,
+        kind: "new_release" as const,
+        name: "Bottega Tequila",
+        price: 999,
+        url: "https://bottegawhiskey.com/products/bottega-tequila",
+        inStock: true,
+        relevanceScore: 50,
+        whyItMatters: "",
+        citations: []
+      },
+      ...Array.from({ length: 5 }, (_, index) => ({
+        source: "bottegawhiskey" as const,
+        kind: "new_release" as const,
+        name: `Bottega Whisky ${index + 9}`,
+        price: 1010 + index,
+        url: `https://bottegawhiskey.com/products/bottega-whisky-${index + 9}`,
+        inStock: true,
+        relevanceScore: 60,
+        whyItMatters: "",
+        citations: []
+      }))
+    ];
+
+    const result = enforceRetailerOfferRules([], newArrivals);
+
+    expect(result.newArrivals).toHaveLength(10);
+    expect(result.newArrivals[0]?.name).toBe("Bottega Whisky 1");
+    expect(result.newArrivals[9]?.name).toBe("Bottega Whisky 10");
+    expect(result.newArrivals.find(item => item.name === "Bottega Tequila")).toBeUndefined();
+  });
+
+  it("removes obvious non-whisky Mother City sale items while keeping whiskies", () => {
+    const result = enforceRetailerOfferRules(
+      [
+        {
+          source: "mothercityliquor",
+          kind: "special",
+          name: "Patron Tequila Reposado",
+          price: 900,
+          url: "https://mothercityliquor.co.za/products/patron-tequila-reposado",
+          inStock: true,
+          relevanceScore: 50,
+          whyItMatters: "",
+          citations: []
+        },
+        {
+          source: "mothercityliquor",
+          kind: "special",
+          name: "Talisker 10 Year Old",
+          price: 1000,
+          url: "https://mothercityliquor.co.za/products/talisker-10-year-old",
+          inStock: true,
+          relevanceScore: 70,
+          whyItMatters: "",
+          citations: []
+        }
+      ],
+      []
+    );
+
+    expect(result.specials).toHaveLength(1);
+    expect(result.specials[0]?.name).toBe("Talisker 10 Year Old");
+  });
+
+  it("removes Norman Goodfellows new arrivals entirely", () => {
+    const result = enforceRetailerOfferRules(
+      [],
+      [
+        {
+          source: "normangoodfellows",
+          kind: "new_release",
+          name: "NGF New Arrival",
+          price: 1000,
+          url: "https://www.ngf.co.za/products/ngf-new-arrival",
+          inStock: true,
+          relevanceScore: 60,
+          whyItMatters: "",
+          citations: []
+        }
+      ]
+    );
+
+    expect(result.newArrivals).toHaveLength(0);
   });
 });
