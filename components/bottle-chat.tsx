@@ -2,8 +2,9 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { useEffect, useRef, useState } from "react";
 import type { UIMessage } from "ai";
+import { useEffect, useRef, useState } from "react";
+import { ChatMessageContent } from "@/components/chat-message-content";
 
 const DEFAULT_CHIPS = [
   "What food pairs well with this?",
@@ -39,18 +40,18 @@ export function BottleChat({ bottleId, bottleName }: BottleChatProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [transport] = useState(() => {
-    const t = new DefaultChatTransport({
+    const transport = new DefaultChatTransport({
       api: "/api/advisor/chat",
       body: { bottleId }
     });
-    Object.defineProperty(t, "api", {
+    Object.defineProperty(transport, "api", {
       get: () =>
         enableSearchRef.current
           ? "/api/advisor/chat?search=1"
           : "/api/advisor/chat",
       configurable: true
     });
-    return t;
+    return transport;
   });
 
   function toggleSearch() {
@@ -71,8 +72,11 @@ export function BottleChat({ bottleId, bottleName }: BottleChatProps) {
 
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 50);
+      const timeoutId = window.setTimeout(() => inputRef.current?.focus(), 50);
+      return () => window.clearTimeout(timeoutId);
     }
+
+    return undefined;
   }, [isOpen]);
 
   useEffect(() => {
@@ -83,8 +87,9 @@ export function BottleChat({ bottleId, bottleName }: BottleChatProps) {
         break;
       }
     }
+
     if (lastAssistantMessage) {
-      const textPart = lastAssistantMessage.parts.find((p) => p.type === "text");
+      const textPart = lastAssistantMessage.parts.find((part) => part.type === "text");
       if (textPart && "text" in textPart) {
         const { suggestions } = extractSuggestions((textPart as { text: string }).text);
         if (suggestions.length) setChips(suggestions);
@@ -96,27 +101,26 @@ export function BottleChat({ bottleId, bottleName }: BottleChatProps) {
     sendMessage({ parts: [{ type: "text", text: chip }] });
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     if (input.trim()) {
       sendMessage({ parts: [{ type: "text", text: input }] });
       setInput("");
     }
   }
 
-  const displayMessages = messages.filter((m) => {
-    const textPart = m.parts.find((p) => p.type === "text");
+  const displayMessages = messages.filter((message) => {
+    const textPart = message.parts.find((part) => part.type === "text");
     return textPart && "text" in textPart;
   });
 
-  const shortName = bottleName.length > 28 ? bottleName.slice(0, 26) + "…" : bottleName;
+  const shortName = bottleName.length > 28 ? `${bottleName.slice(0, 26)}...` : bottleName;
 
   return (
     <>
-      {/* FAB */}
       <button
         className="bottle-chat__fab"
-        onClick={() => setIsOpen((v) => !v)}
+        onClick={() => setIsOpen((value) => !value)}
         aria-label={isOpen ? "Close advisor chat" : "Ask your advisor about this bottle"}
         title={isOpen ? "Close" : "Ask your advisor"}
       >
@@ -131,7 +135,6 @@ export function BottleChat({ bottleId, bottleName }: BottleChatProps) {
         </svg>
       </button>
 
-      {/* Panel */}
       <div
         className={`bottle-chat__panel${isOpen ? " bottle-chat__panel--open" : ""}`}
         role="dialog"
@@ -143,12 +146,13 @@ export function BottleChat({ bottleId, bottleName }: BottleChatProps) {
             <span className="bottle-chat__header-eyebrow">Advisor</span>
             <span className="bottle-chat__header-name">{shortName}</span>
           </span>
+
           <div className="bottle-chat__header-actions">
             <button
               type="button"
               className={`chat-search-toggle${enableSearch ? " chat-search-toggle--on" : ""}`}
               onClick={toggleSearch}
-              title={enableSearch ? "Web search enabled — click to disable" : "Enable web search"}
+              title={enableSearch ? "Web search enabled - click to disable" : "Enable web search"}
               aria-pressed={enableSearch}
               aria-label="Toggle web search"
             >
@@ -158,12 +162,13 @@ export function BottleChat({ bottleId, bottleName }: BottleChatProps) {
                 <path d="M8 11h6M11 8v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </button>
+
             <button
               className="bottle-chat__close"
               onClick={() => setIsOpen(false)}
               aria-label="Close chat"
             >
-              ✕
+              Close
             </button>
           </div>
         </div>
@@ -171,27 +176,33 @@ export function BottleChat({ bottleId, bottleName }: BottleChatProps) {
         <div className="bottle-chat__messages">
           {displayMessages.length === 0 && (
             <div className="bottle-chat__empty">
-              Ask me anything about this bottle — tasting notes, food pairings, how it fits your palate…
+              Ask me anything about this bottle - tasting notes, food pairings, how it fits your palate...
             </div>
           )}
-          {displayMessages.map((m) => {
-            const textPart = m.parts.find((p) => p.type === "text");
+
+          {displayMessages.map((message) => {
+            const textPart = message.parts.find((part) => part.type === "text");
             const text = textPart && "text" in textPart ? (textPart as { text: string }).text : "";
             const { text: cleanText } = extractSuggestions(text);
+
             return (
               <div
-                key={m.id}
-                className={`bottle-chat__message bottle-chat__message--${m.role}`}
+                key={message.id}
+                className={`bottle-chat__message bottle-chat__message--${message.role}`}
               >
-                {cleanText}
+                <ChatMessageContent content={cleanText} />
               </div>
             );
           })}
+
           {isLoading && (
             <div className="bottle-chat__message bottle-chat__message--assistant">
-              <span className="bottle-chat__thinking">{enableSearch ? "searching & thinking…" : "thinking…"}</span>
+              <span className="bottle-chat__thinking">
+                {enableSearch ? "searching & thinking..." : "thinking..."}
+              </span>
             </div>
           )}
+
           <div ref={bottomRef} />
         </div>
 
@@ -213,18 +224,19 @@ export function BottleChat({ bottleId, bottleName }: BottleChatProps) {
             ref={inputRef}
             className="bottle-chat__input"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about this bottle…"
+            onChange={(event) => setInput(event.target.value)}
+            placeholder="Ask about this bottle..."
             disabled={isLoading}
             autoComplete="off"
           />
+
           <button
             type="submit"
             className="bottle-chat__send"
             disabled={isLoading || !input.trim()}
             aria-label="Send"
           >
-            ▶
+            Send
           </button>
         </form>
       </div>

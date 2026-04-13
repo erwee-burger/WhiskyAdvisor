@@ -2,8 +2,9 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { useEffect, useRef, useState } from "react";
 import type { UIMessage } from "ai";
+import { useEffect, useRef, useState } from "react";
+import { ChatMessageContent } from "@/components/chat-message-content";
 
 const DEFAULT_CHIPS = [
   "What should I open tonight?",
@@ -32,15 +33,15 @@ export function AdvisorChat() {
   const enableSearchRef = useRef(false);
 
   const [transport] = useState(() => {
-    const t = new DefaultChatTransport({ api: "/api/advisor/chat" });
-    Object.defineProperty(t, "api", {
+    const transport = new DefaultChatTransport({ api: "/api/advisor/chat" });
+    Object.defineProperty(transport, "api", {
       get: () =>
         enableSearchRef.current
           ? "/api/advisor/chat?search=1"
           : "/api/advisor/chat",
       configurable: true
     });
-    return t;
+    return transport;
   });
 
   function toggleSearch() {
@@ -53,12 +54,10 @@ export function AdvisorChat() {
 
   const isLoading = status === "streaming" || status === "submitted";
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Extract suggestions from last assistant message
   useEffect(() => {
     let lastAssistantMessage: UIMessage | undefined;
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -69,7 +68,7 @@ export function AdvisorChat() {
     }
 
     if (lastAssistantMessage) {
-      const textPart = lastAssistantMessage.parts.find((p) => p.type === "text");
+      const textPart = lastAssistantMessage.parts.find((part) => part.type === "text");
       if (textPart && "text" in textPart) {
         const { suggestions } = extractSuggestions((textPart as { text: string }).text);
         if (suggestions.length) setChips(suggestions);
@@ -83,8 +82,8 @@ export function AdvisorChat() {
     });
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     if (input.trim()) {
       sendMessage({
         parts: [{ type: "text", text: input }]
@@ -96,24 +95,29 @@ export function AdvisorChat() {
   return (
     <div className="advisor-chat stack">
       <div className="advisor-chat__messages">
-        {messages.map((m) => {
-          const textPart = m.parts.find((p) => p.type === "text");
+        {messages.map((message) => {
+          const textPart = message.parts.find((part) => part.type === "text");
           const text = textPart && "text" in textPart ? (textPart as { text: string }).text : "";
           const { text: cleanText } = extractSuggestions(text);
+
           return (
             <div
-              key={m.id}
-              className={`advisor-chat__message advisor-chat__message--${m.role}`}
+              key={message.id}
+              className={`advisor-chat__message advisor-chat__message--${message.role}`}
             >
-              <p>{cleanText}</p>
+              <ChatMessageContent content={cleanText} />
             </div>
           );
         })}
+
         {isLoading && (
           <div className="advisor-chat__message advisor-chat__message--assistant">
-            <p className="advisor-chat__thinking">{enableSearch ? "searching & thinking…" : "thinking…"}</p>
+            <p className="advisor-chat__thinking">
+              {enableSearch ? "searching & thinking..." : "thinking..."}
+            </p>
           </div>
         )}
+
         <div ref={bottomRef} />
       </div>
 
@@ -130,15 +134,12 @@ export function AdvisorChat() {
         ))}
       </div>
 
-      <form
-        className="advisor-chat__input-row"
-        onSubmit={handleSubmit}
-      >
+      <form className="advisor-chat__input-row" onSubmit={handleSubmit}>
         <button
           type="button"
           className={`chat-search-toggle${enableSearch ? " chat-search-toggle--on" : ""}`}
           onClick={toggleSearch}
-          title={enableSearch ? "Web search enabled — click to disable" : "Enable web search"}
+          title={enableSearch ? "Web search enabled - click to disable" : "Enable web search"}
           aria-pressed={enableSearch}
           aria-label="Toggle web search"
         >
@@ -148,21 +149,23 @@ export function AdvisorChat() {
             <path d="M8 11h6M11 8v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         </button>
+
         <input
           className="advisor-chat__input"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask anything about your collection…"
+          onChange={(event) => setInput(event.target.value)}
+          placeholder="Ask anything about your collection..."
           disabled={isLoading}
           autoComplete="off"
         />
+
         <button
           type="submit"
           className="advisor-chat__send"
           disabled={isLoading || !input.trim()}
           aria-label="Send"
         >
-          ▶
+          Send
         </button>
       </form>
     </div>

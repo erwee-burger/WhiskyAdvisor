@@ -1,25 +1,25 @@
-import { streamText, createUIMessageStreamResponse, tool, stepCountIs } from "ai";
-import { openai } from "@ai-sdk/openai";
-import { z } from "zod";
-import type { UIMessage } from "ai";
 import type { ModelMessage } from "@ai-sdk/provider-utils";
+import { openai } from "@ai-sdk/openai";
+import { createUIMessageStreamResponse, stepCountIs, streamText, tool } from "ai";
+import type { UIMessage } from "ai";
+import { z } from "zod";
 import {
-  detectContextTriggers,
-  buildCollectionSummary,
-  buildPalateContextBlock,
-  buildSuggestionsBlock,
-  buildDrinkNowBlock,
-  buildWishlistBlock,
-  buildRatingsBlock,
   buildBottleDetailBlock,
+  buildCollectionSummary,
+  buildDealsContextBlock,
+  buildDrinkNowBlock,
   buildFullBottleContextBlock,
-  buildDealsContextBlock
+  buildPalateContextBlock,
+  buildRatingsBlock,
+  buildSuggestionsBlock,
+  buildWishlistBlock,
+  detectContextTriggers
 } from "@/lib/advisor-context";
-import { getDashboardData, getItemById } from "@/lib/repository";
-import { webSearch } from "@/lib/search";
 import { getServerEnv } from "@/lib/env";
 import { getLatestSuccessfulSnapshot } from "@/lib/news-store";
 import { getNewsPreferences } from "@/lib/news-preferences-store";
+import { getDashboardData, getItemById } from "@/lib/repository";
+import { webSearch } from "@/lib/search";
 
 export const runtime = "nodejs";
 
@@ -33,12 +33,11 @@ export async function POST(req: Request) {
 
   const { OPENAI_MODEL } = getServerEnv();
 
-  // Extract the last user message as the query for context triggering
   let query = "";
   for (let i = uiMessages.length - 1; i >= 0; i--) {
-    const msg = uiMessages[i];
-    if (msg.role === "user" && msg.parts) {
-      const textPart = msg.parts.find((p) => p.type === "text");
+    const message = uiMessages[i];
+    if (message.role === "user" && message.parts) {
+      const textPart = message.parts.find((part) => part.type === "text");
       if (textPart && "text" in textPart) {
         query = (textPart as { text: string }).text;
         break;
@@ -50,7 +49,6 @@ export async function POST(req: Request) {
   const { collection, profile, drinkNow, buyNext } = dashboard;
 
   const triggers = detectContextTriggers(query);
-
   const bottleItem = bottleId ? await getItemById(bottleId) : null;
 
   const contextBlocks: string[] = [
@@ -96,7 +94,7 @@ export async function POST(req: Request) {
         );
       }
     } catch {
-      // Non-fatal: advisor still works without news context
+      // Non-fatal: advisor still works without news context.
     }
   }
 
@@ -110,32 +108,36 @@ export async function POST(req: Request) {
     : "";
 
   const searchNote = enableSearch
-    ? "\n\nWEB SEARCH: You have access to a web search tool. Use it when the user asks about things not covered by the collection context — distillery history, production methods, industry news, comparisons with bottles not in their collection, current pricing, recent releases, etc. Search proactively when it would genuinely improve your answer."
+    ? "\n\nWEB SEARCH: You have access to a web search tool. Use it when the user asks about things not covered by the collection context - distillery history, production methods, industry news, comparisons with bottles not in their collection, current pricing, recent releases, and similar topics. Search proactively when it would genuinely improve your answer."
     : "";
 
   const systemPrompt = `You are a personal whisky advisor for this collection.
 
-PERSONALITY: You are warm, opinionated, and genuinely enthusiastic about whisky. You adapt your tone to match how the user speaks — casual when they are casual, technical when they go deep. Underneath everything, you have strong opinions and aren't afraid to share them.${bottleFocus}${searchNote}
+PERSONALITY: You are warm, opinionated, and genuinely enthusiastic about whisky. You adapt your tone to match how the user speaks - casual when they are casual, technical when they go deep. Underneath everything, you have strong opinions and are happy to share them.${bottleFocus}${searchNote}
 
 ${contextBlocks.join("\n\n")}
 
 RULES:
 - Only advise based on what's in the collection context above
-- If asked about something not in the context, say so honestly${enableSearch ? " — or use web search to find out" : ""}
+- If asked about something not in the context, say so honestly${enableSearch ? " - or use web search to find out" : ""}
 - Never invent tasting notes or ratings the user hasn't written
-- Use bullet points for bottle specs, collection summaries, and factual data — makes it scannable. Keep advice conversational
-- When listing bottle details, format as: **Bottle Name** - Age: **X years** - Cask: **type** - ABV: **X%** - Notes: **summary**
+- Keep answers easy to scan: use short paragraphs, headings, and bullet lists with blank lines between sections
+- When recommending multiple bottles, give each bottle its own markdown section in this shape, with a blank line between bottles:
+### Bottle Name
+- Age: X years
+- Cask: type
+- ABV: X%
+- Why it fits: tie it directly to their palate and collection
+
 - When recommending a bottle, always give a reason tied to their actual palate
 - At the end of each response, suggest 2-3 natural follow-up questions as a JSON block on its own line: {"suggestions": ["...", "...", "..."]}`;
 
-  // Convert UIMessage to the format expected by streamText
-  const messages: ModelMessage[] = uiMessages.map(m => {
-    const content = m.parts
-      ?.map(p => ("text" in p ? (p as { text: string }).text : ""))
-      .join(" ") || "";
+  const messages: ModelMessage[] = uiMessages.map((message) => {
+    const content =
+      message.parts?.map((part) => ("text" in part ? (part as { text: string }).text : "")).join(" ") || "";
 
     return {
-      role: m.role as "user" | "assistant",
+      role: message.role as "user" | "assistant",
       content
     };
   });
@@ -144,10 +146,10 @@ RULES:
     ? {
         searchWeb: tool({
           description:
-            "Search the internet for whisky information — distillery history, tasting notes, production methods, industry news, bottles not in the collection, current pricing, new releases, awards, comparisons, etc.",
+            "Search the internet for whisky information - distillery history, tasting notes, production methods, industry news, bottles not in the collection, current pricing, new releases, awards, comparisons, and similar topics.",
           inputSchema: z.object({
             query: z.string().describe(
-              "Search query. Be specific — include the distillery or bottle name when relevant."
+              "Search query. Be specific - include the distillery or bottle name when relevant."
             )
           }),
           execute: async ({ query }: { query: string }): Promise<string> => {
