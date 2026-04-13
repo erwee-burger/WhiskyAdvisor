@@ -219,12 +219,14 @@ export function CollectionBrowser({ collection }: { collection: CollectionViewIt
                   <button
                     className={`filter-toggle${filters.fillStates.includes(state) ? " active" : ""}`}
                     key={state}
-                    onClick={() => {
-                      const next = filters.fillStates.includes(state)
-                        ? filters.fillStates.filter((s) => s !== state)
-                        : [...filters.fillStates, state];
-                      setFilters((f) => ({ ...f, fillStates: next }));
-                    }}
+                    onClick={() =>
+                      setFilters((f) => {
+                        const next = f.fillStates.includes(state)
+                          ? f.fillStates.filter((s) => s !== state)
+                          : [...f.fillStates, state];
+                        return { ...f, fillStates: next };
+                      })
+                    }
                     type="button"
                   >
                     {state.charAt(0).toUpperCase() + state.slice(1)}
@@ -246,12 +248,14 @@ export function CollectionBrowser({ collection }: { collection: CollectionViewIt
                   <button
                     className={`filter-toggle${filters.abvBuckets.includes(value) ? " active" : ""}`}
                     key={value}
-                    onClick={() => {
-                      const next = filters.abvBuckets.includes(value)
-                        ? filters.abvBuckets.filter((b) => b !== value)
-                        : [...filters.abvBuckets, value];
-                      setFilters((f) => ({ ...f, abvBuckets: next }));
-                    }}
+                    onClick={() =>
+                      setFilters((f) => {
+                        const next = f.abvBuckets.includes(value)
+                          ? f.abvBuckets.filter((b) => b !== value)
+                          : [...f.abvBuckets, value];
+                        return { ...f, abvBuckets: next };
+                      })
+                    }
                     type="button"
                   >
                     {label}
@@ -275,12 +279,14 @@ export function CollectionBrowser({ collection }: { collection: CollectionViewIt
                   <button
                     className={`filter-toggle${filters.ageBuckets.includes(value) ? " active" : ""}`}
                     key={value}
-                    onClick={() => {
-                      const next = filters.ageBuckets.includes(value)
-                        ? filters.ageBuckets.filter((b) => b !== value)
-                        : [...filters.ageBuckets, value];
-                      setFilters((f) => ({ ...f, ageBuckets: next }));
-                    }}
+                    onClick={() =>
+                      setFilters((f) => {
+                        const next = f.ageBuckets.includes(value)
+                          ? f.ageBuckets.filter((b) => b !== value)
+                          : [...f.ageBuckets, value];
+                        return { ...f, ageBuckets: next };
+                      })
+                    }
                     type="button"
                   >
                     {label}
@@ -296,12 +302,14 @@ export function CollectionBrowser({ collection }: { collection: CollectionViewIt
                   <button
                     className={`filter-toggle${filters.ratings.includes(star) ? " active" : ""}`}
                     key={star}
-                    onClick={() => {
-                      const next = filters.ratings.includes(star)
-                        ? filters.ratings.filter((r) => r !== star)
-                        : [...filters.ratings, star];
-                      setFilters((f) => ({ ...f, ratings: next }));
-                    }}
+                    onClick={() =>
+                      setFilters((f) => {
+                        const next = f.ratings.includes(star)
+                          ? f.ratings.filter((r) => r !== star)
+                          : [...f.ratings, star];
+                        return { ...f, ratings: next };
+                      })
+                    }
                     type="button"
                   >
                     {"★".repeat(star)}
