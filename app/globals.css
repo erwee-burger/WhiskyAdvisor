@@ -1277,8 +1277,6 @@ td {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
-  position: relative;
-  z-index: 1;
 }
 
 .filter-chip {
@@ -1378,7 +1376,6 @@ td {
   background: var(--panel);
   backdrop-filter: blur(16px);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
-  overflow: hidden;
 }
 
 .msc-search {
