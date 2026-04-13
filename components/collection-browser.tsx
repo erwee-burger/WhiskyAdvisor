@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { CollectionCard } from "@/components/collection-card";
+import { MultiSelectCombobox } from "@/components/multi-select-combobox";
 import { applyFilters, DEFAULT_FILTERS, filtersFromSearchParams } from "@/lib/collection-filters";
 import type { CollectionFilters } from "@/lib/collection-filters";
 import type { CollectionViewItem } from "@/lib/types";
@@ -138,8 +139,6 @@ export function CollectionBrowser({ collection }: { collection: CollectionViewIt
     return output;
   }, [visible]);
 
-  // Panel and chips UI will be added in Task 4.
-  // For now render the existing toolbar + shelf to verify nothing broke.
   return (
     <section className="shelf-room">
       <div className="shelf-toolbar">
@@ -172,6 +171,208 @@ export function CollectionBrowser({ collection }: { collection: CollectionViewIt
           Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
         </button>
       </div>
+
+      {filterOpen && (
+        <div className="filter-panel">
+          <div className="filter-grid">
+            <MultiSelectCombobox
+              label="Tags"
+              onChange={(v) => setFilters((f) => ({ ...f, tags: v }))}
+              options={allOptions.tags}
+              selected={filters.tags}
+            />
+            <MultiSelectCombobox
+              label="Brand"
+              onChange={(v) => setFilters((f) => ({ ...f, brands: v }))}
+              options={allOptions.brands}
+              selected={filters.brands}
+            />
+            <MultiSelectCombobox
+              label="Distillery"
+              onChange={(v) => setFilters((f) => ({ ...f, distilleries: v }))}
+              options={allOptions.distilleries}
+              selected={filters.distilleries}
+            />
+            <MultiSelectCombobox
+              label="Bottler"
+              onChange={(v) => setFilters((f) => ({ ...f, bottlers: v }))}
+              options={allOptions.bottlers}
+              selected={filters.bottlers}
+            />
+            <MultiSelectCombobox
+              label="Country"
+              onChange={(v) => setFilters((f) => ({ ...f, countries: v }))}
+              options={allOptions.countries}
+              selected={filters.countries}
+            />
+            <MultiSelectCombobox
+              label="Purchase Source"
+              onChange={(v) => setFilters((f) => ({ ...f, purchaseSources: v }))}
+              options={allOptions.purchaseSources}
+              selected={filters.purchaseSources}
+            />
+
+            <div className="filter-field">
+              <label className="filter-field-label">Bottle State</label>
+              <div className="filter-toggles">
+                {(["sealed", "open", "finished"] as const).map((state) => (
+                  <button
+                    className={`filter-toggle${filters.fillStates.includes(state) ? " active" : ""}`}
+                    key={state}
+                    onClick={() => {
+                      const next = filters.fillStates.includes(state)
+                        ? filters.fillStates.filter((s) => s !== state)
+                        : [...filters.fillStates, state];
+                      setFilters((f) => ({ ...f, fillStates: next }));
+                    }}
+                    type="button"
+                  >
+                    {state.charAt(0).toUpperCase() + state.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="filter-field">
+              <label className="filter-field-label">ABV</label>
+              <div className="filter-toggles">
+                {(
+                  [
+                    { value: "under-46", label: "< 46%" },
+                    { value: "46-55", label: "46–55%" },
+                    { value: "55-plus", label: "55%+" }
+                  ] as const
+                ).map(({ value, label }) => (
+                  <button
+                    className={`filter-toggle${filters.abvBuckets.includes(value) ? " active" : ""}`}
+                    key={value}
+                    onClick={() => {
+                      const next = filters.abvBuckets.includes(value)
+                        ? filters.abvBuckets.filter((b) => b !== value)
+                        : [...filters.abvBuckets, value];
+                      setFilters((f) => ({ ...f, abvBuckets: next }));
+                    }}
+                    type="button"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="filter-field">
+              <label className="filter-field-label">Age</label>
+              <div className="filter-toggles">
+                {(
+                  [
+                    { value: "nas", label: "NAS" },
+                    { value: "under-12", label: "< 12yo" },
+                    { value: "12-18", label: "12–18yo" },
+                    { value: "18-25", label: "18–25yo" },
+                    { value: "25-plus", label: "25yo+" }
+                  ] as const
+                ).map(({ value, label }) => (
+                  <button
+                    className={`filter-toggle${filters.ageBuckets.includes(value) ? " active" : ""}`}
+                    key={value}
+                    onClick={() => {
+                      const next = filters.ageBuckets.includes(value)
+                        ? filters.ageBuckets.filter((b) => b !== value)
+                        : [...filters.ageBuckets, value];
+                      setFilters((f) => ({ ...f, ageBuckets: next }));
+                    }}
+                    type="button"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="filter-field">
+              <label className="filter-field-label">Rating</label>
+              <div className="filter-toggles">
+                {([1, 2, 3] as const).map((star) => (
+                  <button
+                    className={`filter-toggle${filters.ratings.includes(star) ? " active" : ""}`}
+                    key={star}
+                    onClick={() => {
+                      const next = filters.ratings.includes(star)
+                        ? filters.ratings.filter((r) => r !== star)
+                        : [...filters.ratings, star];
+                      setFilters((f) => ({ ...f, ratings: next }));
+                    }}
+                    type="button"
+                  >
+                    {"★".repeat(star)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="filter-field">
+              <label className="filter-field-label">Favourite</label>
+              <div className="filter-toggles">
+                <button
+                  className={`filter-toggle${filters.favoritesOnly ? " active" : ""}`}
+                  onClick={() => setFilters((f) => ({ ...f, favoritesOnly: !f.favoritesOnly }))}
+                  type="button"
+                >
+                  ♥ Favourites only
+                </button>
+              </div>
+            </div>
+
+            <div className="filter-field">
+              <label className="filter-field-label">Purchase Price (ZAR)</label>
+              <div className="filter-price">
+                <input
+                  min={0}
+                  onChange={(e) =>
+                    setFilters((f) => ({
+                      ...f,
+                      priceMin: e.target.value ? Number(e.target.value) : undefined
+                    }))
+                  }
+                  placeholder="Min"
+                  type="number"
+                  value={filters.priceMin ?? ""}
+                />
+                <span className="filter-price-sep">–</span>
+                <input
+                  min={0}
+                  onChange={(e) =>
+                    setFilters((f) => ({
+                      ...f,
+                      priceMax: e.target.value ? Number(e.target.value) : undefined
+                    }))
+                  }
+                  placeholder="Max"
+                  type="number"
+                  value={filters.priceMax ?? ""}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeChips.length > 0 && (
+        <div className="filter-chips">
+          {activeChips.map((chip) => (
+            <button className="filter-chip" key={chip.key} onClick={chip.onRemove} type="button">
+              {chip.label} ×
+            </button>
+          ))}
+          <button
+            className="filter-chip filter-chip-clear"
+            onClick={() => setFilters(DEFAULT_FILTERS)}
+            type="button"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
 
       <div className="shelf-caption">
         <p>{visible.length} bottles on the shelf right now.</p>
