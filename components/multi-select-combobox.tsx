@@ -58,6 +58,7 @@ export function MultiSelectCombobox({
       <label className="msc-label">{label}</label>
       <button
         aria-expanded={open}
+        aria-label={`Filter by ${label}`}
         className={`msc-trigger${selected.length > 0 ? " msc-trigger-active" : ""}`}
         onClick={() => setOpen((prev) => !prev)}
         type="button"
