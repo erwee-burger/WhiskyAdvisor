@@ -1,4 +1,4 @@
-import type { CollectionViewItem } from "@/lib/types";
+import type { CollectionItem, CollectionViewItem, FillState } from "@/lib/types";
 
 export interface CollectionFilters {
   tags: string[];
@@ -7,7 +7,7 @@ export interface CollectionFilters {
   bottlers: string[];
   countries: string[];
   purchaseSources: string[];
-  fillStates: string[];
+  fillStates: Array<CollectionItem["fillState"]>;
   abvBuckets: string[];
   ageBuckets: string[];
   priceMin?: number;
@@ -69,6 +69,10 @@ function ageBucketMatches(ageStatement: number | undefined, nasTag: boolean, buc
     if (bucket === "25-plus") return ageStatement !== undefined && ageStatement > 25;
     return false;
   });
+}
+
+function isValidFillState(value: string): value is FillState {
+  return value === "sealed" || value === "open" || value === "finished";
 }
 
 export function applyFilters(
@@ -134,7 +138,7 @@ export function filtersFromSearchParams(params: URLSearchParams): CollectionFilt
   const tags = params.getAll("tag");
   if (tags.length > 0) filters.tags = tags;
 
-  const fillStates = params.getAll("fillState");
+  const fillStates = params.getAll("fillState").filter(isValidFillState);
   if (fillStates.length > 0) filters.fillStates = fillStates;
 
   const ratings = params
@@ -152,10 +156,12 @@ export function filtersFromSearchParams(params: URLSearchParams): CollectionFilt
   if (age.length > 0) filters.ageBuckets = age;
 
   const priceMin = params.get("priceMin");
-  if (priceMin !== null) filters.priceMin = Number(priceMin);
+  const priceMinNum = Number(priceMin);
+  if (priceMin !== null && !isNaN(priceMinNum)) filters.priceMin = priceMinNum;
 
   const priceMax = params.get("priceMax");
-  if (priceMax !== null) filters.priceMax = Number(priceMax);
+  const priceMaxNum = Number(priceMax);
+  if (priceMax !== null && !isNaN(priceMaxNum)) filters.priceMax = priceMaxNum;
 
   return filters;
 }

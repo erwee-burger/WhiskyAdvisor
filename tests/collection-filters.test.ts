@@ -61,6 +61,10 @@ describe("hasActiveFilters", () => {
   it("returns true when priceMin is set", () => {
     expect(hasActiveFilters({ ...DEFAULT_FILTERS, priceMin: 500 })).toBe(true);
   });
+
+  it("returns true when priceMax is set", () => {
+    expect(hasActiveFilters({ ...DEFAULT_FILTERS, priceMax: 2000 })).toBe(true);
+  });
 });
 
 describe("applyFilters — combobox filters", () => {
