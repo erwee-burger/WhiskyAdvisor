@@ -28,7 +28,7 @@ export default async function CollectionPage({
           Bottle deleted from your collection.
         </div>
       ) : null}
-      <Suspense fallback={<div className="loading-state">Loading collection…</div>}>
+      <Suspense fallback={<span className="loading-spinner" aria-hidden="true" />}>
         <CollectionBrowser collection={collection} />
       </Suspense>
     </div>
