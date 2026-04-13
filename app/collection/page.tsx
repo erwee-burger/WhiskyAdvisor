@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { CollectionBrowser } from "@/components/collection-browser";
 import { getCollectionView } from "@/lib/repository";
 
@@ -26,7 +28,9 @@ export default async function CollectionPage({
           Bottle deleted from your collection.
         </div>
       ) : null}
-      <CollectionBrowser collection={collection} />
+      <Suspense fallback={<div className="loading-state">Loading collection…</div>}>
+        <CollectionBrowser collection={collection} />
+      </Suspense>
     </div>
   );
 }
