@@ -1150,7 +1150,7 @@ td {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
+  grid-template-columns: minmax(0, 1fr) 220px auto;
   gap: 16px;
   align-items: end;
 }
@@ -1158,6 +1158,292 @@ td {
 .shelf-search input,
 .shelf-filter select {
   background: rgba(8, 5, 4, 0.76);
+}
+
+/* ── Filter toggle button (toolbar) ───────────────────────────────────────── */
+.filter-toggle-btn {
+  height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(8, 5, 4, 0.76);
+  color: var(--muted);
+  font-size: 0.9rem;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.filter-toggle-btn:hover {
+  border-color: rgba(231, 191, 116, 0.35);
+  color: var(--text);
+}
+
+.filter-toggle-btn-active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Filter panel ─────────────────────────────────────────────────────────── */
+.filter-panel {
+  position: relative;
+  z-index: 2;
+  margin-top: 12px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-soft);
+  backdrop-filter: blur(12px);
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* ── Filter field (toggle groups + price) ─────────────────────────────────── */
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-field-label {
+  font-size: 0.8rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.filter-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.filter-toggle {
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.filter-toggle:hover {
+  border-color: rgba(231, 191, 116, 0.35);
+  color: var(--text);
+}
+
+.filter-toggle.active {
+  border-color: var(--accent);
+  background: rgba(212, 157, 69, 0.14);
+  color: var(--accent);
+}
+
+.filter-price {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-price input {
+  width: 80px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(8, 5, 4, 0.76);
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.filter-price input:focus {
+  outline: none;
+  border-color: rgba(231, 191, 116, 0.4);
+}
+
+.filter-price-sep {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* ── Active filter chips ──────────────────────────────────────────────────── */
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border: 1px solid rgba(212, 157, 69, 0.4);
+  border-radius: 999px;
+  background: rgba(212, 157, 69, 0.1);
+  color: var(--accent);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.filter-chip:hover {
+  background: rgba(212, 157, 69, 0.2);
+  border-color: var(--accent);
+}
+
+.filter-chip-clear {
+  border-color: rgba(213, 198, 173, 0.3);
+  background: transparent;
+  color: var(--muted);
+}
+
+.filter-chip-clear:hover {
+  color: var(--text);
+  border-color: var(--muted);
+  background: transparent;
+}
+
+/* ── MultiSelectCombobox ──────────────────────────────────────────────────── */
+.msc-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.msc-label {
+  font-size: 0.8rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.msc-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(8, 5, 4, 0.76);
+  color: var(--muted);
+  font-size: 0.88rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.msc-trigger:hover {
+  border-color: rgba(231, 191, 116, 0.35);
+  color: var(--text);
+}
+
+.msc-trigger-active {
+  border-color: rgba(212, 157, 69, 0.5);
+  color: var(--text);
+}
+
+.msc-value {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.msc-arrow {
+  font-size: 0.65rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.msc-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.msc-search {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.msc-search:focus {
+  outline: none;
+}
+
+.msc-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.msc-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  color: var(--text-dark);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.msc-option:hover {
+  background: rgba(212, 157, 69, 0.08);
+  color: var(--text);
+}
+
+.msc-option input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.msc-empty {
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* ── Responsive: filter grid ──────────────────────────────────────────────── */
+@media (max-width: 1080px) {
+  .filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .shelf-caption {
@@ -1370,12 +1656,20 @@ td {
   margin: 0;
   font-size: 1rem;
   line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .shelf-bottle-copy p {
   margin: 0;
   color: rgba(248, 238, 223, 0.62);
   font-size: 0.84rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .shelf-popup {
