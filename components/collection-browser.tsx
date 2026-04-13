@@ -94,7 +94,7 @@ export function CollectionBrowser({ collection }: { collection: CollectionViewIt
       chips.push({ key: `fill:${v}`, label: v, onRemove: () => setFilters((f) => ({ ...f, fillStates: f.fillStates.filter((x) => x !== v) })) });
     }
     for (const v of filters.abvBuckets) {
-      const label = v === "under-46" ? "< 46%" : v === "46-55" ? "46–55%" : "55%+";
+      const label = v === "under-46" ? "< 46%" : v === "46-55" ? "46–55%" : v === "55-plus" ? "55%+" : v;
       chips.push({ key: `abv:${v}`, label, onRemove: () => setFilters((f) => ({ ...f, abvBuckets: f.abvBuckets.filter((x) => x !== v) })) });
     }
     for (const v of filters.ageBuckets) {
