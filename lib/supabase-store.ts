@@ -1,5 +1,6 @@
 // lib/supabase-store.ts
 import { createClient } from "@supabase/supabase-js";
+
 import type { WhiskyStore } from "@/lib/types";
 
 type SupabaseRow = Record<string, unknown>;
@@ -34,6 +35,14 @@ function toNumber(value: unknown) {
   return Number.isNaN(n) ? undefined : n;
 }
 
+function toStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((entry): entry is string => typeof entry === "string");
+}
+
 function quoteIds(ids: string[]) {
   return ids.map((id) => `"${id.replaceAll('"', '\\"')}"`).join(",");
 }
@@ -50,6 +59,16 @@ async function deleteRowsNotInIds(
   if (response.error) throw response.error;
 }
 
+function buildGroupMemberRows(store: WhiskyStore) {
+  return (store.tastingGroups ?? []).flatMap((group) =>
+    group.memberPersonIds.map((personId) => ({
+      id: `grp_member_${group.id}_${personId}`,
+      group_id: group.id,
+      person_id: personId
+    }))
+  );
+}
+
 /**
  * Checks if Supabase environment variables are configured.
  * @returns true if both SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set
@@ -60,7 +79,7 @@ export function isSupabaseStoreEnabled() {
 
 /**
  * Reads the complete whisky store from Supabase.
- * Fetches data from all 5 tables and transforms to WhiskyStore format.
+ * Fetches data from all store tables and transforms to WhiskyStore format.
  * @returns Complete store with expressions, collection items, tastings, images, and drafts
  * @throws Error if Supabase is not configured or read operations fail
  */
@@ -68,15 +87,60 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
   const supabase = getSupabaseClient() as SupabaseClientLike | null;
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const [expressionsRes, itemsRes, imagesRes, draftsRes] = await Promise.all([
+  const [
+    expressionsRes,
+    itemsRes,
+    imagesRes,
+    draftsRes,
+    tastingPeopleRes,
+    tastingGroupsRes,
+    tastingGroupMembersRes,
+    tastingPlacesRes,
+    tastingSessionsRes,
+    tastingSessionAttendeesRes,
+    tastingSessionBottlesRes
+  ] = await Promise.all([
     supabase.from("expressions").select("*"),
     supabase.from("collection_items").select("*"),
     supabase.from("item_images").select("*"),
-    supabase.from("intake_drafts").select("*")
+    supabase.from("intake_drafts").select("*"),
+    supabase.from("tasting_people").select("*"),
+    supabase.from("tasting_groups").select("*"),
+    supabase.from("tasting_group_members").select("*"),
+    supabase.from("tasting_places").select("*"),
+    supabase.from("tasting_sessions").select("*"),
+    supabase.from("tasting_session_attendees").select("*"),
+    supabase.from("tasting_session_bottles").select("*")
   ]);
 
-  for (const res of [expressionsRes, itemsRes, imagesRes, draftsRes]) {
+  for (const res of [
+    expressionsRes,
+    itemsRes,
+    imagesRes,
+    draftsRes,
+    tastingPeopleRes,
+    tastingGroupsRes,
+    tastingGroupMembersRes,
+    tastingPlacesRes,
+    tastingSessionsRes,
+    tastingSessionAttendeesRes,
+    tastingSessionBottlesRes
+  ]) {
     if (res.error) throw res.error;
+  }
+
+  const groupMembersByGroupId = new Map<string, string[]>();
+  for (const row of (tastingGroupMembersRes.data ?? []) as SupabaseRow[]) {
+    const groupId = typeof row.group_id === "string" ? row.group_id : null;
+    const personId = typeof row.person_id === "string" ? row.person_id : null;
+
+    if (!groupId || !personId) {
+      continue;
+    }
+
+    const existing = groupMembersByGroupId.get(groupId) ?? [];
+    existing.push(personId);
+    groupMembersByGroupId.set(groupId, existing);
   }
 
   return {
@@ -92,7 +156,9 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
       barcode: typeof row.barcode === "string" ? row.barcode : undefined,
       description: typeof row.description === "string" ? row.description : undefined,
       imageUrl: typeof row.image_url === "string" ? row.image_url : undefined,
-      tags: Array.isArray(row.tags) ? row.tags.filter((tag): tag is string => typeof tag === "string") : []
+      tags: Array.isArray(row.tags)
+        ? row.tags.filter((tag): tag is string => typeof tag === "string")
+        : []
     })),
     collectionItems: ((itemsRes.data ?? []) as SupabaseRow[]).map((row) => ({
       id: String(row.id),
@@ -101,11 +167,12 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
       fillState:
         row.fill_state === "open" || row.fill_state === "finished" ? row.fill_state : "sealed",
       purchasePrice: toNumber(row.purchase_price),
-      purchaseCurrency: typeof row.purchase_currency === "string" ? row.purchase_currency : undefined,
+      purchaseCurrency:
+        typeof row.purchase_currency === "string" ? row.purchase_currency : undefined,
       purchaseDate: typeof row.purchase_date === "string" ? row.purchase_date : undefined,
       purchaseSource: typeof row.purchase_source === "string" ? row.purchase_source : undefined,
       personalNotes: typeof row.personal_notes === "string" ? row.personal_notes : undefined,
-      rating: (row.rating === 1 || row.rating === 2 || row.rating === 3) ? row.rating : undefined,
+      rating: row.rating === 1 || row.rating === 2 || row.rating === 3 ? row.rating : undefined,
       isFavorite: row.is_favorite === true,
       createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
       updatedAt: typeof row.updated_at === "string" ? row.updated_at : new Date().toISOString()
@@ -117,10 +184,70 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
       url: String(row.url ?? ""),
       label: typeof row.label === "string" ? row.label : undefined
     })),
+    tastingEntries: [],
+    tastingPeople: ((tastingPeopleRes.data ?? []) as SupabaseRow[]).map((row) => ({
+      id: String(row.id),
+      name: String(row.name ?? "Unknown person"),
+      relationshipType:
+        row.relationship_type === "friend" ||
+        row.relationship_type === "family" ||
+        row.relationship_type === "colleague"
+          ? row.relationship_type
+          : "other",
+      preferenceTags: [...new Set(toStringArray(row.preference_tags))],
+      notes: typeof row.notes === "string" ? row.notes : undefined,
+      createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
+      updatedAt: typeof row.updated_at === "string" ? row.updated_at : new Date().toISOString()
+    })),
+    tastingGroups: ((tastingGroupsRes.data ?? []) as SupabaseRow[]).map((row) => ({
+      id: String(row.id),
+      name: String(row.name ?? "Unnamed group"),
+      notes: typeof row.notes === "string" ? row.notes : undefined,
+      memberPersonIds: [...new Set(groupMembersByGroupId.get(String(row.id)) ?? [])],
+      createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
+      updatedAt: typeof row.updated_at === "string" ? row.updated_at : new Date().toISOString()
+    })),
+    tastingPlaces: ((tastingPlacesRes.data ?? []) as SupabaseRow[]).map((row) => ({
+      id: String(row.id),
+      name: String(row.name ?? "Unnamed place"),
+      notes: typeof row.notes === "string" ? row.notes : undefined,
+      createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
+      updatedAt: typeof row.updated_at === "string" ? row.updated_at : new Date().toISOString()
+    })),
+    tastingSessions: ((tastingSessionsRes.data ?? []) as SupabaseRow[]).map((row) => ({
+      id: String(row.id),
+      title: typeof row.title === "string" ? row.title : undefined,
+      occasionType:
+        row.occasion_type === "visit" || row.occasion_type === "whisky_friday"
+          ? row.occasion_type
+          : "other",
+      sessionDate:
+        typeof row.session_date === "string" ? row.session_date : new Date().toISOString(),
+      placeId: typeof row.place_id === "string" ? row.place_id : undefined,
+      groupId: typeof row.group_id === "string" ? row.group_id : undefined,
+      notes: typeof row.notes === "string" ? row.notes : undefined,
+      createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
+      updatedAt: typeof row.updated_at === "string" ? row.updated_at : new Date().toISOString()
+    })),
+    tastingSessionAttendees: ((tastingSessionAttendeesRes.data ?? []) as SupabaseRow[]).map(
+      (row) => ({
+        id: String(row.id),
+        sessionId: String(row.session_id),
+        personId: String(row.person_id)
+      })
+    ),
+    tastingSessionBottles: ((tastingSessionBottlesRes.data ?? []) as SupabaseRow[]).map((row) => ({
+      id: String(row.id),
+      sessionId: String(row.session_id),
+      collectionItemId: String(row.collection_item_id)
+    })),
     drafts: ((draftsRes.data ?? []) as SupabaseRow[]).map((row) => ({
       id: String(row.id),
       collectionItemId: String(row.collection_item_id),
-      source: row.source === "barcode" || row.source === "hybrid" ? row.source : "photo",
+      source:
+        row.source === "barcode" || row.source === "hybrid" || row.source === "search"
+          ? row.source
+          : "photo",
       barcode: typeof row.barcode === "string" ? row.barcode : undefined,
       rawAiResponse:
         row.raw_ai_response && typeof row.raw_ai_response === "object"
@@ -140,7 +267,7 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
 
 /**
  * Writes the complete whisky store to Supabase.
- * Upserts all 5 tables and deletes any rows not in the current store.
+ * Upserts all store tables and deletes any rows not in the current store.
  * @param store - The WhiskyStore to persist
  * @throws Error if Supabase is not configured or write operations fail
  * @note Not transactional - if a write fails partway through, database may be in inconsistent state
@@ -150,19 +277,19 @@ export async function writeStoreToSupabase(store: WhiskyStore) {
   if (!supabase) throw new Error("Supabase is not configured.");
 
   const expressionsUpsert = await supabase.from("expressions").upsert(
-    store.expressions.map((e) => ({
-      id: e.id,
-      name: e.name,
-      distillery_name: e.distilleryName ?? null,
-      bottler_name: e.bottlerName ?? null,
-      brand: e.brand ?? null,
-      country: e.country ?? null,
-      abv: e.abv ?? null,
-      age_statement: e.ageStatement ?? null,
-      barcode: e.barcode ?? null,
-      description: e.description ?? null,
-      image_url: e.imageUrl ?? null,
-      tags: e.tags
+    store.expressions.map((expression) => ({
+      id: expression.id,
+      name: expression.name,
+      distillery_name: expression.distilleryName ?? null,
+      bottler_name: expression.bottlerName ?? null,
+      brand: expression.brand ?? null,
+      country: expression.country ?? null,
+      abv: expression.abv ?? null,
+      age_statement: expression.ageStatement ?? null,
+      barcode: expression.barcode ?? null,
+      description: expression.description ?? null,
+      image_url: expression.imageUrl ?? null,
+      tags: expression.tags
     })),
     { onConflict: "id" }
   );
@@ -201,21 +328,137 @@ export async function writeStoreToSupabase(store: WhiskyStore) {
   if (imagesUpsert.error) throw imagesUpsert.error;
 
   const draftsUpsert = await supabase.from("intake_drafts").upsert(
-    store.drafts.map((d) => ({
-      id: d.id,
-      collection_item_id: d.collectionItemId,
-      source: d.source,
-      barcode: d.barcode ?? null,
-      raw_ai_response: d.rawAiResponse ?? null,
-      expression: d.expression ?? { name: "Unknown", tags: [] },
-      collection: d.collection ?? {}
+    store.drafts.map((draft) => ({
+      id: draft.id,
+      collection_item_id: draft.collectionItemId,
+      source: draft.source,
+      barcode: draft.barcode ?? null,
+      raw_ai_response: draft.rawAiResponse ?? null,
+      expression: draft.expression ?? { name: "Unknown", tags: [] },
+      collection: draft.collection ?? {}
     })),
     { onConflict: "id" }
   );
   if (draftsUpsert.error) throw draftsUpsert.error;
 
-  await deleteRowsNotInIds(supabase, "intake_drafts", store.drafts.map((d) => d.id));
+  const tastingPeopleUpsert = await supabase.from("tasting_people").upsert(
+    (store.tastingPeople ?? []).map((person) => ({
+      id: person.id,
+      name: person.name,
+      relationship_type: person.relationshipType,
+      preference_tags: person.preferenceTags,
+      notes: person.notes ?? null,
+      created_at: person.createdAt,
+      updated_at: person.updatedAt
+    })),
+    { onConflict: "id" }
+  );
+  if (tastingPeopleUpsert.error) throw tastingPeopleUpsert.error;
+
+  const tastingGroupsUpsert = await supabase.from("tasting_groups").upsert(
+    (store.tastingGroups ?? []).map((group) => ({
+      id: group.id,
+      name: group.name,
+      notes: group.notes ?? null,
+      created_at: group.createdAt,
+      updated_at: group.updatedAt
+    })),
+    { onConflict: "id" }
+  );
+  if (tastingGroupsUpsert.error) throw tastingGroupsUpsert.error;
+
+  const groupMemberRows = buildGroupMemberRows(store);
+  const tastingGroupMembersUpsert = await supabase.from("tasting_group_members").upsert(
+    groupMemberRows,
+    { onConflict: "id" }
+  );
+  if (tastingGroupMembersUpsert.error) throw tastingGroupMembersUpsert.error;
+
+  const tastingPlacesUpsert = await supabase.from("tasting_places").upsert(
+    (store.tastingPlaces ?? []).map((place) => ({
+      id: place.id,
+      name: place.name,
+      notes: place.notes ?? null,
+      created_at: place.createdAt,
+      updated_at: place.updatedAt
+    })),
+    { onConflict: "id" }
+  );
+  if (tastingPlacesUpsert.error) throw tastingPlacesUpsert.error;
+
+  const tastingSessionsUpsert = await supabase.from("tasting_sessions").upsert(
+    (store.tastingSessions ?? []).map((session) => ({
+      id: session.id,
+      title: session.title ?? null,
+      occasion_type: session.occasionType,
+      session_date: session.sessionDate,
+      place_id: session.placeId ?? null,
+      group_id: session.groupId ?? null,
+      notes: session.notes ?? null,
+      created_at: session.createdAt,
+      updated_at: session.updatedAt
+    })),
+    { onConflict: "id" }
+  );
+  if (tastingSessionsUpsert.error) throw tastingSessionsUpsert.error;
+
+  const tastingSessionAttendeesUpsert = await supabase.from("tasting_session_attendees").upsert(
+    (store.tastingSessionAttendees ?? []).map((attendee) => ({
+      id: attendee.id,
+      session_id: attendee.sessionId,
+      person_id: attendee.personId
+    })),
+    { onConflict: "id" }
+  );
+  if (tastingSessionAttendeesUpsert.error) throw tastingSessionAttendeesUpsert.error;
+
+  const tastingSessionBottlesUpsert = await supabase.from("tasting_session_bottles").upsert(
+    (store.tastingSessionBottles ?? []).map((bottle) => ({
+      id: bottle.id,
+      session_id: bottle.sessionId,
+      collection_item_id: bottle.collectionItemId
+    })),
+    { onConflict: "id" }
+  );
+  if (tastingSessionBottlesUpsert.error) throw tastingSessionBottlesUpsert.error;
+
+  await deleteRowsNotInIds(
+    supabase,
+    "tasting_session_bottles",
+    (store.tastingSessionBottles ?? []).map((entry) => entry.id)
+  );
+  await deleteRowsNotInIds(
+    supabase,
+    "tasting_session_attendees",
+    (store.tastingSessionAttendees ?? []).map((entry) => entry.id)
+  );
+  await deleteRowsNotInIds(
+    supabase,
+    "tasting_sessions",
+    (store.tastingSessions ?? []).map((entry) => entry.id)
+  );
+  await deleteRowsNotInIds(supabase, "tasting_group_members", groupMemberRows.map((entry) => entry.id));
+  await deleteRowsNotInIds(
+    supabase,
+    "tasting_places",
+    (store.tastingPlaces ?? []).map((entry) => entry.id)
+  );
+  await deleteRowsNotInIds(
+    supabase,
+    "tasting_groups",
+    (store.tastingGroups ?? []).map((entry) => entry.id)
+  );
+  await deleteRowsNotInIds(
+    supabase,
+    "tasting_people",
+    (store.tastingPeople ?? []).map((entry) => entry.id)
+  );
+  await deleteRowsNotInIds(supabase, "intake_drafts", store.drafts.map((draft) => draft.id));
   await deleteRowsNotInIds(supabase, "item_images", store.itemImages.map((img) => img.id));
-  await deleteRowsNotInIds(supabase, "collection_items", store.collectionItems.map((item) => item.id));
-  await deleteRowsNotInIds(supabase, "expressions", store.expressions.map((e) => e.id));
+  await deleteRowsNotInIds(
+    supabase,
+    "collection_items",
+    store.collectionItems.map((item) => item.id)
+  );
+  await deleteRowsNotInIds(supabase, "expressions", store.expressions.map((expression) => expression.id));
 }

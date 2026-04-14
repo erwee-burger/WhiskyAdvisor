@@ -1,4 +1,11 @@
-import type { CollectionViewItem, PalateProfile, AdvisorSuggestion, NewsFeedItem, NewsBudgetPreferences } from "@/lib/types";
+import type {
+  AdvisorSuggestion,
+  CollectionViewItem,
+  NewsBudgetPreferences,
+  NewsFeedItem,
+  PalateProfile,
+  TastingSessionView
+} from "@/lib/types";
 import { buildCollectionAnalytics } from "@/lib/analytics";
 
 export interface ContextTriggers {
@@ -6,6 +13,7 @@ export interface ContextTriggers {
   wishlist: boolean;
   analytics: boolean;
   tastings: boolean;
+  socialPlanning: boolean;
   deals: boolean;
   bottleName: string | null;
 }
@@ -17,6 +25,10 @@ export function detectContextTriggers(query: string): ContextTriggers {
   const wishlist = /buy next|next purchase|wishlist|should i get|worth (it|buying)/.test(q);
   const analytics = /how many|collection stats|analytics|how much|total|count/.test(q);
   const tastings = /my notes|tasting notes|rating|rated|my review|favorites|favourites/.test(q);
+  const socialPlanning =
+    /\btake\b|\bbring\b|\bvisit\b|going to|friday|whisky friday|whisky club|with my friends|with my family|with colleagues|with my colleague/.test(
+      q
+    );
   const deals = /special|deal|discount|on sale|new release|just arrived|what.s new/.test(q);
 
   // Extract a bottle name if the query mentions one — grab text after keywords like "my" or "about"
@@ -34,7 +46,7 @@ export function detectContextTriggers(query: string): ContextTriggers {
     bottleName = match3[1].trim();
   }
 
-  return { drinkNow, wishlist, analytics, tastings, deals, bottleName };
+  return { drinkNow, wishlist, analytics, tastings, socialPlanning, deals, bottleName };
 }
 
 export function buildCollectionSummary(items: CollectionViewItem[]): string {
@@ -199,5 +211,76 @@ export function buildDealsContextBlock(
     ...top5Specials,
     "New arrivals:",
     ...top5Arrivals
+  ].join("\n");
+}
+
+export function buildRecentTastingSessionsBlock(sessions: TastingSessionView[]): string {
+  if (sessions.length === 0) {
+    return "RECENT SOCIAL SESSIONS:\n  - No tasting sessions logged yet.";
+  }
+
+  const lines = sessions.slice(0, 6).map((view) => {
+    const attendees = view.attendees.map((entry) => entry.name).join(", ") || "solo";
+    const bottles = view.bottles.map((entry) => entry.expression.name).join(", ") || "no bottles";
+    const context = [view.group?.name, view.place?.name].filter(Boolean).join(" / ");
+    const contextSuffix = context ? ` at ${context}` : "";
+
+    return `  - ${view.session.sessionDate}: ${bottles} with ${attendees}${contextSuffix}`;
+  });
+
+  return ["RECENT SOCIAL SESSIONS:", ...lines].join("\n");
+}
+
+export function buildNeglectedSharedBottlesBlock(items: CollectionViewItem[]): string {
+  if (items.length === 0) {
+    return "NEGLECTED SHAREABLE BOTTLES:\n  - None available.";
+  }
+
+  return [
+    "NEGLECTED SHAREABLE BOTTLES:",
+    ...items.slice(0, 6).map((item) => `  - ${item.expression.name} [${item.item.fillState}]`)
+  ].join("\n");
+}
+
+export function buildNamedTargetHistoryBlock(history: {
+  people: Array<{ name: string; preferenceTags: string[] }>;
+  groups: Array<{ name: string }>;
+  places: Array<{ name: string }>;
+  preferenceTags: string[];
+  recentSessions: TastingSessionView[];
+  recentBottles: CollectionViewItem[];
+  neverTastedBottles: CollectionViewItem[];
+}) {
+  const labels = [
+    ...history.people.map((entry) => entry.name),
+    ...history.groups.map((entry) => entry.name),
+    ...history.places.map((entry) => entry.name)
+  ];
+  const recentBottleNames = history.recentBottles
+    .slice(0, 6)
+    .map((entry) => entry.expression.name)
+    .join(", ");
+  const neverTastedNames = history.neverTastedBottles
+    .slice(0, 6)
+    .map((entry) => entry.expression.name)
+    .join(", ");
+  const recentSessionLines = history.recentSessions.slice(0, 4).map((view) => {
+    const bottles = view.bottles.map((entry) => entry.expression.name).join(", ") || "no bottles";
+    return `  - ${view.session.sessionDate}: ${bottles}`;
+  });
+
+  return [
+    `NAMED SOCIAL TARGETS: ${labels.join(", ") || "none"}`,
+    history.preferenceTags.length > 0
+      ? `Preference tags: ${history.preferenceTags.join(", ")}`
+      : "Preference tags: none saved",
+    recentBottleNames
+      ? `Recently shared with them: ${recentBottleNames}`
+      : "Recently shared with them: nothing logged yet",
+    neverTastedNames
+      ? `Owned bottles they have not had yet: ${neverTastedNames}`
+      : "Owned bottles they have not had yet: none obvious",
+    "Recent target sessions:",
+    ...recentSessionLines
   ].join("\n");
 }

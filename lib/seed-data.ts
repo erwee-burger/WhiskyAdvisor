@@ -216,5 +216,11 @@ export const seedStore: WhiskyStore & { tastingEntries: TastingEntry[] } = {
     }
   ],
   tastingEntries: [],
+  tastingPeople: [],
+  tastingGroups: [],
+  tastingPlaces: [],
+  tastingSessions: [],
+  tastingSessionAttendees: [],
+  tastingSessionBottles: [],
   drafts: []
 };

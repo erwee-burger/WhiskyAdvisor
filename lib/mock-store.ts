@@ -7,7 +7,18 @@ import {
   readStoreFromSupabase,
   writeStoreToSupabase
 } from "@/lib/supabase-store";
-import type { CollectionItem, Expression, IntakeDraft, WhiskyStore } from "@/lib/types";
+import type {
+  CollectionItem,
+  Expression,
+  IntakeDraft,
+  TastingGroup,
+  TastingPerson,
+  TastingPlace,
+  TastingSession,
+  TastingSessionAttendee,
+  TastingSessionBottle,
+  WhiskyStore
+} from "@/lib/types";
 
 function toRating(value: unknown): 1 | 2 | 3 | undefined {
   const n = Number(value);
@@ -113,6 +124,107 @@ function toNumber(value: unknown) {
   }
 
   return undefined;
+}
+
+function toStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((entry): entry is string => typeof entry === "string");
+}
+
+function normalizePreferenceTags(value: unknown) {
+  const tags = toStringArray(value)
+    .map((entry) => normalizeTag(entry))
+    .filter(Boolean);
+
+  return [...new Set(tags)];
+}
+
+function normalizeStore(store: WhiskyStore): WhiskyStore {
+  const tastingPeople = Array.isArray(store.tastingPeople)
+    ? store.tastingPeople.map((entry): TastingPerson => ({
+        id: String(entry.id),
+        name: String(entry.name ?? "Unknown person"),
+        relationshipType:
+          entry.relationshipType === "friend" ||
+          entry.relationshipType === "family" ||
+          entry.relationshipType === "colleague"
+            ? entry.relationshipType
+            : "other",
+        preferenceTags: normalizePreferenceTags(entry.preferenceTags),
+        notes: typeof entry.notes === "string" ? entry.notes : undefined,
+        createdAt: typeof entry.createdAt === "string" ? entry.createdAt : fallbackTimestamp,
+        updatedAt: typeof entry.updatedAt === "string" ? entry.updatedAt : fallbackTimestamp
+      }))
+    : [];
+
+  const tastingGroups = Array.isArray(store.tastingGroups)
+    ? store.tastingGroups.map((entry): TastingGroup => ({
+        id: String(entry.id),
+        name: String(entry.name ?? "Unnamed group"),
+        notes: typeof entry.notes === "string" ? entry.notes : undefined,
+        memberPersonIds: [...new Set(toStringArray(entry.memberPersonIds))],
+        createdAt: typeof entry.createdAt === "string" ? entry.createdAt : fallbackTimestamp,
+        updatedAt: typeof entry.updatedAt === "string" ? entry.updatedAt : fallbackTimestamp
+      }))
+    : [];
+
+  const tastingPlaces = Array.isArray(store.tastingPlaces)
+    ? store.tastingPlaces.map((entry): TastingPlace => ({
+        id: String(entry.id),
+        name: String(entry.name ?? "Unnamed place"),
+        notes: typeof entry.notes === "string" ? entry.notes : undefined,
+        createdAt: typeof entry.createdAt === "string" ? entry.createdAt : fallbackTimestamp,
+        updatedAt: typeof entry.updatedAt === "string" ? entry.updatedAt : fallbackTimestamp
+      }))
+    : [];
+
+  const tastingSessions = Array.isArray(store.tastingSessions)
+    ? store.tastingSessions.map((entry): TastingSession => ({
+        id: String(entry.id),
+        title: typeof entry.title === "string" ? entry.title : undefined,
+        occasionType:
+          entry.occasionType === "visit" ||
+          entry.occasionType === "whisky_friday"
+            ? entry.occasionType
+            : "other",
+        sessionDate: typeof entry.sessionDate === "string" ? entry.sessionDate : fallbackTimestamp,
+        placeId: typeof entry.placeId === "string" ? entry.placeId : undefined,
+        groupId: typeof entry.groupId === "string" ? entry.groupId : undefined,
+        notes: typeof entry.notes === "string" ? entry.notes : undefined,
+        createdAt: typeof entry.createdAt === "string" ? entry.createdAt : fallbackTimestamp,
+        updatedAt: typeof entry.updatedAt === "string" ? entry.updatedAt : fallbackTimestamp
+      }))
+    : [];
+
+  const tastingSessionAttendees = Array.isArray(store.tastingSessionAttendees)
+    ? store.tastingSessionAttendees.map((entry): TastingSessionAttendee => ({
+        id: String(entry.id),
+        sessionId: String(entry.sessionId),
+        personId: String(entry.personId)
+      }))
+    : [];
+
+  const tastingSessionBottles = Array.isArray(store.tastingSessionBottles)
+    ? store.tastingSessionBottles.map((entry): TastingSessionBottle => ({
+        id: String(entry.id),
+        sessionId: String(entry.sessionId),
+        collectionItemId: String(entry.collectionItemId)
+      }))
+    : [];
+
+  return {
+    ...store,
+    tastingEntries: Array.isArray(store.tastingEntries) ? store.tastingEntries : [],
+    tastingPeople,
+    tastingGroups,
+    tastingPlaces,
+    tastingSessions,
+    tastingSessionAttendees,
+    tastingSessionBottles
+  };
 }
 
 function legacyExpressionToFlat(
@@ -327,6 +439,13 @@ function migrateLegacyStore(store: Record<string, unknown>): WhiskyStore {
     expressions,
     collectionItems,
     itemImages,
+    tastingEntries: Array.isArray(store.tastingEntries) ? store.tastingEntries : [],
+    tastingPeople: [],
+    tastingGroups: [],
+    tastingPlaces: [],
+    tastingSessions: [],
+    tastingSessionAttendees: [],
+    tastingSessionBottles: [],
     drafts
   };
 }
@@ -339,7 +458,7 @@ async function ensureStoreFile() {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
 
     if (isLegacyStore(parsed)) {
-      const migrated = migrateLegacyStore(parsed);
+      const migrated = normalizeStore(migrateLegacyStore(parsed));
       await writeFile(storePath, JSON.stringify(migrated, null, 2), "utf8");
     }
   } catch {
@@ -357,12 +476,12 @@ export async function readStore() {
   const parsed = JSON.parse(contents) as Record<string, unknown>;
 
   if (isLegacyStore(parsed)) {
-    const migrated = migrateLegacyStore(parsed);
+    const migrated = normalizeStore(migrateLegacyStore(parsed));
     await writeFile(storePath, JSON.stringify(migrated, null, 2), "utf8");
     return migrated;
   }
 
-  return parsed as unknown as WhiskyStore;
+  return normalizeStore(parsed as unknown as WhiskyStore);
 }
 
 export async function writeStore(store: WhiskyStore) {
@@ -372,5 +491,5 @@ export async function writeStore(store: WhiskyStore) {
   }
 
   await mkdir(dataDir, { recursive: true });
-  await writeFile(storePath, JSON.stringify(store, null, 2), "utf8");
+  await writeFile(storePath, JSON.stringify(normalizeStore(store), null, 2), "utf8");
 }

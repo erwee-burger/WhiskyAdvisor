@@ -3,6 +3,8 @@
 export type CollectionStatus = "owned" | "wishlist";
 export type FillState = "sealed" | "open" | "finished";
 export type IntakeSource = "photo" | "barcode" | "hybrid" | "search";
+export type RelationshipType = "friend" | "family" | "colleague" | "other";
+export type OccasionType = "visit" | "whisky_friday" | "other";
 
 export interface Expression {
   id: string;
@@ -70,6 +72,57 @@ export interface TastingEntry {
   notes?: string;
 }
 
+export interface TastingPerson {
+  id: string;
+  name: string;
+  relationshipType: RelationshipType;
+  preferenceTags: string[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TastingGroup {
+  id: string;
+  name: string;
+  notes?: string;
+  memberPersonIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TastingPlace {
+  id: string;
+  name: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TastingSession {
+  id: string;
+  title?: string;
+  occasionType: OccasionType;
+  sessionDate: string;
+  placeId?: string;
+  groupId?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TastingSessionAttendee {
+  id: string;
+  sessionId: string;
+  personId: string;
+}
+
+export interface TastingSessionBottle {
+  id: string;
+  sessionId: string;
+  collectionItemId: string;
+}
+
 /**
  * Represents a bottle entry being drafted during photo/barcode intake.
  * @property rawAiResponse - Raw text outputs from OpenAI identification and enrichment passes
@@ -101,6 +154,28 @@ export interface CollectionViewItem {
   };
   distillery?: { name: string };
   bottler?: { name: string };
+}
+
+export interface TastingSessionView {
+  session: TastingSession;
+  place?: TastingPlace;
+  group?: TastingGroup;
+  attendees: TastingPerson[];
+  bottles: CollectionViewItem[];
+}
+
+export interface BottleSocialSummary {
+  collectionItemId: string;
+  lastSharedAt?: string;
+  people: Array<{
+    personId: string;
+    name: string;
+    relationshipType: RelationshipType;
+    preferenceTags: string[];
+    lastTastedAt: string;
+  }>;
+  groups: Array<{ groupId: string; name: string; lastSessionAt: string }>;
+  places: Array<{ placeId: string; name: string; lastSessionAt: string }>;
 }
 
 /**
@@ -200,6 +275,12 @@ export interface WhiskyStore {
   collectionItems: CollectionItem[];
   itemImages: ItemImage[];
   tastingEntries?: TastingEntry[];
+  tastingPeople?: TastingPerson[];
+  tastingGroups?: TastingGroup[];
+  tastingPlaces?: TastingPlace[];
+  tastingSessions?: TastingSession[];
+  tastingSessionAttendees?: TastingSessionAttendee[];
+  tastingSessionBottles?: TastingSessionBottle[];
   drafts: IntakeDraft[];
   distilleries?: { id: string; name: string }[];
   bottlers?: { id: string; name: string }[];

@@ -1,9 +1,16 @@
 import { notFound } from "next/navigation";
 
+import { BottleSharingHistory } from "@/components/bottle-sharing-history";
 import { BottleChat } from "@/components/bottle-chat";
 import { BottleRating } from "@/components/bottle-rating";
 import { BottleRecordEditor } from "@/components/bottle-record-editor";
-import { getItemById } from "@/lib/repository";
+import {
+  getBottleSocialSummary,
+  getItemById,
+  getTastingGroups,
+  getTastingPeople,
+  getTastingPlaces
+} from "@/lib/repository";
 import { getSessionMode } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +31,15 @@ export default async function ItemDetailPage({
   }
 
   const isOwner = sessionMode === "owner";
+  const canQuickShare = entry.item.status === "owned" && entry.item.fillState !== "finished";
+  const [socialSummary, people, groups, places] = isOwner
+    ? await Promise.all([
+        getBottleSocialSummary(itemId),
+        getTastingPeople(),
+        getTastingGroups(),
+        getTastingPlaces()
+      ])
+    : [null, [], [], []];
 
   return (
     <div className="page">
@@ -43,6 +59,17 @@ export default async function ItemDetailPage({
             rating={entry.item.rating}
           />
         </section>
+      )}
+
+      {isOwner && (
+        <BottleSharingHistory
+          canQuickShare={canQuickShare}
+          itemId={entry.item.id}
+          summary={socialSummary!}
+          people={people}
+          groups={groups}
+          places={places}
+        />
       )}
 
       {isOwner && (

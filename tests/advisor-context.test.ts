@@ -33,12 +33,18 @@ describe("detectContextTriggers", () => {
     expect(result.deals).toBe(true);
   });
 
+  it("detects social planning triggers", () => {
+    const result = detectContextTriggers("what should I take to whisky Friday");
+    expect(result.socialPlanning).toBe(true);
+  });
+
   it("returns all false for generic query", () => {
     const result = detectContextTriggers("hello");
     expect(result.drinkNow).toBe(false);
     expect(result.wishlist).toBe(false);
     expect(result.analytics).toBe(false);
     expect(result.tastings).toBe(false);
+    expect(result.socialPlanning).toBe(false);
     expect(result.deals).toBe(false);
     expect(result.bottleName).toBeNull();
   });

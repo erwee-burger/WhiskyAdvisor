@@ -9,7 +9,10 @@ import {
   buildDealsContextBlock,
   buildDrinkNowBlock,
   buildFullBottleContextBlock,
+  buildNamedTargetHistoryBlock,
+  buildNeglectedSharedBottlesBlock,
   buildPalateContextBlock,
+  buildRecentTastingSessionsBlock,
   buildRatingsBlock,
   buildSuggestionsBlock,
   buildWishlistBlock,
@@ -18,7 +21,7 @@ import {
 import { getServerEnv } from "@/lib/env";
 import { getLatestSuccessfulSnapshot } from "@/lib/news-store";
 import { getNewsPreferences } from "@/lib/news-preferences-store";
-import { getDashboardData, getItemById } from "@/lib/repository";
+import { getAdvisorSocialContext, getDashboardData, getItemById } from "@/lib/repository";
 import { webSearch } from "@/lib/search";
 
 export const runtime = "nodejs";
@@ -79,6 +82,17 @@ export async function POST(req: Request) {
     contextBlocks.push(buildRatingsBlock(collection));
   }
 
+  if (triggers.socialPlanning) {
+    const socialContext = await getAdvisorSocialContext(query);
+    contextBlocks.push(buildRecentTastingSessionsBlock(socialContext.recentSessions));
+    contextBlocks.push(buildNeglectedSharedBottlesBlock(socialContext.longestNeglectedBottles));
+    contextBlocks.push(buildDrinkNowBlock(collection));
+
+    for (const target of socialContext.namedTargets) {
+      contextBlocks.push(buildNamedTargetHistoryBlock(target));
+    }
+  }
+
   if (triggers.deals) {
     try {
       const newsPrefs = await getNewsPreferences();
@@ -121,6 +135,7 @@ RULES:
 - Only advise based on what's in the collection context above
 - If asked about something not in the context, say so honestly${enableSearch ? " - or use web search to find out" : ""}
 - Never invent tasting notes or ratings the user hasn't written
+- For social planning questions, favor owned bottles that are not finished, avoid repeating the exact same bottles people had recently, and use saved person preference tags only as a soft signal
 - Keep answers easy to scan: use short paragraphs, headings, and bullet lists with blank lines between sections
 - When recommending multiple bottles, give each bottle its own markdown section in this shape, with a blank line between bottles:
 ### Bottle Name

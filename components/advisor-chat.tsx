@@ -7,10 +7,10 @@ import { useEffect, useRef, useState } from "react";
 import { ChatMessageContent } from "@/components/chat-message-content";
 
 const DEFAULT_CHIPS = [
-  "What should I open tonight?",
-  "What's missing from my shelf?",
-  "Which bottle have I neglected the longest?",
-  "Surprise me with an insight."
+  "What should I take to whisky Friday?",
+  "Which bottles should I bring to visit my family?",
+  "What have my colleagues not tasted in a while?",
+  "Plan me a 3-bottle flight for friends"
 ];
 
 function extractSuggestions(content: string): { text: string; suggestions: string[] } {

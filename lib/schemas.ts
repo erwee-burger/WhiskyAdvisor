@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+function normalizeTagValue(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 const optionalTextField = z.preprocess((value) => {
   if (typeof value !== "string") {
     return undefined;
@@ -55,10 +63,15 @@ const tagsField = z.preprocess((value) => {
   }
 
   return [];
-}, z.array(z.string().trim().min(1)).default([]));
+}, z.array(z.string().trim().min(1)).default([]).transform((value) => {
+  const tags = value.map((entry) => normalizeTagValue(entry)).filter(Boolean);
+  return [...new Set(tags)];
+}));
 
 const collectionStatusSchema = z.enum(["owned", "wishlist"]);
 const fillStateSchema = z.enum(["sealed", "open", "finished"]);
+const relationshipTypeSchema = z.enum(["friend", "family", "colleague", "other"]);
+const occasionTypeSchema = z.enum(["visit", "whisky_friday", "other"]);
 
 const bottlePayloadSchema = z
   .object({
@@ -140,3 +153,76 @@ export const updateItemSchema = bottlePayloadSchema;
 export const saveDraftSchema = bottlePayloadSchema.extend({
   draftId: z.string().trim().min(1, "Draft id is required")
 });
+
+const idListField = z.preprocess((value) => {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}, z.array(z.string().trim().min(1)).default([]).transform((value) => [...new Set(value)]));
+
+export const tastingPersonSchema = z
+  .object({
+    name: z.string().trim().min(1, "Person name is required"),
+    relationshipType: relationshipTypeSchema.default("other"),
+    preferenceTags: tagsField.default([]),
+    notes: optionalTextField
+  })
+  .strip();
+
+export const tastingGroupSchema = z
+  .object({
+    name: z.string().trim().min(1, "Group name is required"),
+    notes: optionalTextField,
+    memberPersonIds: idListField.default([])
+  })
+  .strip();
+
+export const tastingPlaceSchema = z
+  .object({
+    name: z.string().trim().min(1, "Place name is required"),
+    notes: optionalTextField
+  })
+  .strip();
+
+export const tastingSessionSchema = z
+  .object({
+    title: optionalTextField,
+    occasionType: occasionTypeSchema.default("other"),
+    sessionDate: z.string().trim().min(1, "Session date is required"),
+    placeId: optionalTextField,
+    groupId: optionalTextField,
+    notes: optionalTextField,
+    attendeePersonIds: idListField.default([]),
+    bottleItemIds: idListField
+  })
+  .strip()
+  .refine((data) => data.bottleItemIds.length > 0, {
+    message: "Select at least one bottle",
+    path: ["bottleItemIds"]
+  });
+
+export const quickBottleShareSchema = z
+  .object({
+    title: optionalTextField,
+    occasionType: occasionTypeSchema.default("visit"),
+    sessionDate: z.string().trim().min(1, "Share date is required"),
+    placeId: optionalTextField,
+    groupId: optionalTextField,
+    notes: optionalTextField,
+    attendeePersonIds: idListField.default([]),
+    collectionItemId: z.string().trim().min(1, "Bottle is required")
+  })
+  .strip()
+  .refine((data) => data.attendeePersonIds.length > 0 || Boolean(data.groupId), {
+    message: "Add at least one person or choose a group",
+    path: ["attendeePersonIds"]
+  });
