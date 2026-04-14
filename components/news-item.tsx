@@ -4,6 +4,7 @@ interface Props {
   item: NewsFeedItem;
   kind: "special" | "new_release";
   showBudget: boolean;
+  visitState?: "new_to_you" | "seen";
 }
 
 const RETAILER_LABELS: Record<string, string> = {
@@ -25,22 +26,27 @@ function formatPrice(price: number) {
   return `R ${price.toLocaleString("en-ZA")}`;
 }
 
-export function NewsItem({ item, kind, showBudget }: Props) {
-  const isBadgeNew = kind === "new_release";
+export function NewsItem({ item, kind, showBudget, visitState }: Props) {
   const badgeClass = `news-card-badge news-card-badge-${item.budgetFit.replace("_", "-")}`;
+  const visitBadgeClass = visitState === "new_to_you"
+    ? "news-card-badge news-card-badge-fresh"
+    : "news-card-badge news-card-badge-seen";
+  const visitLabel = visitState === "new_to_you" ? "New to you" : "Seen";
+  const cardClassName = visitState === "new_to_you" ? "news-card news-card--fresh" : "news-card";
 
   return (
     <a
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="news-card"
+      className={cardClassName}
+      data-kind={kind}
     >
       {/* Header: retailer badge and badges */}
       <div className="news-card-top">
         <span className="news-card-retailer">{RETAILER_LABELS[item.source] || item.source}</span>
         <div className="news-card-badges">
-          {isBadgeNew && <span className="news-card-badge news-card-badge-new">New</span>}
+          {visitState && <span className={visitBadgeClass}>{visitLabel}</span>}
           {showBudget && <span className={badgeClass}>{BUDGET_LABELS[item.budgetFit]}</span>}
         </div>
       </div>

@@ -1894,6 +1894,11 @@ td {
   margin-bottom: 18px;
 }
 
+.news-hero-status {
+  display: grid;
+  gap: 6px;
+}
+
 .news-timestamp {
   font-size: 0.88rem;
   color: var(--muted);
@@ -1905,6 +1910,19 @@ td {
 
 .news-stale-indicator {
   color: var(--danger);
+}
+
+.news-visit-summary {
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
+}
+
+.news-visit-summary.has-new {
+  color: var(--accent);
+}
+
+.news-visit-summary.all-seen {
+  color: var(--muted);
 }
 
 .news-controls {
@@ -2113,6 +2131,14 @@ td {
   color: inherit;
 }
 
+.news-card--fresh {
+  border-color: rgba(231, 191, 116, 0.38);
+  background:
+    linear-gradient(180deg, rgba(212, 157, 69, 0.12), rgba(255, 252, 248, 0.03)),
+    rgba(255, 252, 248, 0.03);
+  box-shadow: 0 0 0 1px rgba(212, 157, 69, 0.12);
+}
+
 .news-card:hover {
   transform: translateY(-2px);
   background: rgba(255, 252, 248, 0.05);
@@ -2151,10 +2177,16 @@ td {
   border: 1px solid;
 }
 
-.news-card-badge-new {
+.news-card-badge-fresh {
   background: rgba(212, 157, 69, 0.15);
   color: var(--accent);
   border-color: rgba(212, 157, 69, 0.3);
+}
+
+.news-card-badge-seen {
+  background: rgba(255, 252, 248, 0.04);
+  color: var(--muted);
+  border-color: rgba(255, 252, 248, 0.14);
 }
 
 .news-card-badge-in-budget {

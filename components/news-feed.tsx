@@ -1,8 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import type { NewsFeedItem, NewsSummaryCard, NewsBudgetPreferences } from "@/lib/types";
+import { useEffect, useRef, useState } from "react";
+
+import type {
+  NewsBudgetPreferences,
+  NewsFeedItem,
+  NewsSnapshotResponse,
+  NewsSummaryCard
+} from "@/lib/types";
 import { computeBudgetFit } from "@/lib/news-budget";
+import { getNewsItemVisitKey, reconcileSeenNewsItems } from "@/lib/news-visit";
 import { NewsSummaryCards } from "./news-summary-cards";
 import { NewsItem } from "./news-item";
 import { NewsPreferencesPanel } from "./news-preferences-panel";
@@ -14,6 +21,7 @@ interface NewsFeedProps {
   initialFetchedAt: string | null;
   initialStale: boolean;
   initialPreferences: NewsBudgetPreferences;
+  initialSeenItemKeys: string[] | null;
   isOwner: boolean;
 }
 
@@ -34,6 +42,37 @@ function formatTime(isoString: string): string {
   return `${diffHours} hours ago`;
 }
 
+function sameStringList(left: string[] | null, right: string[]): boolean {
+  if (!left || left.length !== right.length) return false;
+  return left.every((value, index) => value === right[index]);
+}
+
+async function persistSeenKeys(seenKeys: string[]) {
+  const res = await fetch("/api/news/seen", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ seenKeys })
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to persist seen keys: ${res.status}`);
+  }
+}
+
+function sortFreshFirst(items: NewsFeedItem[], unseenKeySet: Set<string>): NewsFeedItem[] {
+  return items
+    .map((item, index) => ({
+      item,
+      index,
+      isFresh: unseenKeySet.has(getNewsItemVisitKey(item))
+    }))
+    .sort((left, right) => {
+      if (left.isFresh === right.isFresh) return left.index - right.index;
+      return left.isFresh ? -1 : 1;
+    })
+    .map(({ item }) => item);
+}
+
 export function NewsFeed({
   initialSpecials,
   initialNewArrivals,
@@ -41,8 +80,15 @@ export function NewsFeed({
   initialFetchedAt,
   initialStale,
   initialPreferences,
+  initialSeenItemKeys,
   isOwner
 }: NewsFeedProps) {
+  const initialVisitStateRef = useRef(
+    isOwner
+      ? reconcileSeenNewsItems([...initialSpecials, ...initialNewArrivals], initialSeenItemKeys)
+      : { hadBaseline: false, seenKeys: [], unseenKeys: [] }
+  );
+  const hasSyncedInitialSeenRef = useRef(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showPrefs, setShowPrefs] = useState(false);
   const [specials, setSpecials] = useState(initialSpecials);
@@ -52,20 +98,49 @@ export function NewsFeed({
   const [stale, setStale] = useState(initialStale);
   const [prefs, setPrefs] = useState(initialPreferences);
   const [activeRetailerFilter, setActiveRetailerFilter] = useState("all");
+  const [hasVisitBaseline, setHasVisitBaseline] = useState(initialVisitStateRef.current.hadBaseline);
+  const [knownSeenItemKeys, setKnownSeenItemKeys] = useState(initialVisitStateRef.current.seenKeys);
+  const [unseenItemKeys, setUnseenItemKeys] = useState(initialVisitStateRef.current.unseenKeys);
+
+  useEffect(() => {
+    if (!isOwner) return;
+    if (hasSyncedInitialSeenRef.current) return;
+    hasSyncedInitialSeenRef.current = true;
+    if (sameStringList(initialSeenItemKeys, initialVisitStateRef.current.seenKeys)) return;
+
+    void persistSeenKeys(initialVisitStateRef.current.seenKeys).catch((error) => {
+      console.error("Failed to persist initial seen state:", error);
+    });
+  }, [initialSeenItemKeys, isOwner]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
       const res = await fetch("/api/news/refresh", { method: "POST" });
-      if (res.ok) {
-        const newsRes = await fetch("/api/news");
-        const data = await newsRes.json();
-        setSpecials(data.specials);
-        setNewArrivals(data.newArrivals);
-        setSummaryCards(data.summaryCards);
-        setFetchedAt(data.fetchedAt);
-        setStale(data.stale);
-        setPrefs(data.preferences);
+      if (!res.ok) return;
+
+      const newsRes = await fetch("/api/news");
+      if (!newsRes.ok) return;
+
+      const data: NewsSnapshotResponse = await newsRes.json();
+      const visitState = isOwner
+        ? reconcileSeenNewsItems([...data.specials, ...data.newArrivals], knownSeenItemKeys)
+        : { hadBaseline: false, seenKeys: knownSeenItemKeys, unseenKeys: [] as string[] };
+
+      setSpecials(data.specials);
+      setNewArrivals(data.newArrivals);
+      setSummaryCards(data.summaryCards);
+      setFetchedAt(data.fetchedAt);
+      setStale(data.stale);
+      setPrefs(data.preferences);
+      setHasVisitBaseline(visitState.hadBaseline);
+      setKnownSeenItemKeys(visitState.seenKeys);
+      setUnseenItemKeys(visitState.unseenKeys);
+
+      if (isOwner && !sameStringList(knownSeenItemKeys, visitState.seenKeys)) {
+        void persistSeenKeys(visitState.seenKeys).catch((error) => {
+          console.error("Failed to persist seen state after refresh:", error);
+        });
       }
     } finally {
       setIsRefreshing(false);
@@ -81,36 +156,52 @@ export function NewsFeed({
       });
       if (res.ok) {
         setPrefs(newPrefs);
-        // Re-apply budget fit to items
-        setSpecials(prev => prev.map(i => ({ ...i, budgetFit: computeBudgetFit(i.price, newPrefs) })));
-        setNewArrivals(prev => prev.map(i => ({ ...i, budgetFit: computeBudgetFit(i.price, newPrefs) })));
+        setSpecials((prev) => prev.map((item) => ({ ...item, budgetFit: computeBudgetFit(item.price, newPrefs) })));
+        setNewArrivals((prev) => prev.map((item) => ({ ...item, budgetFit: computeBudgetFit(item.price, newPrefs) })));
         setShowPrefs(false);
       }
-    } catch (e) {
-      console.error("Failed to save preferences:", e);
+    } catch (error) {
+      console.error("Failed to save preferences:", error);
     }
   };
 
-  // Filter by retailer
-  const filteredSpecials = activeRetailerFilter === "all"
-    ? specials
-    : specials.filter(item => item.source === activeRetailerFilter);
-  const filteredArrivals = activeRetailerFilter === "all"
-    ? newArrivals
-    : newArrivals.filter(item => item.source === activeRetailerFilter);
+  const showVisitState = isOwner && hasVisitBaseline;
+  const unseenKeySet = showVisitState ? new Set(unseenItemKeys) : new Set<string>();
+  const newToYouCount = unseenItemKeys.length;
 
-  // Always show all known retailers, even if they have 0 items
+  const filteredSpecials = sortFreshFirst(
+    activeRetailerFilter === "all"
+      ? specials
+      : specials.filter((item) => item.source === activeRetailerFilter),
+    unseenKeySet
+  );
+  const filteredArrivals = sortFreshFirst(
+    activeRetailerFilter === "all"
+      ? newArrivals
+      : newArrivals.filter((item) => item.source === activeRetailerFilter),
+    unseenKeySet
+  );
+
   const knownRetailers = ["whiskybrother", "bottegawhiskey", "mothercityliquor", "normangoodfellows"];
   const retailers = ["all", ...knownRetailers];
 
   return (
     <>
-      {/* Hero meta and controls */}
       <div className="news-hero-meta">
-        <span className="news-timestamp">
-          Last updated <strong>{fetchedAt ? formatTime(fetchedAt) : "never"}</strong>
-          {stale && <span className="news-stale-indicator"> · Data is stale</span>}
-        </span>
+        <div className="news-hero-status">
+          <span className="news-timestamp">
+            Last updated <strong>{fetchedAt ? formatTime(fetchedAt) : "never"}</strong>
+            {stale && <span className="news-stale-indicator"> - Data is stale</span>}
+          </span>
+          {showVisitState && (
+            <span className={`news-visit-summary ${newToYouCount > 0 ? "has-new" : "all-seen"}`}>
+              {newToYouCount > 0
+                ? `${newToYouCount} new since your last visit`
+                : "No new items since your last visit"}
+            </span>
+          )}
+        </div>
+
         {isOwner && (
           <div className="news-controls">
             <button
@@ -118,19 +209,18 @@ export function NewsFeed({
               onClick={handleRefresh}
               disabled={isRefreshing}
             >
-              {isRefreshing ? "↻ Refreshing..." : "↻ Refresh"}
+              {isRefreshing ? "Refreshing..." : "Refresh"}
             </button>
             <button
               className="button-subtle"
               onClick={() => setShowPrefs(!showPrefs)}
             >
-              ◈ Budget settings
+              Budget settings
             </button>
           </div>
         )}
       </div>
 
-      {/* Preferences panel (collapsible) */}
       {isOwner && showPrefs && (
         <NewsPreferencesPanel
           currentPreferences={prefs}
@@ -138,27 +228,25 @@ export function NewsFeed({
         />
       )}
 
-      {/* GPT Intelligence Cards */}
       {summaryCards.length > 0 && (
         <section className="news-section">
           <div className="section-header">
             <h2>Today's picks</h2>
-            <p>GPT's top three — curated for your palate and budget</p>
+            <p>GPT's top three - curated for your palate and budget</p>
           </div>
           <NewsSummaryCards cards={summaryCards} />
         </section>
       )}
 
-      {/* Specials */}
       {specials.length > 0 && (
         <section className="news-section">
           <div className="section-header">
             <h2>Specials</h2>
-            <p>Price reductions spotted today</p>
+            <p>Price reductions spotted today. New-to-you items are pinned first.</p>
           </div>
           <div className="news-filters">
             <span className="news-filter-label">Retailer</span>
-            {retailers.map(retailer => (
+            {retailers.map((retailer) => (
               <button
                 key={retailer}
                 className={`news-pill ${activeRetailerFilter === retailer ? "active" : ""}`}
@@ -170,8 +258,18 @@ export function NewsFeed({
           </div>
           {filteredSpecials.length > 0 ? (
             <div className="news-items-grid">
-              {filteredSpecials.map(item => (
-                <NewsItem key={item.id} item={item} kind="special" showBudget={isOwner} />
+              {filteredSpecials.map((item) => (
+                <NewsItem
+                  key={item.id}
+                  item={item}
+                  kind="special"
+                  showBudget={isOwner}
+                  visitState={showVisitState
+                    ? unseenKeySet.has(getNewsItemVisitKey(item))
+                      ? "new_to_you"
+                      : "seen"
+                    : undefined}
+                />
               ))}
             </div>
           ) : (
@@ -180,16 +278,15 @@ export function NewsFeed({
         </section>
       )}
 
-      {/* New Arrivals */}
       {newArrivals.length > 0 && (
         <section className="news-section">
           <div className="section-header">
             <h2>New arrivals</h2>
-            <p>Fresh stock spotted for the first time this week</p>
+            <p>Fresh stock spotted for the first time this week. New-to-you items are pinned first.</p>
           </div>
           <div className="news-filters">
             <span className="news-filter-label">Retailer</span>
-            {retailers.map(retailer => (
+            {retailers.map((retailer) => (
               <button
                 key={retailer}
                 className={`news-pill ${activeRetailerFilter === retailer ? "active" : ""}`}
@@ -201,8 +298,18 @@ export function NewsFeed({
           </div>
           {filteredArrivals.length > 0 ? (
             <div className="news-items-grid">
-              {filteredArrivals.map(item => (
-                <NewsItem key={item.id} item={item} kind="new_release" showBudget={isOwner} />
+              {filteredArrivals.map((item) => (
+                <NewsItem
+                  key={item.id}
+                  item={item}
+                  kind="new_release"
+                  showBudget={isOwner}
+                  visitState={showVisitState
+                    ? unseenKeySet.has(getNewsItemVisitKey(item))
+                      ? "new_to_you"
+                      : "seen"
+                    : undefined}
+                />
               ))}
             </div>
           ) : (

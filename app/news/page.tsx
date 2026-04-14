@@ -2,6 +2,7 @@
 import { NewsFeed } from "@/components/news-feed";
 import { getLatestSuccessfulSnapshot } from "@/lib/news-store";
 import { getNewsPreferences } from "@/lib/news-preferences-store";
+import { getNewsSeenKeys } from "@/lib/news-visit-store";
 import { getSessionMode } from "@/lib/auth";
 import type { NewsFeedItem, NewsSummaryCard } from "@/lib/types";
 
@@ -10,7 +11,12 @@ export default async function NewsPage() {
     getNewsPreferences(),
     getSessionMode()
   ]);
-  const snapshot = await getLatestSuccessfulSnapshot(preferences).catch(() => null);
+  const [snapshot, initialSeenItemKeys] = await Promise.all([
+    getLatestSuccessfulSnapshot(preferences).catch(() => null),
+    sessionMode === "owner"
+      ? getNewsSeenKeys().catch(() => null)
+      : Promise.resolve(null)
+  ]);
 
   const specials:     NewsFeedItem[]    = snapshot?.specials     ?? [];
   const newArrivals:  NewsFeedItem[]    = snapshot?.newArrivals  ?? [];
@@ -33,6 +39,7 @@ export default async function NewsPage() {
         initialFetchedAt={fetchedAt}
         initialStale={stale}
         initialPreferences={preferences}
+        initialSeenItemKeys={initialSeenItemKeys}
         isOwner={sessionMode === "owner"}
       />
     </div>
