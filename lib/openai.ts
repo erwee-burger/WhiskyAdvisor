@@ -39,6 +39,7 @@ function getChatText(payload: unknown): string {
 
 async function responsesApi(prompt: string, imageBase64?: string, mimeType?: string) {
   const { OPENAI_API_KEY, OPENAI_MODEL } = getServerEnv();
+  const model = process.env.OPENAI_ENRICHMENT_MODEL || OPENAI_MODEL;
   if (!OPENAI_API_KEY) return null;
 
   const inputContent: unknown[] = [{ type: "input_text", text: prompt }];
@@ -50,7 +51,8 @@ async function responsesApi(prompt: string, imageBase64?: string, mimeType?: str
     method: "POST",
     headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: OPENAI_MODEL,
+      model,
+      reasoning: { effort: "medium" },
       tools: [{ type: "web_search_preview" }],
       input: [{ role: "user", content: inputContent }]
     })
@@ -101,6 +103,9 @@ type BottlePayload = {
   facts?: ExpressionFacts | null;
 };
 
+const MIN_PREFERRED_TASTING_NOTES = 8;
+const MAX_TASTING_NOTES = 15;
+
 function normalizeText(v: unknown): string | undefined {
   if (v == null) return undefined;
   const s = String(v).trim();
@@ -115,7 +120,7 @@ function normalizeNumber(v: unknown): number | undefined {
 
 function normalizeTastingNotes(notes: unknown): string[] {
   if (!Array.isArray(notes)) return [];
-  return [...new Set(notes.map((note) => normalizeText(note)).filter(Boolean) as string[])].slice(0, 12);
+  return [...new Set(notes.map((note) => normalizeText(note)).filter(Boolean) as string[])].slice(0, MAX_TASTING_NOTES);
 }
 
 const BOTTLE_FIELDS = [
@@ -129,11 +134,21 @@ const BOTTLE_FIELDS = [
   "  ageStatement (integer|null)",
   "  barcode (string|null)",
   "  description (string|null) - short neutral summary of confirmed facts only",
-  "  tastingNotes (string[]) - human-readable descriptor phrases such as dried fruit, orange peel, pepper, oily",
+  `  tastingNotes (string[]) - human-readable descriptor phrases such as dried fruit, orange peel, pepper, oily; prefer ${MIN_PREFERRED_TASTING_NOTES}-${MAX_TASTING_NOTES} notes when evidence supports it`,
   "  facts (object|null) - transient structural facts used to derive tags locally",
   "    whiskyType, peatLevel, caskInfluences, caskType, finishes, bottlerKind, isNas, isChillFiltered, isNaturalColor, isLimited, isCaskStrength, releaseSeries",
   "",
   'Output format: {"name":null,"distilleryName":null,"bottlerName":null,"brand":null,"country":null,"abv":null,"ageStatement":null,"barcode":null,"description":null,"tastingNotes":[],"facts":{}}'
+].join("\n");
+
+const ENRICHMENT_POLICY = [
+  "Tasting-note quality matters more than brevity.",
+  `Return ${MIN_PREFERRED_TASTING_NOTES}-${MAX_TASTING_NOTES} tasting notes when retailer notes, reviews, and official descriptions support them.`,
+  "Prefer specific descriptors such as charred lemon, waxy malt, sooty smoke, heather honey, grilled peach, old leather, toasted almond.",
+  "Avoid generic descriptors like fruit, spice, sweet, oak unless the evidence is too sparse for anything more specific.",
+  "Do not return fewer than 6 tasting notes unless evidence is genuinely sparse.",
+  "Use the web results to synthesize a richer sensory profile rather than copying only the top 2 or 3 repeated words.",
+  "Facts should stay conservative and identity fields should only be filled when the exact bottle variant is clear."
 ].join("\n");
 
 function buildImagePrompt(fileName: string): string {
@@ -145,6 +160,7 @@ function buildImagePrompt(fileName: string): string {
     "If confidence for a field is below 0.8, return null for that field.",
     "For ageStatement: return integer or null for NAS.",
     "For abv: return number if clearly visible or confirmed via search, else null.",
+    ENRICHMENT_POLICY,
     `File hint: ${fileName}`,
     "",
     BOTTLE_FIELDS
@@ -159,6 +175,7 @@ function buildNameLookupPrompt(name: string): string {
     "Return ONLY valid JSON - no markdown, no explanations.",
     "Only include fields you can confirm with high confidence (0.8+).",
     "For ageStatement: return integer or null for NAS.",
+    ENRICHMENT_POLICY,
     "",
     BOTTLE_FIELDS
   ].join("\n");

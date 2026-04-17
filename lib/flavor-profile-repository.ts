@@ -86,6 +86,19 @@ function normalizePillars(pillars: Record<FlavorPillar, number>) {
   ) as Record<FlavorPillar, number>;
 }
 
+function calculateConfidence(
+  evidenceCount: number,
+  hasDescription: boolean,
+  normalizedPillars: Record<FlavorPillar, number>
+) {
+  const activePillars = Object.values(normalizedPillars).filter((value) => value >= 3).length;
+  const evidenceScore = Math.min(0.28, evidenceCount * 0.028);
+  const descriptionScore = hasDescription ? 0.04 : 0;
+  const diversityScore = Math.min(0.12, activePillars * 0.02);
+
+  return Number(Math.max(0.24, Math.min(0.82, 0.28 + evidenceScore + descriptionScore + diversityScore)).toFixed(2));
+}
+
 export function classifyExpressionFlavor(expression: Expression): Omit<ExpressionFlavorProfile, "id" | "createdAt" | "updatedAt"> {
   const rawPillars = emptyPillars();
   const notes = expression.tastingNotes ?? [];
@@ -97,22 +110,20 @@ export function classifyExpressionFlavor(expression: Expression): Omit<Expressio
   applyMetadataPriors(expression, rawPillars);
 
   const evidenceCount = notes.length;
+  const pillars = normalizePillars(rawPillars);
   const topNotes = [...notes].slice(0, 5);
-  const confidence = Math.max(
-    0.25,
-    Math.min(0.95, 0.35 + evidenceCount * 0.08 + (expression.description ? 0.06 : 0))
-  );
+  const confidence = calculateConfidence(evidenceCount, Boolean(expression.description), pillars);
   const now = new Date().toISOString();
 
   return {
     expressionId: expression.id,
-    pillars: normalizePillars(rawPillars),
+    pillars,
     topNotes,
-    confidence: Number(confidence.toFixed(2)),
+    confidence,
     evidenceCount,
     explanation:
       topNotes.length > 0
-        ? `Built from tasting notes (${topNotes.slice(0, 3).join(", ")}) with bounded metadata priors.`
+        ? `Weighted from ${evidenceCount} tasting notes and bounded structural traits.`
         : "Built from structural metadata only, so confidence is reduced.",
     scoringVersion: "v1",
     modelVersion: "deterministic-v1",

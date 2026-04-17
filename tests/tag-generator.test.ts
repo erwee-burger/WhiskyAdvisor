@@ -24,7 +24,21 @@ describe("TagGenerator", () => {
     });
 
     expect(tags).toContain("tequila-cask");
-    expect(tags).toContain("oloroso-sherry-cask");
+    expect(tags).toContain("oloroso");
+    expect(tags).toContain("sherry-cask");
+  });
+
+  it("breaks complex sherry-cask facts into cleaner structural tags", () => {
+    const tags = TagGenerator.generate({
+      facts: { caskInfluences: ["first-fill oloroso sherry hogshead"] },
+      abv: 56.2
+    });
+
+    expect(tags).toContain("first-fill");
+    expect(tags).toContain("oloroso");
+    expect(tags).toContain("sherry-cask");
+    expect(tags).toContain("hogshead");
+    expect(tags).not.toContain("first-fill-oloroso-sherry-hogshead-cask");
   });
 
   it("rejects flavor descriptor tokens in structural tags", () => {

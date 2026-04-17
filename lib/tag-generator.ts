@@ -46,6 +46,35 @@ const FLAVOR_DENYLIST = new Set([
   "sea-salt"
 ]);
 
+const CASK_STYLE_PATTERNS: Array<{ tag: string; patterns: string[] }> = [
+  { tag: "bourbon-cask", patterns: ["bourbon"] },
+  { tag: "sherry-cask", patterns: ["sherry", "oloroso", "px", "pedro-ximenez", "amontillado", "fino", "manzanilla"] },
+  { tag: "wine-cask", patterns: ["wine", "port", "madeira", "marsala", "sauternes"] },
+  { tag: "rum-cask", patterns: ["rum"] },
+  { tag: "virgin-oak", patterns: ["virgin-oak", "virgin oak", "new oak"] },
+  { tag: "mizunara", patterns: ["mizunara"] },
+  { tag: "refill-cask", patterns: ["refill"] }
+];
+
+const CASK_DETAIL_PATTERNS: Array<{ tag: string; patterns: string[] }> = [
+  { tag: "first-fill", patterns: ["first-fill", "first fill"] },
+  { tag: "second-fill", patterns: ["second-fill", "second fill"] },
+  { tag: "refill", patterns: ["refill"] },
+  { tag: "oloroso", patterns: ["oloroso"] },
+  { tag: "px", patterns: ["px", "pedro-ximenez", "pedro ximenez"] },
+  { tag: "amontillado", patterns: ["amontillado"] },
+  { tag: "fino", patterns: ["fino"] },
+  { tag: "manzanilla", patterns: ["manzanilla"] },
+  { tag: "port", patterns: ["port"] },
+  { tag: "madeira", patterns: ["madeira"] },
+  { tag: "marsala", patterns: ["marsala"] },
+  { tag: "sauternes", patterns: ["sauternes"] },
+  { tag: "barrel", patterns: ["barrel"] },
+  { tag: "hogshead", patterns: ["hogshead"] },
+  { tag: "butt", patterns: ["butt"] },
+  { tag: "puncheon", patterns: ["puncheon"] }
+];
+
 function normalizeToken(value: string) {
   return value
     .trim()
@@ -61,6 +90,35 @@ function includeStructuralTag(tags: Set<string>, rawValue?: string | null, suffi
   tags.add(suffix ? `${normalized}${suffix}` : normalized);
 }
 
+function includesPattern(normalized: string, patterns: string[]) {
+  return patterns.some((pattern) => normalized.includes(normalizeToken(pattern)));
+}
+
+function includeCaskTags(tags: Set<string>, rawValue?: string | null) {
+  if (!rawValue) return;
+
+  const normalized = normalizeToken(rawValue);
+  if (!normalized) return;
+
+  let matched = false;
+
+  for (const entry of CASK_STYLE_PATTERNS) {
+    if (!includesPattern(normalized, entry.patterns)) continue;
+    tags.add(entry.tag);
+    matched = true;
+  }
+
+  for (const entry of CASK_DETAIL_PATTERNS) {
+    if (!includesPattern(normalized, entry.patterns)) continue;
+    tags.add(entry.tag);
+    matched = true;
+  }
+
+  if (!matched && !FLAVOR_DENYLIST.has(normalized)) {
+    tags.add(`${normalized}-cask`);
+  }
+}
+
 export class TagGenerator {
   static generate(args: { facts?: ExpressionFacts | null; abv?: number | null }) {
     const tags = new Set<string>();
@@ -73,13 +131,13 @@ export class TagGenerator {
     }
 
     for (const influence of facts.caskInfluences ?? []) {
-      includeStructuralTag(tags, influence, "-cask");
+      includeCaskTags(tags, influence);
     }
 
-    includeStructuralTag(tags, facts.caskType);
+    includeCaskTags(tags, facts.caskType);
 
     for (const finish of facts.finishes ?? []) {
-      includeStructuralTag(tags, finish, "-finish");
+      includeCaskTags(tags, finish);
     }
 
     if (facts.isNas) tags.add("nas");

@@ -184,7 +184,13 @@ function buildFieldSpecificInstructions(field: AiBottleDetailFieldId) {
         "Do not include more than 12 tags."
       ].join(" ");
     case "tastingNotes":
-      return "Return tasting notes as an array of concise human-readable descriptor phrases. Do not return structural tags.";
+      return [
+        "Return tasting notes as an array of specific human-readable descriptor phrases.",
+        "Prefer 8-15 notes when evidence supports them.",
+        "Use specific phrases such as charred lemon, waxy malt, heather honey, grilled peach, peppery oak.",
+        "Avoid generic single words like fruit, spice, sweet unless evidence is genuinely sparse.",
+        "Do not return structural tags."
+      ].join(" ");
     case "description":
       return "Return a short neutral fact-based summary. Avoid hype, reviews, and speculative tasting notes.";
     case "barcode":
@@ -297,6 +303,7 @@ async function searchWithResponsesApi(
   prompt: string
 ) {
   const { OPENAI_API_KEY, OPENAI_MODEL } = getServerEnv();
+  const model = process.env.OPENAI_ENRICHMENT_MODEL || OPENAI_MODEL;
 
   if (!OPENAI_API_KEY) {
     throw new Error("OpenAI is not configured for AI field suggestions.");
@@ -328,8 +335,8 @@ async function searchWithResponsesApi(
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: OPENAI_MODEL,
-      reasoning: { effort: "low" },
+      model,
+      reasoning: { effort: field === "tastingNotes" || field === "description" ? "medium" : "low" },
       tools: [tool],
       tool_choice: "auto",
       include: ["web_search_call.action.sources"],

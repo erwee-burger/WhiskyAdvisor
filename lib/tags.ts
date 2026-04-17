@@ -25,6 +25,33 @@ const RECOGNIZED_CASK_STYLE_TAGS = [
   "refill-cask"
 ];
 const KNOWN_CASK_TYPE_TAGS = ["px", "amontillado", "oloroso", "mizunara", "virgin-oak", "refill-cask"];
+const KNOWN_CASK_DETAIL_TAGS = [
+  "first-fill",
+  "second-fill",
+  "refill",
+  "barrel",
+  "hogshead",
+  "butt",
+  "puncheon"
+];
+
+const TAG_LABELS: Record<string, string> = {
+  nas: "NAS",
+  "cask-strength": "Cask strength",
+  "natural-colour": "Natural colour",
+  "non-chill-filtered": "Non-chill filtered",
+  "chill-filtered": "Chill filtered",
+  "independent-bottler": "Independent bottler",
+  "single-malt": "Single malt",
+  "single-grain": "Single grain",
+  "blended-malt": "Blended malt",
+  "blended-scotch": "Blended Scotch",
+  "bourbon-cask": "Bourbon cask",
+  "sherry-cask": "Sherry cask",
+  "wine-cask": "Wine cask",
+  "rum-cask": "Rum cask",
+  "virgin-oak": "Virgin oak"
+};
 
 export function getPeatTag(tags: string[]): string | null {
   return tags.find((t) => PEAT_TAGS.includes(t)) ?? null;
@@ -39,8 +66,21 @@ export function getAllCaskTags(tags: string[]): string[] {
     (tag) =>
       tag.endsWith("-cask") ||
       tag.endsWith("-finish") ||
-      KNOWN_CASK_TYPE_TAGS.includes(tag)
+      KNOWN_CASK_TYPE_TAGS.includes(tag) ||
+      KNOWN_CASK_DETAIL_TAGS.includes(tag)
   );
+}
+
+export function formatTagLabel(tag: string): string {
+  if (TAG_LABELS[tag]) {
+    return TAG_LABELS[tag];
+  }
+
+  return tag
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 export function isNas(tags: string[]): boolean {

@@ -84,14 +84,43 @@ const NOTE_WEIGHTS = [
   { pillar: "malty", matches: ["malt", "biscuit", "bread", "cereal", "nutty"] },
   { pillar: "coastal", matches: ["coastal", "brine", "salt", "sea", "maritime"] }
 ];
+const CASK_STYLE_PATTERNS = [
+  { tag: "bourbon-cask", patterns: ["bourbon"] },
+  { tag: "sherry-cask", patterns: ["sherry", "oloroso", "px", "pedro-ximenez", "amontillado", "fino", "manzanilla"] },
+  { tag: "wine-cask", patterns: ["wine", "port", "madeira", "marsala", "sauternes"] },
+  { tag: "rum-cask", patterns: ["rum"] },
+  { tag: "virgin-oak", patterns: ["virgin-oak", "virgin oak", "new oak"] },
+  { tag: "mizunara", patterns: ["mizunara"] },
+  { tag: "refill-cask", patterns: ["refill"] }
+];
+const CASK_DETAIL_PATTERNS = [
+  { tag: "first-fill", patterns: ["first-fill", "first fill"] },
+  { tag: "second-fill", patterns: ["second-fill", "second fill"] },
+  { tag: "refill", patterns: ["refill"] },
+  { tag: "oloroso", patterns: ["oloroso"] },
+  { tag: "px", patterns: ["px", "pedro-ximenez", "pedro ximenez"] },
+  { tag: "amontillado", patterns: ["amontillado"] },
+  { tag: "fino", patterns: ["fino"] },
+  { tag: "manzanilla", patterns: ["manzanilla"] },
+  { tag: "port", patterns: ["port"] },
+  { tag: "madeira", patterns: ["madeira"] },
+  { tag: "marsala", patterns: ["marsala"] },
+  { tag: "sauternes", patterns: ["sauternes"] },
+  { tag: "barrel", patterns: ["barrel"] },
+  { tag: "hogshead", patterns: ["hogshead"] },
+  { tag: "butt", patterns: ["butt"] },
+  { tag: "puncheon", patterns: ["puncheon"] }
+];
 const VALID_MODES = new Set(["all", "missing-flavor-profiles", "stale"]);
+const MIN_PREFERRED_TASTING_NOTES = 8;
+const MAX_TASTING_NOTES = 15;
 
 function parseArgs(argv) {
   const parsed = {
     mode: "all",
     dryRun: false,
     limit: Infinity,
-    model: process.env.OPENAI_MODEL || "gpt-5.4-mini"
+    model: process.env.OPENAI_ENRICHMENT_MODEL || process.env.OPENAI_MODEL || "gpt-5.4"
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -197,6 +226,35 @@ function includeStructuralTag(tags, rawValue, suffix = "") {
   tags.add(`${normalized}${suffix}`);
 }
 
+function includesPattern(normalized, patterns) {
+  return patterns.some((pattern) => normalized.includes(normalizeToken(pattern)));
+}
+
+function includeCaskTags(tags, rawValue) {
+  if (!rawValue) return;
+
+  const normalized = normalizeToken(rawValue);
+  if (!normalized) return;
+
+  let matched = false;
+
+  for (const entry of CASK_STYLE_PATTERNS) {
+    if (!includesPattern(normalized, entry.patterns)) continue;
+    tags.add(entry.tag);
+    matched = true;
+  }
+
+  for (const entry of CASK_DETAIL_PATTERNS) {
+    if (!includesPattern(normalized, entry.patterns)) continue;
+    tags.add(entry.tag);
+    matched = true;
+  }
+
+  if (!matched && !FLAVOR_DENYLIST.has(normalized)) {
+    tags.add(`${normalized}-cask`);
+  }
+}
+
 function generateTagsFromFacts(facts, abv) {
   const tags = new Set();
   const source = facts ?? {};
@@ -205,13 +263,13 @@ function generateTagsFromFacts(facts, abv) {
   includeStructuralTag(tags, source.peatLevel);
 
   for (const influence of toStringArray(source.caskInfluences)) {
-    includeStructuralTag(tags, influence, "-cask");
+    includeCaskTags(tags, influence);
   }
 
-  includeStructuralTag(tags, source.caskType);
+  includeCaskTags(tags, source.caskType);
 
   for (const finish of toStringArray(source.finishes)) {
-    includeStructuralTag(tags, finish, "-finish");
+    includeCaskTags(tags, finish);
   }
 
   if (source.isNas) tags.add("nas");
@@ -274,7 +332,7 @@ function looksLikeFlavorNote(tag) {
 function salvageTastingNotes(expression) {
   const explicit = uniqueStrings(toStringArray(expression.tastingNotes).map((note) => normalizeText(note))).filter(Boolean);
   if (explicit.length > 0) {
-    return explicit.slice(0, 12);
+    return explicit.slice(0, MAX_TASTING_NOTES);
   }
 
   return uniqueStrings(
@@ -282,7 +340,57 @@ function salvageTastingNotes(expression) {
       .map(normalizeToken)
       .filter((tag) => looksLikeFlavorNote(tag))
       .map((tag) => tag.replaceAll("-", " "))
-  ).slice(0, 12);
+  ).slice(0, MAX_TASTING_NOTES);
+}
+
+function scoreTastingNotes(notes) {
+  return toStringArray(notes)
+    .map((note) => note.trim().toLowerCase())
+    .filter(Boolean)
+    .reduce((score, note) => {
+      const tokens = note.split(/\s+/).filter(Boolean).length;
+      const specificityBonus = tokens >= 2 ? 2 : 0;
+      const weightedMatchBonus = NOTE_WEIGHTS.some((weight) =>
+        weight.matches.some((token) => note.includes(token))
+      )
+        ? 1
+        : 0;
+      return score + 1 + specificityBonus + weightedMatchBonus;
+    }, 0);
+}
+
+function chooseBetterTastingNotes(existingNotes, candidateNotes) {
+  const existing = uniqueStrings(toStringArray(existingNotes).map((note) => normalizeText(note)).filter(Boolean));
+  const candidate = uniqueStrings(toStringArray(candidateNotes).map((note) => normalizeText(note)).filter(Boolean));
+
+  if (candidate.length === 0) return existing;
+  if (existing.length === 0) return candidate.slice(0, MAX_TASTING_NOTES);
+
+  const existingScore = scoreTastingNotes(existing);
+  const candidateScore = scoreTastingNotes(candidate);
+
+  if (existing.length >= 6 && candidate.length < existing.length && candidateScore <= existingScore) {
+    return existing.slice(0, MAX_TASTING_NOTES);
+  }
+
+  if (candidate.length < 6 && existing.length >= candidate.length && existingScore >= candidateScore) {
+    return existing.slice(0, MAX_TASTING_NOTES);
+  }
+
+  return candidateScore >= existingScore ? candidate.slice(0, MAX_TASTING_NOTES) : existing.slice(0, MAX_TASTING_NOTES);
+}
+
+function shouldReplaceIdentityField(existingValue, candidateValue) {
+  if (!candidateValue) return false;
+  if (!existingValue) return true;
+  const existing = String(existingValue).trim();
+  const candidate = String(candidateValue).trim();
+  if (!candidate || candidate === existing) return false;
+  return existing.toLowerCase() === candidate.toLowerCase();
+}
+
+function chooseIdentityValue(existingValue, candidateValue) {
+  return shouldReplaceIdentityField(existingValue, candidateValue) ? candidateValue : existingValue;
 }
 
 function emptyPillars() {
@@ -348,8 +456,11 @@ function classifyFlavorProfile(expression, previousProfile) {
       Math.min(10, Math.round((value / maxScore) * 10))
     ])
   );
-
-  const confidence = Math.max(0.25, Math.min(0.95, 0.35 + notes.length * 0.08 + (expression.description ? 0.06 : 0)));
+  const activePillars = Object.values(pillars).filter((value) => value >= 3).length;
+  const evidenceScore = Math.min(0.28, notes.length * 0.028);
+  const descriptionScore = expression.description ? 0.04 : 0;
+  const diversityScore = Math.min(0.12, activePillars * 0.02);
+  const confidence = Math.max(0.24, Math.min(0.82, 0.28 + evidenceScore + descriptionScore + diversityScore));
   const now = new Date().toISOString();
 
   return {
@@ -361,7 +472,7 @@ function classifyFlavorProfile(expression, previousProfile) {
     evidenceCount: notes.length,
     explanation:
       notes.length > 0
-        ? `Built from tasting notes (${notes.slice(0, 3).join(", ")}) with bounded metadata priors.`
+        ? `Weighted from ${notes.length} tasting notes and bounded structural traits.`
         : "Built from structural metadata only, so confidence is reduced.",
     scoringVersion: "v1",
     modelVersion: "deterministic-v1",
@@ -388,6 +499,12 @@ function buildLookupPrompt(expression) {
     "Use web search to verify the exact bottle when needed.",
     "Do not guess missing facts. If a field is not well-supported, return null or an empty array.",
     "Current tags are not authoritative source data. Do not copy flavor descriptors into tags.",
+    "Tasting-note quality matters more than brevity.",
+    `Return ${MIN_PREFERRED_TASTING_NOTES}-${MAX_TASTING_NOTES} tasting notes when reviews, retailer notes, and official notes support them.`,
+    "Prefer specific phrases such as charred lemon, waxy malt, sooty smoke, heather honey, grilled peach, toasted almond.",
+    "Avoid generic notes like fruit, spice, sweet, oak unless evidence is genuinely sparse.",
+    "Do not return fewer than 6 tasting notes unless the evidence is genuinely thin.",
+    "Identity fields should only change when the exact bottle variant is clearly supported.",
     "Return only valid JSON.",
     "",
     "Return this exact shape:",
@@ -430,7 +547,7 @@ async function callOpenAiForExpression(expression, model) {
     },
     body: JSON.stringify({
       model,
-      reasoning: { effort: "low" },
+      reasoning: { effort: "medium" },
       tools: [{ type: "web_search_preview" }],
       input: buildLookupPrompt(expression)
     })
@@ -482,14 +599,14 @@ function mergeExpression(existing, enriched) {
 
   const next = {
     ...existing,
-    name: normalizeText(resolved.name) ?? existing.name,
-    distilleryName: normalizeText(resolved.distilleryName) ?? existing.distilleryName,
-    bottlerName: normalizeText(resolved.bottlerName) ?? existing.bottlerName,
-    brand: normalizeText(resolved.brand) ?? existing.brand,
-    country: normalizeText(resolved.country) ?? existing.country,
+    name: chooseIdentityValue(existing.name, normalizeText(resolved.name) ?? existing.name),
+    distilleryName: chooseIdentityValue(existing.distilleryName, normalizeText(resolved.distilleryName)),
+    bottlerName: chooseIdentityValue(existing.bottlerName, normalizeText(resolved.bottlerName)),
+    brand: chooseIdentityValue(existing.brand, normalizeText(resolved.brand)),
+    country: chooseIdentityValue(existing.country, normalizeText(resolved.country)),
     abv,
     ageStatement: normalizeNumber(resolved.ageStatement) ?? existing.ageStatement,
-    barcode: normalizeText(resolved.barcode) ?? existing.barcode,
+    barcode: chooseIdentityValue(existing.barcode, normalizeText(resolved.barcode)),
     description: normalizeText(resolved.description) ?? existing.description
   };
 
@@ -497,11 +614,15 @@ function mergeExpression(existing, enriched) {
     resolved.facts && typeof resolved.facts === "object"
       ? generateTagsFromFacts(resolved.facts, abv)
       : fallbackStructuralTags(existing);
-  const tastingNotes =
-    uniqueStrings(toStringArray(resolved.tastingNotes).map((note) => normalizeText(note)).filter(Boolean)).slice(0, 12);
+  const tastingNotes = uniqueStrings(
+    toStringArray(resolved.tastingNotes).map((note) => normalizeText(note)).filter(Boolean)
+  ).slice(0, MAX_TASTING_NOTES);
 
   next.tags = generatedTags;
-  next.tastingNotes = tastingNotes.length > 0 ? tastingNotes : salvageTastingNotes(existing);
+  next.tastingNotes = chooseBetterTastingNotes(
+    salvageTastingNotes(existing),
+    tastingNotes.length > 0 ? tastingNotes : salvageTastingNotes(existing)
+  );
 
   return next;
 }

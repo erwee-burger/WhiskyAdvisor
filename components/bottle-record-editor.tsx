@@ -24,6 +24,7 @@ import {
 } from "@/lib/bottle-detail";
 import type { CollectionViewItem, ExpressionFlavorProfile } from "@/lib/types";
 import {
+  formatTagLabel,
   getAllCaskTags,
   getPeatTag,
   isChillFiltered,
@@ -168,6 +169,7 @@ export function BottleRecordEditor({
   }, [focusedField, isEditing]);
 
   const currentTags = parseTagsText(formValues.tags);
+  const currentTastingNotes = parseTagsText(formValues.tastingNotes);
   const bottleImage = previewUrl || getBottleDisplayImage(formValues.name || entry.expression.name, entry.images);
   const heroSummary = buildHeroSummary(formValues);
   const caskTags = getAllCaskTags(currentTags);
@@ -761,12 +763,12 @@ export function BottleRecordEditor({
         <div className="pill-row">
           {values.map((tag) => (
             <span className="pill" key={tag}>
-              {tag}
+              {definition.id === "tags" ? formatTagLabel(tag) : tag}
             </span>
           ))}
         </div>
       ) : (
-        <span className="detail-field-empty">No tags set</span>
+        <span className="detail-field-empty">{definition.id === "tags" ? "No tags set" : "No tasting notes set"}</span>
       );
     }
 
@@ -1027,7 +1029,7 @@ export function BottleRecordEditor({
             <div className="pill-row" style={{ marginTop: "12px" }}>
               {signalTags.map((tag) => (
                 <span className="pill" key={tag}>
-                  {tag}
+                  {formatTagLabel(tag)}
                 </span>
               ))}
             </div>
@@ -1107,7 +1109,7 @@ export function BottleRecordEditor({
         <div className="section-title">
           <div>
             <h2>Flavor profile</h2>
-            <p>Derived from tasting notes plus bounded structural priors.</p>
+            <p>Derived from your tasting notes plus bounded structural priors.</p>
           </div>
           {isOwner ? (
             <button className="button-subtle" disabled={isReclassifying} onClick={handleReclassify} type="button">
@@ -1131,16 +1133,37 @@ export function BottleRecordEditor({
               </div>
               <div className="status-note">{profileState.explanation}</div>
             </div>
-            <div className="pill-row">
-              {(profileState.topNotes.length > 0 ? profileState.topNotes : ["No tasting notes yet"]).map((note) => (
-                <span className="pill" key={note}>
-                  {note}
-                </span>
-              ))}
+            <div className="stack" style={{ gap: "10px" }}>
+              <span className="detail-suggestion-label">Profile top signals</span>
+              <div className="pill-row">
+                {(profileState.topNotes.length > 0 ? profileState.topNotes : ["No top signals yet"]).map((note) => (
+                  <span className="pill" key={note}>
+                    {note}
+                  </span>
+                ))}
+              </div>
             </div>
           </>
         ) : (
           <div className="status-note">No flavor profile saved yet.</div>
+        )}
+      </section>
+
+      <section className="panel stack">
+        <div className="section-title">
+          <div>
+            <h2>Tasting notes</h2>
+            <p>The full note set stays separate from the condensed flavor-profile signals.</p>
+          </div>
+        </div>
+        {currentTastingNotes.length > 0 ? (
+          <ul style={{ margin: 0, paddingLeft: "20px" }}>
+            {currentTastingNotes.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        ) : (
+          <div className="status-note">No tasting notes saved yet.</div>
         )}
       </section>
 
