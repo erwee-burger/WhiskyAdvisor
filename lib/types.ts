@@ -15,28 +15,9 @@ export interface Expression {
   country?: string;
   abv?: number;
   ageStatement?: number;
-  releaseSeries?: string;
-  bottlerKind?: string;
-  whiskyType?: string;
-  region?: string;
-  volumeMl?: number;
-  vintageYear?: number;
-  distilledYear?: number;
-  bottledYear?: number;
-  caskType?: string;
-  caskNumber?: string;
-  bottleNumber?: number;
-  outturn?: number;
   barcode?: string;
   description?: string;
   imageUrl?: string;
-  peatLevel?: string;
-  caskInfluence?: string;
-  isNas?: boolean;
-  isChillFiltered?: boolean;
-  isNaturalColor?: boolean;
-  isLimited?: boolean;
-  flavorTags?: string[];
   tags: string[];
 }
 
@@ -196,8 +177,7 @@ export interface CollectionAnalytics {
     limited: number;
     chillFiltered: number;
     naturalColor: number;
-    averageVolumeMl?: number | null;
-    withVolume?: number;
+
   };
   ratingDistribution: Array<{ rating: number; count: number; label: string }>;
   regionSplit: Array<{ region: string; count: number }>;
@@ -282,10 +262,6 @@ export interface WhiskyStore {
   tastingSessionAttendees?: TastingSessionAttendee[];
   tastingSessionBottles?: TastingSessionBottle[];
   drafts: IntakeDraft[];
-  distilleries?: { id: string; name: string }[];
-  bottlers?: { id: string; name: string }[];
-  priceSnapshots?: unknown[];
-  citations?: unknown[];
 }
 
 // ── News v2 ──────────────────────────────────────────────────────────────────

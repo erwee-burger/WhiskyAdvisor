@@ -29,9 +29,6 @@ export function buildCollectionAnalytics(items: CollectionViewItem[]): Collectio
   const distilleryCounts = countBy(ownedItems.map(({ expression }) => expression.distilleryName ?? "Unknown").filter((d): d is string => Boolean(d)));
   const bottlerCounts = countBy(ownedItems.map(({ expression }) => expression.bottlerName ?? "Unknown").filter((b): b is string => Boolean(b)));
   const ratings = countBy(ownedItems.filter(({ item }) => item.rating).map(({ item }) => String(item.rating)));
-  const volumeEntries = ownedItems
-    .map(({ expression }) => expression.volumeMl)
-    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   const paidTotal = ownedItems.reduce(
     (sumValue, entry) => sumValue + convertToZar(entry.item.purchasePrice ?? 0, entry.item.purchaseCurrency ?? "ZAR"),
     0
@@ -52,9 +49,7 @@ export function buildCollectionAnalytics(items: CollectionViewItem[]): Collectio
       nas: ownedItems.filter(({ expression }) => isNas(expression.tags)).length,
       limited: ownedItems.filter(({ expression }) => isLimited(expression.tags)).length,
       chillFiltered: ownedItems.filter(({ expression }) => isChillFiltered(expression.tags)).length,
-      naturalColor: ownedItems.filter(({ expression }) => isNaturalColour(expression.tags)).length,
-      averageVolumeMl: volumeEntries.length > 0 ? Math.round(volumeEntries.reduce((sumValue, value) => sumValue + value, 0) / volumeEntries.length) : null,
-      withVolume: volumeEntries.length
+      naturalColor: ownedItems.filter(({ expression }) => isNaturalColour(expression.tags)).length
     },
     ratingDistribution: [1, 2, 3].map((rating) => ({
       rating,
