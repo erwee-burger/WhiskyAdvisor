@@ -333,7 +333,7 @@ export async function writeStoreToSupabase(store: WhiskyStore) {
       collection_item_id: draft.collectionItemId,
       source: draft.source,
       barcode: draft.barcode ?? null,
-      raw_ai_response: draft.rawAiResponse ?? null,
+      raw_ai_response: draft.rawAiResponse ?? {},
       expression: draft.expression ?? { name: "Unknown", tags: [] },
       collection: draft.collection ?? {}
     })),

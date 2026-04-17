@@ -34,22 +34,6 @@ const optionalNumberField = z.preprocess((value) => {
   return undefined;
 }, z.number().finite().optional());
 
-const optionalBooleanField = z.preprocess((value) => {
-  if (typeof value === "boolean") {
-    return value;
-  }
-
-  if (value === "true") {
-    return true;
-  }
-
-  if (value === "false") {
-    return false;
-  }
-
-  return undefined;
-}, z.boolean().optional());
-
 const tagsField = z.preprocess((value) => {
   if (Array.isArray(value)) {
     return value;
@@ -82,26 +66,7 @@ const bottlePayloadSchema = z
     country: optionalTextField,
     abv: optionalNumberField,
     ageStatement: optionalNumberField,
-    releaseSeries: optionalTextField,
-    bottlerKind: optionalTextField,
-    whiskyType: optionalTextField,
-    region: optionalTextField,
-    volumeMl: optionalNumberField,
-    vintageYear: optionalNumberField,
-    distilledYear: optionalNumberField,
-    bottledYear: optionalNumberField,
-    caskType: optionalTextField,
-    caskNumber: optionalTextField,
-    bottleNumber: optionalNumberField,
-    outturn: optionalNumberField,
     barcode: optionalTextField,
-    peatLevel: optionalTextField,
-    caskInfluence: optionalTextField,
-    isNas: optionalBooleanField,
-    isChillFiltered: optionalBooleanField,
-    isNaturalColor: optionalBooleanField,
-    isLimited: optionalBooleanField,
-    flavorTags: tagsField,
     description: optionalTextField,
     tags: tagsField,
     status: collectionStatusSchema,

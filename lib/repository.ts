@@ -34,26 +34,7 @@ type BottleRecordPayload = {
   country?: string;
   abv?: number;
   ageStatement?: number;
-  releaseSeries?: string;
-  bottlerKind?: string;
-  whiskyType?: string;
-  region?: string;
-  volumeMl?: number;
-  vintageYear?: number;
-  distilledYear?: number;
-  bottledYear?: number;
-  caskType?: string;
-  caskNumber?: string;
-  bottleNumber?: number;
-  outturn?: number;
   barcode?: string;
-  peatLevel?: string;
-  caskInfluence?: string;
-  isNas?: boolean;
-  isChillFiltered?: boolean;
-  isNaturalColor?: boolean;
-  isLimited?: boolean;
-  flavorTags?: string[];
   description?: string;
   tags: string[];
   status: CollectionStatus;
@@ -184,26 +165,7 @@ function buildExpressionRecord(
     country: payload.country ?? baseExpression?.country,
     abv: payload.abv ?? baseExpression?.abv,
     ageStatement: payload.ageStatement ?? baseExpression?.ageStatement,
-    releaseSeries: payload.releaseSeries ?? baseExpression?.releaseSeries,
-    bottlerKind: payload.bottlerKind ?? baseExpression?.bottlerKind,
-    whiskyType: payload.whiskyType ?? baseExpression?.whiskyType,
-    region: payload.region ?? baseExpression?.region,
-    volumeMl: payload.volumeMl ?? baseExpression?.volumeMl,
-    vintageYear: payload.vintageYear ?? baseExpression?.vintageYear,
-    distilledYear: payload.distilledYear ?? baseExpression?.distilledYear,
-    bottledYear: payload.bottledYear ?? baseExpression?.bottledYear,
-    caskType: payload.caskType ?? baseExpression?.caskType,
-    caskNumber: payload.caskNumber ?? baseExpression?.caskNumber,
-    bottleNumber: payload.bottleNumber ?? baseExpression?.bottleNumber,
-    outturn: payload.outturn ?? baseExpression?.outturn,
     barcode: payload.barcode ?? baseExpression?.barcode,
-    peatLevel: payload.peatLevel ?? baseExpression?.peatLevel,
-    caskInfluence: payload.caskInfluence ?? baseExpression?.caskInfluence,
-    isNas: payload.isNas ?? baseExpression?.isNas,
-    isChillFiltered: payload.isChillFiltered ?? baseExpression?.isChillFiltered,
-    isNaturalColor: payload.isNaturalColor ?? baseExpression?.isNaturalColor,
-    isLimited: payload.isLimited ?? baseExpression?.isLimited,
-    flavorTags: payload.flavorTags ?? baseExpression?.flavorTags,
     description: payload.description ?? baseExpression?.description,
     imageUrl: baseExpression?.imageUrl,
     tags: payload.tags.length > 0 ? payload.tags : (baseExpression?.tags ?? [])
