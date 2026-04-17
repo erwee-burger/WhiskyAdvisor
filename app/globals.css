@@ -2977,3 +2977,44 @@ td {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+.flavor-bar-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 24px;
+}
+
+.flavor-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.flavor-bar-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+}
+
+.flavor-bar-label {
+  color: var(--text-dark);
+  text-transform: capitalize;
+}
+
+.flavor-bar-value {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.flavor-bar-track {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.flavor-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(212, 157, 69, 0.5), #d49d45);
+}
