@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import { getBottleDisplayImage } from "@/lib/bottle-image";
+import { FlavorBarGrid } from "@/components/flavor-bar-grid";
 import {
   areSuggestionValuesEqual,
   buildBottleDetailFormState,
@@ -1119,13 +1120,7 @@ export function BottleRecordEditor({
         </div>
         {profileState ? (
           <>
-            <div className="pill-row">
-              {Object.entries(profileState.pillars).map(([pillar, value]) => (
-                <span className="pill" key={pillar}>
-                  {pillar}: {value}/10
-                </span>
-              ))}
-            </div>
+            <FlavorBarGrid pillars={profileState.pillars} />
             <div className="grid columns-2">
               <div className="status-note">
                 Confidence {Math.round(profileState.confidence * 100)}% | Evidence {profileState.evidenceCount}
