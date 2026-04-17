@@ -160,6 +160,10 @@ function buildBottleContext(entry: CollectionViewItem, draftValues: BottleDetail
       .split(",")
       .map((tag) => tag.trim())
       .filter(Boolean),
+    tastingNotes: draftValues.tastingNotes
+      .split(",")
+      .map((note) => note.trim())
+      .filter(Boolean),
     description: draftValues.description || null,
     collectionStatus: draftValues.status,
     fillState: draftValues.fillState,
@@ -176,9 +180,11 @@ function buildFieldSpecificInstructions(field: AiBottleDetailFieldId) {
     case "tags":
       return [
         "Return tags as an array of concise lowercase hyphenated tags.",
-        "Prefer factual production/style tags and a few flavour tags only when strongly supported.",
+        "Prefer structural production and search tags only.",
         "Do not include more than 12 tags."
       ].join(" ");
+    case "tastingNotes":
+      return "Return tasting notes as an array of concise human-readable descriptor phrases. Do not return structural tags.";
     case "description":
       return "Return a short neutral fact-based summary. Avoid hype, reviews, and speculative tasting notes.";
     case "barcode":

@@ -98,7 +98,8 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
     tastingPlacesRes,
     tastingSessionsRes,
     tastingSessionAttendeesRes,
-    tastingSessionBottlesRes
+    tastingSessionBottlesRes,
+    expressionFlavorProfilesRes
   ] = await Promise.all([
     supabase.from("expressions").select("*"),
     supabase.from("collection_items").select("*"),
@@ -110,7 +111,8 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
     supabase.from("tasting_places").select("*"),
     supabase.from("tasting_sessions").select("*"),
     supabase.from("tasting_session_attendees").select("*"),
-    supabase.from("tasting_session_bottles").select("*")
+    supabase.from("tasting_session_bottles").select("*"),
+    supabase.from("expression_flavor_profiles").select("*")
   ]);
 
   for (const res of [
@@ -124,7 +126,8 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
     tastingPlacesRes,
     tastingSessionsRes,
     tastingSessionAttendeesRes,
-    tastingSessionBottlesRes
+    tastingSessionBottlesRes,
+    expressionFlavorProfilesRes
   ]) {
     if (res.error) throw res.error;
   }
@@ -156,9 +159,37 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
       barcode: typeof row.barcode === "string" ? row.barcode : undefined,
       description: typeof row.description === "string" ? row.description : undefined,
       imageUrl: typeof row.image_url === "string" ? row.image_url : undefined,
+      tastingNotes: toStringArray(row.tasting_notes),
       tags: Array.isArray(row.tags)
         ? row.tags.filter((tag): tag is string => typeof tag === "string")
         : []
+    })),
+    expressionFlavorProfiles: ((expressionFlavorProfilesRes.data ?? []) as SupabaseRow[]).map((row) => ({
+      id: String(row.id),
+      expressionId: String(row.expression_id),
+      pillars:
+        row.pillars && typeof row.pillars === "object"
+          ? (row.pillars as WhiskyStore["expressionFlavorProfiles"][number]["pillars"])
+          : {
+              smoky: 0,
+              sweet: 0,
+              spicy: 0,
+              fruity: 0,
+              oaky: 0,
+              floral: 0,
+              malty: 0,
+              coastal: 0
+            },
+      topNotes: toStringArray(row.top_notes),
+      confidence: toNumber(row.confidence) ?? 0,
+      evidenceCount: toNumber(row.evidence_count) ?? 0,
+      explanation: typeof row.explanation === "string" ? row.explanation : "",
+      scoringVersion: typeof row.scoring_version === "string" ? row.scoring_version : "v1",
+      modelVersion: typeof row.model_version === "string" ? row.model_version : "deterministic-v1",
+      generatedAt: typeof row.generated_at === "string" ? row.generated_at : new Date().toISOString(),
+      staleAt: typeof row.stale_at === "string" ? row.stale_at : undefined,
+      createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
+      updatedAt: typeof row.updated_at === "string" ? row.updated_at : new Date().toISOString()
     })),
     collectionItems: ((itemsRes.data ?? []) as SupabaseRow[]).map((row) => ({
       id: String(row.id),
@@ -256,7 +287,7 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
       expression:
         row.expression && typeof row.expression === "object"
           ? (row.expression as WhiskyStore["drafts"][number]["expression"])
-          : { name: "Unknown", tags: [] },
+          : { name: "Unknown", tags: [], tastingNotes: [] },
       collection:
         row.collection && typeof row.collection === "object"
           ? (row.collection as WhiskyStore["drafts"][number]["collection"])
@@ -289,6 +320,7 @@ export async function writeStoreToSupabase(store: WhiskyStore) {
       barcode: expression.barcode ?? null,
       description: expression.description ?? null,
       image_url: expression.imageUrl ?? null,
+      tasting_notes: expression.tastingNotes,
       tags: expression.tags
     })),
     { onConflict: "id" }
@@ -334,7 +366,7 @@ export async function writeStoreToSupabase(store: WhiskyStore) {
       source: draft.source,
       barcode: draft.barcode ?? null,
       raw_ai_response: draft.rawAiResponse ?? {},
-      expression: draft.expression ?? { name: "Unknown", tags: [] },
+      expression: draft.expression ?? { name: "Unknown", tags: [], tastingNotes: [] },
       collection: draft.collection ?? {}
     })),
     { onConflict: "id" }
@@ -422,6 +454,26 @@ export async function writeStoreToSupabase(store: WhiskyStore) {
   );
   if (tastingSessionBottlesUpsert.error) throw tastingSessionBottlesUpsert.error;
 
+  const expressionFlavorProfilesUpsert = await supabase.from("expression_flavor_profiles").upsert(
+    store.expressionFlavorProfiles.map((profile) => ({
+      id: profile.id,
+      expression_id: profile.expressionId,
+      pillars: profile.pillars,
+      top_notes: profile.topNotes,
+      confidence: profile.confidence,
+      evidence_count: profile.evidenceCount,
+      explanation: profile.explanation,
+      scoring_version: profile.scoringVersion,
+      model_version: profile.modelVersion,
+      generated_at: profile.generatedAt,
+      stale_at: profile.staleAt ?? null,
+      created_at: profile.createdAt,
+      updated_at: profile.updatedAt
+    })),
+    { onConflict: "id" }
+  );
+  if (expressionFlavorProfilesUpsert.error) throw expressionFlavorProfilesUpsert.error;
+
   await deleteRowsNotInIds(
     supabase,
     "tasting_session_bottles",
@@ -455,6 +507,11 @@ export async function writeStoreToSupabase(store: WhiskyStore) {
   );
   await deleteRowsNotInIds(supabase, "intake_drafts", store.drafts.map((draft) => draft.id));
   await deleteRowsNotInIds(supabase, "item_images", store.itemImages.map((img) => img.id));
+  await deleteRowsNotInIds(
+    supabase,
+    "expression_flavor_profiles",
+    store.expressionFlavorProfiles.map((profile) => profile.id)
+  );
   await deleteRowsNotInIds(
     supabase,
     "collection_items",

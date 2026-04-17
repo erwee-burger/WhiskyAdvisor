@@ -1,6 +1,6 @@
-// lib/openai.ts
 import { getServerEnv } from "@/lib/env";
 import { createId } from "@/lib/id";
+import { TagGenerator, type ExpressionFacts } from "@/lib/tag-generator";
 import type { CollectionItem, Expression, IntakeDraft } from "@/lib/types";
 
 async function chatCompletions(
@@ -37,7 +37,6 @@ function getChatText(payload: unknown): string {
   return typeof msg?.content === "string" ? msg.content : "";
 }
 
-// Responses API — supports web_search_preview natively with GPT-5.4
 async function responsesApi(prompt: string, imageBase64?: string, mimeType?: string) {
   const { OPENAI_API_KEY, OPENAI_MODEL } = getServerEnv();
   if (!OPENAI_API_KEY) return null;
@@ -98,7 +97,8 @@ type BottlePayload = {
   ageStatement?: number | string | null;
   barcode?: string | null;
   description?: string | null;
-  tags?: string[] | null;
+  tastingNotes?: string[] | null;
+  facts?: ExpressionFacts | null;
 };
 
 function normalizeText(v: unknown): string | undefined {
@@ -113,44 +113,34 @@ function normalizeNumber(v: unknown): number | undefined {
   return Number.isNaN(n) ? undefined : n;
 }
 
-function normalizeTags(tags: unknown): string[] {
-  if (!Array.isArray(tags)) return [];
-  return tags
-    .map((t) => String(t).trim().toLowerCase().replace(/\s+/g, "-"))
-    .filter(Boolean)
-    .slice(0, 20);
+function normalizeTastingNotes(notes: unknown): string[] {
+  if (!Array.isArray(notes)) return [];
+  return [...new Set(notes.map((note) => normalizeText(note)).filter(Boolean) as string[])].slice(0, 12);
 }
 
 const BOTTLE_FIELDS = [
   "Fields:",
-  "  name (string) — full product name",
-  "  distilleryName (string|null) — producing distillery",
-  "  bottlerName (string|null) — bottling entity if different from distillery",
-  "  brand (string|null) — brand name if distinct from distillery",
+  "  name (string) - full product name",
+  "  distilleryName (string|null) - producing distillery",
+  "  bottlerName (string|null) - bottling entity if different from distillery",
+  "  brand (string|null) - brand name if distinct from distillery",
   "  country (string|null)",
   "  abv (number|null)",
   "  ageStatement (integer|null)",
   "  barcode (string|null)",
-  "  description (string|null) — short neutral summary of confirmed facts only",
-  "  tags (string[]) — up to 20 lowercase hyphenated tags covering:",
-  "    whisky style (e.g. single-malt, blended-scotch, world-single-malt)",
-  "    peat level (e.g. peated, heavily-peated, unpeated) — omit if unknown",
-  "    cask influence (e.g. sherry-cask, bourbon-cask, wine-cask, rum-cask)",
-  "    bottler kind (e.g. independent-bottler) — omit for official bottlings",
-  "    release series name as a tag if notable (e.g. special-release)",
-  "    cask type as tag (e.g. double-wood, ex-bourbon, amontillado)",
-  "    production flags only when confirmed: nas, limited, natural-colour, chill-filtered",
-  "    up to 6 flavour descriptors (e.g. spicy, dried-fruit, vanilla, smoky)",
-  "    numeric context if useful: e.g. 12yo (only if confirmed)",
+  "  description (string|null) - short neutral summary of confirmed facts only",
+  "  tastingNotes (string[]) - human-readable descriptor phrases such as dried fruit, orange peel, pepper, oily",
+  "  facts (object|null) - transient structural facts used to derive tags locally",
+  "    whiskyType, peatLevel, caskInfluences, caskType, finishes, bottlerKind, isNas, isChillFiltered, isNaturalColor, isLimited, isCaskStrength, releaseSeries",
   "",
-  'Output format: {"name":null,"distilleryName":null,"bottlerName":null,"brand":null,"country":null,"abv":null,"ageStatement":null,"barcode":null,"description":null,"tags":[]}'
+  'Output format: {"name":null,"distilleryName":null,"bottlerName":null,"brand":null,"country":null,"abv":null,"ageStatement":null,"barcode":null,"description":null,"tastingNotes":[],"facts":{}}'
 ].join("\n");
 
 function buildImagePrompt(fileName: string): string {
   return [
     "You are a whisky bottle identification and data extraction assistant.",
     "Analyze the provided whisky bottle image. Use web search when you need to verify or fill in details not clearly visible on the label.",
-    "Return a single JSON object. Return ONLY valid JSON — no markdown, no explanations.",
+    "Return a single JSON object. Return ONLY valid JSON - no markdown, no explanations.",
     "Source priority: 1. Visible label text  2. Packaging cues  3. Web search for exact variant when needed.",
     "If confidence for a field is below 0.8, return null for that field.",
     "For ageStatement: return integer or null for NAS.",
@@ -166,7 +156,7 @@ function buildNameLookupPrompt(name: string): string {
     "You are a whisky bottle data extraction assistant.",
     `Look up this whisky: "${name}"`,
     "Use web search to find accurate details. Return a single JSON object.",
-    "Return ONLY valid JSON — no markdown, no explanations.",
+    "Return ONLY valid JSON - no markdown, no explanations.",
     "Only include fields you can confirm with high confidence (0.8+).",
     "For ageStatement: return integer or null for NAS.",
     "",
@@ -178,17 +168,20 @@ function buildExpression(
   parsed: BottlePayload,
   fallbackName: string
 ): Partial<Expression> & Pick<Expression, "name"> {
+  const abv = normalizeNumber(parsed.abv);
+
   return {
     name: normalizeText(parsed.name) ?? fallbackName,
     distilleryName: normalizeText(parsed.distilleryName),
     bottlerName: normalizeText(parsed.bottlerName),
     brand: normalizeText(parsed.brand),
     country: normalizeText(parsed.country),
-    abv: normalizeNumber(parsed.abv),
+    abv,
     ageStatement: normalizeNumber(parsed.ageStatement),
     barcode: normalizeText(parsed.barcode),
     description: normalizeText(parsed.description),
-    tags: normalizeTags(parsed.tags)
+    tags: TagGenerator.generate({ facts: parsed.facts ?? undefined, abv }),
+    tastingNotes: normalizeTastingNotes(parsed.tastingNotes)
   };
 }
 
@@ -206,8 +199,6 @@ export async function analyzeBottleImage(
     return null;
   }
 
-  // Text-only path: Responses API first (GPT-5.4 + web search), fall back to
-  // gpt-4o-search-preview on Chat Completions if Responses API is unavailable.
   if (!imageBase64) {
     const prompt = buildNameLookupPrompt(fileName);
     let text = "";
@@ -225,7 +216,6 @@ export async function analyzeBottleImage(
     return { expression: buildExpression(parsed, fileName), rawAiResponse: { enrichmentText: text } };
   }
 
-  // Vision path: Responses API (image + web search), fall back to Chat Completions (vision-only).
   const prompt = buildImagePrompt(fileName);
   let text = "";
   try {
@@ -241,7 +231,10 @@ export async function analyzeBottleImage(
 
   const parsed = extractJson<BottlePayload>(text);
   if (!parsed) return null;
-  return { expression: buildExpression(parsed, fileName.replace(/\.[^.]+$/, "")), rawAiResponse: { enrichmentText: text } };
+  return {
+    expression: buildExpression(parsed, fileName.replace(/\.[^.]+$/, "")),
+    rawAiResponse: { enrichmentText: text }
+  };
 }
 
 export function buildDraftFromExpression(

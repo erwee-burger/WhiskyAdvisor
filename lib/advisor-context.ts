@@ -68,7 +68,7 @@ export function buildPalateContextBlock(profile: PalateProfile): string {
     profile.favoredPeatTag ? `Peat preference: ${profile.favoredPeatTag}` : "Peat preference: unknown (no tasting data yet)",
     profile.favoredRegions.length ? `Favored regions: ${profile.favoredRegions.join(", ")}` : "Favored regions: none yet",
     profile.favoredCaskStyles.length ? `Favored cask styles: ${profile.favoredCaskStyles.join(", ")}` : "Favored cask styles: none yet",
-    profile.favoredFlavorTags.length ? `Top flavor tags: ${profile.favoredFlavorTags.join(", ")}` : "Flavor tags: none yet"
+    profile.favoredFlavorTags.length ? `Top tasting notes: ${profile.favoredFlavorTags.join(", ")}` : "Tasting notes: none yet"
   ];
   return lines.join("\n");
 }

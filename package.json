@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "cleanup:expressions": "node --env-file=.env.local scripts/cleanup-expressions.mjs --mode all"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.51",

@@ -76,9 +76,9 @@ export function buildComparison(left: CollectionViewItem, right: CollectionViewI
         right: isLimited(right.expression.tags) ? "Yes" : "No"
       },
       {
-        label: "Flavor tags",
-        left: left.expression.tags.join(", "),
-        right: right.expression.tags.join(", ")
+        label: "Tasting notes",
+        left: left.expression.tastingNotes.join(", ") || "Not set",
+        right: right.expression.tastingNotes.join(", ") || "Not set"
       },
       {
         label: "Rating",
@@ -86,7 +86,7 @@ export function buildComparison(left: CollectionViewItem, right: CollectionViewI
         right: right.item.rating ? `${right.item.rating}/3${right.item.isFavorite ? " ★" : ""}` : "Not rated"
       }
     ],
-    summary: `${left.expression.name} leans more ${left.expression.tags.slice(0, 2).join(" and ")}, while ${right.expression.name} brings more ${right.expression.tags.slice(0, 2).join(" and ")}.`,
+    summary: `${left.expression.name} leans more ${left.expression.tastingNotes.slice(0, 2).join(" and ") || "toward its structural style"}, while ${right.expression.name} brings more ${right.expression.tastingNotes.slice(0, 2).join(" and ") || "of its own house style"}.`,
     palateFit: {
       left:
         getPeatTag(left.expression.tags) === "heavily-peated"

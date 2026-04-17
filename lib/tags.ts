@@ -16,14 +16,31 @@ export function firstMatchingTag(tags: string[], candidates: string[]): string |
 }
 
 const PEAT_TAGS = ["unpeated", "peated", "heavily-peated"];
-const CASK_TAGS = ["bourbon-cask", "sherry-cask", "wine-cask", "rum-cask", "virgin-oak", "refill-cask"];
+const RECOGNIZED_CASK_STYLE_TAGS = [
+  "bourbon-cask",
+  "sherry-cask",
+  "wine-cask",
+  "rum-cask",
+  "virgin-oak",
+  "refill-cask"
+];
+const KNOWN_CASK_TYPE_TAGS = ["px", "amontillado", "oloroso", "mizunara", "virgin-oak", "refill-cask"];
 
 export function getPeatTag(tags: string[]): string | null {
   return tags.find((t) => PEAT_TAGS.includes(t)) ?? null;
 }
 
 export function getCaskStyleTags(tags: string[]): string[] {
-  return tags.filter((t) => CASK_TAGS.includes(t));
+  return tags.filter((t) => RECOGNIZED_CASK_STYLE_TAGS.includes(t));
+}
+
+export function getAllCaskTags(tags: string[]): string[] {
+  return tags.filter(
+    (tag) =>
+      tag.endsWith("-cask") ||
+      tag.endsWith("-finish") ||
+      KNOWN_CASK_TYPE_TAGS.includes(tag)
+  );
 }
 
 export function isNas(tags: string[]): boolean {

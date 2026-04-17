@@ -33,6 +33,7 @@ const sampleEntry: CollectionViewItem = {
     ageStatement: 15,
     barcode: "610854001772",
     description: "Sherry-forward Campbeltown single malt.",
+    tastingNotes: ["dried fruit", "orange peel", "oak"],
     tags: ["single-malt", "sherry-cask", "campbeltown"]
   },
   images: []
@@ -45,6 +46,7 @@ describe("bottle detail helpers", () => {
     expect(formState.name).toBe("Springbank 15");
     expect(formState.abv).toBe("46");
     expect(formState.tags).toBe("single-malt, sherry-cask, campbeltown");
+    expect(formState.tastingNotes).toBe("dried fruit, orange peel, oak");
     expect(formState.purchasePrice).toBe("999");
   });
 

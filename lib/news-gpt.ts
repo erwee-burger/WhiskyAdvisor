@@ -498,7 +498,7 @@ function buildSummaryCardsPrompt(
         profile.favoredRegions.length ? `Preferred regions: ${profile.favoredRegions.join(", ")}` : null,
         profile.favoredCaskStyles.length ? `Favoured cask styles: ${profile.favoredCaskStyles.join(", ")}` : null,
         profile.favoredPeatTag ? `Peat preference: ${profile.favoredPeatTag}` : null,
-        profile.favoredFlavorTags.length ? `Top flavour tags: ${profile.favoredFlavorTags.join(", ")}` : null
+        profile.favoredFlavorTags.length ? `Top tasting notes: ${profile.favoredFlavorTags.join(", ")}` : null
       ].filter(Boolean)
     : ["No palate profile - pick on general quality and value"];
 

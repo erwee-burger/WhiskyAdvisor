@@ -34,6 +34,7 @@ function makeEntry(overrides: {
       id: "expr-1",
       name: "Test Whisky",
       tags: overrides.tags ?? [],
+      tastingNotes: [],
       brand: overrides.brand,
       distilleryName: overrides.distilleryName,
       bottlerName: overrides.bottlerName,

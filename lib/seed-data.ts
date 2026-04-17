@@ -17,6 +17,7 @@ export const seedStore: WhiskyStore & { tastingEntries: TastingEntry[] } = {
       description: "Benchmark Islay whisky with dense smoke and dried fruit depth.",
       imageUrl:
         "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=1200&q=80",
+      tastingNotes: ["smoke", "dried fruit", "iodine", "dark chocolate", "sea salt"],
       tags: [
         "single-malt",
         "heavily-peated",
@@ -43,6 +44,7 @@ export const seedStore: WhiskyStore & { tastingEntries: TastingEntry[] } = {
       description: "Muscular Highland spirit with deep oloroso character and orange peel lift.",
       imageUrl:
         "https://images.unsplash.com/photo-1516997121675-4c2d1684aa3e?auto=format&fit=crop&w=1200&q=80",
+      tastingNotes: ["walnut", "dark fruit", "oily", "orange peel", "leather"],
       tags: [
         "single-malt",
         "independent-bottler",
@@ -75,6 +77,7 @@ export const seedStore: WhiskyStore & { tastingEntries: TastingEntry[] } = {
       description: "Coastal, slightly funky, and brilliantly balanced.",
       imageUrl:
         "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&w=1200&q=80",
+      tastingNotes: ["toffee", "citrus", "engine oil", "malt", "coastal"],
       tags: [
         "single-malt",
         "peated",
@@ -101,6 +104,7 @@ export const seedStore: WhiskyStore & { tastingEntries: TastingEntry[] } = {
       description: "Tropical, wine-cask-forward, and lush.",
       imageUrl:
         "https://images.unsplash.com/photo-1516997121675-4c2d1684aa3e?auto=format&fit=crop&w=1200&q=80",
+      tastingNotes: ["tropical fruit", "vanilla", "berry jam", "spice", "chocolate"],
       tags: [
         "world-single-malt",
         "wine-cask",
@@ -128,6 +132,7 @@ export const seedStore: WhiskyStore & { tastingEntries: TastingEntry[] } = {
       description: "Modern smoky Islay whisky with bright citrus and malty sweetness.",
       imageUrl:
         "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&w=1200&q=80",
+      tastingNotes: ["barbecue", "ash", "lemon", "vanilla", "malt"],
       tags: [
         "single-malt",
         "heavily-peated",
@@ -143,6 +148,7 @@ export const seedStore: WhiskyStore & { tastingEntries: TastingEntry[] } = {
       ]
     }
   ],
+  expressionFlavorProfiles: [],
   collectionItems: [
     {
       id: "item_lagavulin",

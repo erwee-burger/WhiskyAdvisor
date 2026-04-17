@@ -217,6 +217,9 @@ function normalizeStore(store: WhiskyStore): WhiskyStore {
 
   return {
     ...store,
+    expressionFlavorProfiles: Array.isArray(store.expressionFlavorProfiles)
+      ? store.expressionFlavorProfiles
+      : [],
     tastingEntries: Array.isArray(store.tastingEntries) ? store.tastingEntries : [],
     tastingPeople,
     tastingGroups,
@@ -249,6 +252,7 @@ function legacyExpressionToFlat(
     barcode: typeof expression.barcode === "string" ? expression.barcode : undefined,
     description: typeof expression.description === "string" ? expression.description : undefined,
     imageUrl: typeof expression.imageUrl === "string" ? expression.imageUrl : undefined,
+    tastingNotes: toStringArray(expression.tastingNotes ?? expression.tasting_notes),
     tags
   };
 }
@@ -316,6 +320,7 @@ function legacyDraftToFlat(
           : Number(legacyExpression.ageStatement ?? undefined) || undefined,
       barcode: typeof legacyExpression.barcode === "string" ? legacyExpression.barcode : undefined,
       description: typeof legacyExpression.description === "string" ? legacyExpression.description : undefined,
+      tastingNotes: toStringArray(legacyExpression.tastingNotes ?? legacyExpression.tasting_notes),
       tags: toLegacyTags(legacyExpression, legacyExpression.flavorTags)
     },
     collection: {
@@ -437,6 +442,7 @@ function migrateLegacyStore(store: Record<string, unknown>): WhiskyStore {
 
   return {
     expressions,
+    expressionFlavorProfiles: [],
     collectionItems,
     itemImages,
     tastingEntries: Array.isArray(store.tastingEntries) ? store.tastingEntries : [],

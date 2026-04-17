@@ -14,6 +14,7 @@ export const bottleDetailFieldIds = [
   "ageStatement",
   "barcode",
   "tags",
+  "tastingNotes",
   "description",
   "status",
   "fillState",
@@ -36,6 +37,7 @@ export const aiBottleDetailFieldIds = [
   "ageStatement",
   "barcode",
   "tags",
+  "tastingNotes",
   "description",
   "purchasePrice"
 ] as const;
@@ -134,6 +136,14 @@ export const bottleDetailFieldDefinitions = [
     aiEnabled: true
   },
   {
+    id: "tastingNotes",
+    label: "Tasting notes",
+    section: "specs",
+    input: "tags",
+    fullSpan: true,
+    aiEnabled: true
+  },
+  {
     id: "description",
     label: "Description",
     section: "specs",
@@ -198,6 +208,7 @@ export const bottleDetailFormStateSchema = z
     ageStatement: z.string(),
     barcode: z.string(),
     tags: z.string(),
+    tastingNotes: z.string(),
     description: z.string(),
     status: z.enum(["owned", "wishlist"]),
     fillState: z.enum(["sealed", "open", "finished"]),
@@ -276,6 +287,7 @@ export function buildBottleDetailFormState(entry: CollectionViewItem): BottleDet
     ageStatement: entry.expression.ageStatement === undefined ? "" : String(entry.expression.ageStatement),
     barcode: entry.expression.barcode ?? "",
     tags: (entry.expression.tags ?? []).join(", "),
+    tastingNotes: (entry.expression.tastingNotes ?? []).join(", "),
     description: entry.expression.description ?? "",
     status: entry.item.status,
     fillState: entry.item.fillState,
@@ -332,6 +344,8 @@ export function getFieldRawValue(
       return normalizeNumberValue(formValues[field]);
     case "tags":
       return parseTagsText(formValues.tags);
+    case "tastingNotes":
+      return parseTagsText(formValues.tastingNotes);
     default:
       return normalizeTextValue(formValues[field]);
   }
@@ -341,7 +355,7 @@ export function normalizeSuggestedValue(
   field: AiBottleDetailFieldId,
   value: unknown
 ): string | number | string[] | null {
-  if (field === "tags") {
+  if (field === "tags" || field === "tastingNotes") {
     if (!Array.isArray(value)) {
       return null;
     }
@@ -366,7 +380,7 @@ export function serializeSuggestionValue(
   field: AiBottleDetailFieldId,
   value: string | number | string[] | null
 ) {
-  if (field === "tags") {
+  if (field === "tags" || field === "tastingNotes") {
     return Array.isArray(value) ? value.join(", ") : "";
   }
 
@@ -431,7 +445,7 @@ export function buildSuggestionDiff(
     return null;
   }
 
-  if (field === "tags") {
+  if (field === "tags" || field === "tastingNotes") {
     const current = Array.isArray(currentValue) ? currentValue : [];
     const suggested = Array.isArray(suggestedValue) ? suggestedValue : [];
     return {
@@ -463,7 +477,7 @@ export function areSuggestionValuesEqual(
     return true;
   }
 
-  if (field === "tags") {
+  if (field === "tags" || field === "tastingNotes") {
     const current = [...(Array.isArray(currentValue) ? currentValue : [])].sort();
     const suggested = [...(Array.isArray(suggestedValue) ? suggestedValue : [])].sort();
     return JSON.stringify(current) === JSON.stringify(suggested);
@@ -505,6 +519,10 @@ export function formatFieldValue(
       const tags = parseTagsText(formValues.tags);
       return tags.length > 0 ? tags.join(", ") : "Not set";
     }
+    case "tastingNotes": {
+      const notes = parseTagsText(formValues.tastingNotes);
+      return notes.length > 0 ? notes.join(", ") : "Not set";
+    }
     default: {
       const value = formValues[field as keyof BottleDetailFormState];
       return typeof value === "string" && value.trim().length > 0 ? value.trim() : "Not set";
@@ -521,7 +539,7 @@ export function formatSuggestionValueForDisplay(
     return "Not set";
   }
 
-  if (field === "tags") {
+  if (field === "tags" || field === "tastingNotes") {
     return Array.isArray(value) && value.length > 0 ? value.join(", ") : "Not set";
   }
 

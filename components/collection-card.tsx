@@ -3,7 +3,7 @@ import Image from "next/image";
 import { PendingLink } from "@/components/navigation-feedback";
 import { StarRating } from "@/components/star-rating";
 import { getBottleDisplayImage } from "@/lib/bottle-image";
-import { getCaskStyleTags, getPeatTag, isIndependentBottler, isLimited, isNas } from "@/lib/tags";
+import { getAllCaskTags, getPeatTag, isIndependentBottler, isLimited, isNas } from "@/lib/tags";
 import type { CollectionViewItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ export function CollectionCard({
   const bottleImage = getBottleDisplayImage(entry.expression.name, entry.images);
   const highlightTags = [
     getPeatTag(entry.expression.tags),
-    ...getCaskStyleTags(entry.expression.tags).slice(0, 2),
+    ...getAllCaskTags(entry.expression.tags).slice(0, 2),
     isIndependentBottler(entry.expression.tags) ? "independent-bottler" : null,
     isNas(entry.expression.tags) ? "nas" : null,
     isLimited(entry.expression.tags) ? "limited" : null

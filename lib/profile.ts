@@ -20,8 +20,8 @@ export function buildPalateProfile(items: CollectionViewItem[]): PalateProfile {
     // Favorites get a boost — they're standouts within the highest tier
     const weight = entry.item.isFavorite ? baseWeight + 1 : baseWeight;
 
-    for (const tag of entry.expression.tags) {
-      flavorScores.set(tag, (flavorScores.get(tag) ?? 0) + weight);
+    for (const note of entry.expression.tastingNotes ?? []) {
+      flavorScores.set(note, (flavorScores.get(note) ?? 0) + weight);
     }
 
     regionScores.set(
@@ -69,7 +69,7 @@ export function buildPalateProfile(items: CollectionViewItem[]): PalateProfile {
         title: "Signature notes",
         value: hasSignals ? topEntries(flavorScores, 3).join(", ") || "No notes yet" : "No data yet",
         supporting: hasSignals
-          ? "Flavor tags that keep surfacing in bottles you rate highly."
+          ? "Tasting notes that keep surfacing in bottles you rate highly."
           : "Flavor patterns appear after you rate a few bottles."
       }
     ],

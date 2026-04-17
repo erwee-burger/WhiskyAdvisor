@@ -3,6 +3,10 @@ import Papa from "papaparse";
 import { buildBuyNextSuggestions, buildDrinkNowSuggestions } from "@/lib/advisor";
 import { buildCollectionAnalytics } from "@/lib/analytics";
 import { buildComparison } from "@/lib/comparison";
+import {
+  markExpressionFlavorProfileStale,
+  saveExpressionFlavorProfile
+} from "@/lib/flavor-profile-repository";
 import { createId } from "@/lib/id";
 import { readStore, writeStore } from "@/lib/mock-store";
 import { analyzeBottleImage, buildDraftFromExpression } from "@/lib/openai";
@@ -13,6 +17,7 @@ import type {
   CollectionStatus,
   CollectionViewItem,
   Expression,
+  ExpressionFlavorProfile,
   FillState,
   IntakeDraft,
   ItemImage,
@@ -37,6 +42,7 @@ type BottleRecordPayload = {
   barcode?: string;
   description?: string;
   tags: string[];
+  tastingNotes: string[];
   status: CollectionStatus;
   fillState: FillState;
   purchaseCurrency: string;
@@ -113,7 +119,8 @@ function buildFallbackExpression(name: string, barcode?: string): Expression {
     id: createId("expr"),
     name,
     barcode,
-    tags: []
+    tags: [],
+    tastingNotes: []
   };
 }
 
@@ -168,7 +175,8 @@ function buildExpressionRecord(
     barcode: payload.barcode ?? baseExpression?.barcode,
     description: payload.description ?? baseExpression?.description,
     imageUrl: baseExpression?.imageUrl,
-    tags: payload.tags.length > 0 ? payload.tags : (baseExpression?.tags ?? [])
+    tastingNotes: payload.tastingNotes,
+    tags: payload.tags
   };
 }
 
@@ -197,6 +205,20 @@ function buildCollectionItemRecord(
   };
 }
 
+function arraysEqual(left: string[], right: string[]) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function didFlavorRelevantFieldsChange(previous: Expression, next: Expression) {
+  return (
+    previous.abv !== next.abv ||
+    previous.ageStatement !== next.ageStatement ||
+    (previous.description ?? "") !== (next.description ?? "") ||
+    !arraysEqual(previous.tags ?? [], next.tags ?? []) ||
+    !arraysEqual(previous.tastingNotes ?? [], next.tastingNotes ?? [])
+  );
+}
+
 function removeExpressionIfOrphaned(store: WhiskyStore, expressionId: string) {
   const stillReferenced = store.collectionItems.some((entry) => entry.expressionId === expressionId);
 
@@ -220,7 +242,8 @@ function buildCollectionViewFromStore(store: WhiskyStore): CollectionViewItem[] 
     const expression = store.expressions.find((entry) => entry.id === item.expressionId) ?? {
       id: item.expressionId,
       name: "Unknown",
-      tags: []
+      tags: [],
+      tastingNotes: []
     };
     const images = store.itemImages.filter((img) => img.collectionItemId === item.id);
 
@@ -566,6 +589,29 @@ export async function getDashboardData() {
 export async function getItemById(itemId: string) {
   const collection = await getCollectionView();
   return collection.find(({ item }) => item.id === itemId) ?? null;
+}
+
+export async function getExpressionFlavorProfileByItemId(itemId: string) {
+  const store = await readStore();
+  const item = store.collectionItems.find((entry) => entry.id === itemId);
+  if (!item) return null;
+  return store.expressionFlavorProfiles.find((entry) => entry.expressionId === item.expressionId) ?? null;
+}
+
+export async function getExpressionFlavorProfileByExpressionId(expressionId: string) {
+  const store = await readStore();
+  return store.expressionFlavorProfiles.find((entry) => entry.expressionId === expressionId) ?? null;
+}
+
+export async function classifyExpressionFlavorProfileByItemId(itemId: string): Promise<ExpressionFlavorProfile | null> {
+  const store = await readStore();
+  const item = store.collectionItems.find((entry) => entry.id === itemId);
+  if (!item) return null;
+  const expression = store.expressions.find((entry) => entry.id === item.expressionId);
+  if (!expression) return null;
+  const profile = saveExpressionFlavorProfile(store, expression);
+  await writeStore(store);
+  return profile;
 }
 
 export async function getBottleSocialSummary(itemId: string) {
@@ -1014,7 +1060,7 @@ export async function createDraftFromPhoto(
     collectionItemId: createId("item"),
     source: aiResult ? (imageBase64 ? "hybrid" : "search") : "photo",
     rawAiResponse: aiResult?.rawAiResponse,
-    expression: aiResult?.expression ?? { name: fileName.replace(/\.[^.]+$/, ""), tags: [] },
+    expression: aiResult?.expression ?? { name: fileName.replace(/\.[^.]+$/, ""), tags: [], tastingNotes: [] },
     collection: {
       purchaseCurrency: "ZAR",
       status: "owned",
@@ -1075,6 +1121,8 @@ export async function saveDraftAsItem(draftId: string, payload: BottleRecordPayl
     });
   }
 
+  markExpressionFlavorProfileStale(store, expressionId);
+
   // Save the bottle (draft still present so it won't be deleted by the cleanup logic)
   await writeStore(store);
 
@@ -1086,7 +1134,7 @@ export async function saveDraftAsItem(draftId: string, payload: BottleRecordPayl
     // Draft cleanup failed — not critical, bottle is already in the collection.
   }
 
-  return collectionItem;
+  return { item: collectionItem, flavorRefreshNeeded: true };
 }
 
 export async function updateItem(itemId: string, payload: BottleRecordPayload) {
@@ -1112,6 +1160,7 @@ export async function updateItem(itemId: string, payload: BottleRecordPayload) {
     payload,
     previousExpression
   );
+  const flavorRefreshNeeded = didFlavorRelevantFieldsChange(previousExpression, updatedExpression);
 
   store.expressions[expressionIndex] = updatedExpression;
   store.collectionItems[itemIndex] = buildCollectionItemRecord(
@@ -1131,8 +1180,12 @@ export async function updateItem(itemId: string, payload: BottleRecordPayload) {
     });
   }
 
+  if (flavorRefreshNeeded) {
+    markExpressionFlavorProfileStale(store, previousExpression.id);
+  }
+
   await writeStore(store);
-  return store.collectionItems[itemIndex];
+  return { item: store.collectionItems[itemIndex], flavorRefreshNeeded };
 }
 
 export async function deleteItem(itemId: string) {

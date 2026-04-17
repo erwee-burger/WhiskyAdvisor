@@ -4,8 +4,10 @@ import { BottleSharingHistory } from "@/components/bottle-sharing-history";
 import { BottleChat } from "@/components/bottle-chat";
 import { BottleRating } from "@/components/bottle-rating";
 import { BottleRecordEditor } from "@/components/bottle-record-editor";
+import type { ExpressionFlavorProfile, TastingGroup, TastingPerson, TastingPlace } from "@/lib/types";
 import {
   getBottleSocialSummary,
+  getExpressionFlavorProfileByItemId,
   getItemById,
   getTastingGroups,
   getTastingPeople,
@@ -32,18 +34,25 @@ export default async function ItemDetailPage({
 
   const isOwner = sessionMode === "owner";
   const canQuickShare = entry.item.status === "owned" && entry.item.fillState !== "finished";
-  const [socialSummary, people, groups, places] = isOwner
-    ? await Promise.all([
-        getBottleSocialSummary(itemId),
-        getTastingPeople(),
-        getTastingGroups(),
-        getTastingPlaces()
-      ])
-    : [null, [], [], []];
+  let socialSummary = null;
+  let flavorProfile: ExpressionFlavorProfile | null = null;
+  let people: TastingPerson[] = [];
+  let groups: TastingGroup[] = [];
+  let places: TastingPlace[] = [];
+
+  if (isOwner) {
+    [socialSummary, flavorProfile, people, groups, places] = await Promise.all([
+      getBottleSocialSummary(itemId),
+      getExpressionFlavorProfileByItemId(itemId),
+      getTastingPeople(),
+      getTastingGroups(),
+      getTastingPlaces()
+    ]);
+  }
 
   return (
     <div className="page">
-      <BottleRecordEditor entry={entry} isOwner={isOwner} />
+      <BottleRecordEditor entry={entry} flavorProfile={flavorProfile} isOwner={isOwner} />
 
       {isOwner && (
         <section className="panel stack">

@@ -52,6 +52,21 @@ const tagsField = z.preprocess((value) => {
   return [...new Set(tags)];
 }));
 
+const tastingNotesField = z.preprocess((value) => {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((note) => note.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}, z.array(z.string().trim().min(1)).default([]).transform((value) => [...new Set(value)]));
+
 const collectionStatusSchema = z.enum(["owned", "wishlist"]);
 const fillStateSchema = z.enum(["sealed", "open", "finished"]);
 const relationshipTypeSchema = z.enum(["friend", "family", "colleague", "other"]);
@@ -69,6 +84,7 @@ const bottlePayloadSchema = z
     barcode: optionalTextField,
     description: optionalTextField,
     tags: tagsField,
+    tastingNotes: tastingNotesField,
     status: collectionStatusSchema,
     fillState: fillStateSchema,
     purchaseCurrency: z.string().trim().min(1, "Currency is required"),

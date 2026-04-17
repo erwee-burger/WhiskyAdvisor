@@ -38,6 +38,7 @@ function buildExpression(overrides: Partial<Expression> = {}): Expression {
     id: "expr_1",
     name: "Lagavulin 16",
     tags: [],
+    tastingNotes: [],
     ...overrides
   };
 }
@@ -58,6 +59,7 @@ function buildCollectionItem(overrides: Partial<CollectionItem> = {}): Collectio
 function buildStore(overrides: Partial<WhiskyStore> = {}): WhiskyStore {
   return {
     expressions: [buildExpression()],
+    expressionFlavorProfiles: [],
     collectionItems: [buildCollectionItem()],
     itemImages: [],
     drafts: [],

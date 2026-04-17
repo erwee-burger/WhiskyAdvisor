@@ -18,7 +18,7 @@ function scoreMatch(item: CollectionViewItem, profile: PalateProfile) {
     score += 10;
   }
 
-  const tagMatches = item.expression.tags.filter((tag) =>
+  const tagMatches = (item.expression.tastingNotes ?? []).filter((tag) =>
     profile.favoredFlavorTags.includes(tag)
   );
   score += tagMatches.length * 4;

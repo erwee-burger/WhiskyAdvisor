@@ -12,13 +12,13 @@ export async function PATCH(
     const saveDraftParsed = saveDraftSchema.safeParse(body);
 
     if (saveDraftParsed.success) {
-      const item = await saveDraftAsItem(saveDraftParsed.data.draftId, saveDraftParsed.data);
+      const result = await saveDraftAsItem(saveDraftParsed.data.draftId, saveDraftParsed.data);
 
-      if (!item) {
+      if (!result) {
         return NextResponse.json({ error: "Draft not found" }, { status: 404 });
       }
 
-      return NextResponse.json({ itemId: item.id });
+      return NextResponse.json({ itemId: result.item.id, flavorRefreshNeeded: result.flavorRefreshNeeded });
     }
 
     const updateParsed = updateItemSchema.safeParse(body);
@@ -28,13 +28,13 @@ export async function PATCH(
     }
 
     const { itemId } = await context.params;
-    const item = await updateItem(itemId, updateParsed.data);
+    const result = await updateItem(itemId, updateParsed.data);
 
-    if (!item) {
+    if (!result) {
       return NextResponse.json({ error: "Bottle not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ itemId: item.id });
+    return NextResponse.json({ itemId: result.item.id, flavorRefreshNeeded: result.flavorRefreshNeeded });
   } catch (error) {
     const message =
       error instanceof Error

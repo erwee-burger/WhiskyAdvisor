@@ -22,9 +22,9 @@ import {
   type AiBottleDetailFieldId,
   type BottleFieldSuggestionResponse
 } from "@/lib/bottle-detail";
-import type { CollectionViewItem } from "@/lib/types";
+import type { CollectionViewItem, ExpressionFlavorProfile } from "@/lib/types";
 import {
-  getCaskStyleTags,
+  getAllCaskTags,
   getPeatTag,
   isChillFiltered,
   isIndependentBottler,
@@ -119,7 +119,15 @@ const GUEST_HIDDEN_COLLECTION_FIELDS: BottleDetailFieldId[] = [
   "personalNotes"
 ];
 
-export function BottleRecordEditor({ entry, isOwner = true }: { entry: CollectionViewItem; isOwner?: boolean }) {
+export function BottleRecordEditor({
+  entry,
+  flavorProfile,
+  isOwner = true
+}: {
+  entry: CollectionViewItem;
+  flavorProfile?: ExpressionFlavorProfile | null;
+  isOwner?: boolean;
+}) {
   const router = useRouter();
   const fieldRefs = useRef<Partial<Record<BottleDetailFieldId, FocusableControl | null>>>({});
   const initialValues = useMemo(() => buildBottleDetailFormState(entry), [entry]);
@@ -135,6 +143,8 @@ export function BottleRecordEditor({ entry, isOwner = true }: { entry: Collectio
   const [isDeleting, setIsDeleting] = useState(false);
   const [focusedField, setFocusedField] = useState<BottleDetailFieldId | null>(null);
   const [activeSuggestion, setActiveSuggestion] = useState<SuggestionState | null>(null);
+  const [profileState, setProfileState] = useState(flavorProfile ?? null);
+  const [isReclassifying, setIsReclassifying] = useState(false);
 
   useEffect(() => {
     setBaseValues(initialValues);
@@ -145,6 +155,7 @@ export function BottleRecordEditor({ entry, isOwner = true }: { entry: Collectio
     setIsEditing(false);
     setFocusedField(null);
     setActiveSuggestion(null);
+    setProfileState(flavorProfile ?? null);
   }, [initialPreview, initialValues]);
 
   useEffect(() => {
@@ -159,7 +170,7 @@ export function BottleRecordEditor({ entry, isOwner = true }: { entry: Collectio
   const currentTags = parseTagsText(formValues.tags);
   const bottleImage = previewUrl || getBottleDisplayImage(formValues.name || entry.expression.name, entry.images);
   const heroSummary = buildHeroSummary(formValues);
-  const caskTags = getCaskStyleTags(currentTags);
+  const caskTags = getAllCaskTags(currentTags);
   const signalTags = [
     getPeatTag(currentTags),
     ...caskTags.slice(0, 2),
@@ -270,6 +281,7 @@ export function BottleRecordEditor({ entry, isOwner = true }: { entry: Collectio
         frontImageUrl,
         frontImageLabel: previewLabel || undefined,
         tags: parseTagsText(formValues.tags),
+        tastingNotes: parseTagsText(formValues.tastingNotes),
         status: formValues.status,
         fillState: formValues.fillState,
         purchaseCurrency: formValues.purchaseCurrency.trim().toUpperCase() || "ZAR",
@@ -291,6 +303,15 @@ export function BottleRecordEditor({ entry, isOwner = true }: { entry: Collectio
           text: await readResponseMessage(response, "Could not update the bottle.")
         });
         return;
+      }
+
+      const payloadResult = (await response.json()) as { flavorRefreshNeeded?: boolean };
+
+      if (payloadResult.flavorRefreshNeeded) {
+        const classifyResponse = await fetch(`/api/items/${entry.item.id}/flavor-profile`, { method: "POST" });
+        if (classifyResponse.ok) {
+          setProfileState((await classifyResponse.json()) as ExpressionFlavorProfile);
+        }
       }
 
       setBaseValues(formValues);
@@ -320,6 +341,30 @@ export function BottleRecordEditor({ entry, isOwner = true }: { entry: Collectio
     setFocusedField(null);
     setActiveSuggestion(null);
     setNotice({ tone: "info", text: "Unsaved changes were discarded." });
+  }
+
+  async function handleReclassify() {
+    setIsReclassifying(true);
+    try {
+      const response = await fetch(`/api/items/${entry.item.id}/flavor-profile`, { method: "POST" });
+      if (!response.ok) {
+        setNotice({
+          tone: "error",
+          text: await readResponseMessage(response, "Could not refresh the flavor profile.")
+        });
+        return;
+      }
+
+      setProfileState((await response.json()) as ExpressionFlavorProfile);
+      setNotice({ tone: "success", text: "Flavor profile refreshed." });
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        text: error instanceof Error ? error.message : "Could not refresh the flavor profile."
+      });
+    } finally {
+      setIsReclassifying(false);
+    }
   }
 
   async function handleDelete() {
@@ -710,10 +755,11 @@ export function BottleRecordEditor({ entry, isOwner = true }: { entry: Collectio
   }
 
   function renderDisplayValue(definition: BottleDetailFieldDefinition) {
-    if (definition.id === "tags") {
-      return currentTags.length > 0 ? (
+    if (definition.id === "tags" || definition.id === "tastingNotes") {
+      const values = parseTagsText(definition.id === "tags" ? formValues.tags : formValues.tastingNotes);
+      return values.length > 0 ? (
         <div className="pill-row">
-          {currentTags.map((tag) => (
+          {values.map((tag) => (
             <span className="pill" key={tag}>
               {tag}
             </span>
@@ -814,9 +860,13 @@ export function BottleRecordEditor({ entry, isOwner = true }: { entry: Collectio
               id={fieldId}
               onChange={(event) => updateField(fieldId, event.target.value)}
               ref={registerFieldRef(fieldId)}
-              value={formValues.tags}
+              value={fieldId === "tags" ? formValues.tags : formValues.tastingNotes}
             />
-            <p className="muted">Comma-separated tags. AI suggestions can add or remove them before save.</p>
+            <p className="muted">
+              {fieldId === "tags"
+                ? "Comma-separated tags. AI suggestions can add or remove them before save."
+                : "Comma-separated tasting notes used for flavor profiling."}
+            </p>
           </>
         );
       default:
@@ -1051,6 +1101,47 @@ export function BottleRecordEditor({ entry, isOwner = true }: { entry: Collectio
             {specFields.map(renderFieldRow)}
           </div>
         </div>
+      </section>
+
+      <section className="panel stack">
+        <div className="section-title">
+          <div>
+            <h2>Flavor profile</h2>
+            <p>Derived from tasting notes plus bounded structural priors.</p>
+          </div>
+          {isOwner ? (
+            <button className="button-subtle" disabled={isReclassifying} onClick={handleReclassify} type="button">
+              {renderButtonLabel("Reclassify", isReclassifying)}
+            </button>
+          ) : null}
+        </div>
+        {profileState ? (
+          <>
+            <div className="pill-row">
+              {Object.entries(profileState.pillars).map(([pillar, value]) => (
+                <span className="pill" key={pillar}>
+                  {pillar}: {value}/10
+                </span>
+              ))}
+            </div>
+            <div className="grid columns-2">
+              <div className="status-note">
+                Confidence {Math.round(profileState.confidence * 100)}% | Evidence {profileState.evidenceCount}
+                {profileState.staleAt ? " | Stale" : ""}
+              </div>
+              <div className="status-note">{profileState.explanation}</div>
+            </div>
+            <div className="pill-row">
+              {(profileState.topNotes.length > 0 ? profileState.topNotes : ["No tasting notes yet"]).map((note) => (
+                <span className="pill" key={note}>
+                  {note}
+                </span>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="status-note">No flavor profile saved yet.</div>
+        )}
       </section>
 
       <section className="panel stack">

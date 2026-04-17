@@ -19,6 +19,33 @@ export interface Expression {
   description?: string;
   imageUrl?: string;
   tags: string[];
+  tastingNotes: string[];
+}
+
+export type FlavorPillar =
+  | "smoky"
+  | "sweet"
+  | "spicy"
+  | "fruity"
+  | "oaky"
+  | "floral"
+  | "malty"
+  | "coastal";
+
+export interface ExpressionFlavorProfile {
+  id: string;
+  expressionId: string;
+  pillars: Record<FlavorPillar, number>;
+  topNotes: string[];
+  confidence: number;
+  evidenceCount: number;
+  explanation: string;
+  scoringVersion: string;
+  modelVersion: string;
+  generatedAt: string;
+  staleAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CollectionItem {
@@ -203,6 +230,7 @@ export interface PalateCard {
  */
 export interface PalateProfile {
   cards: PalateCard[];
+  /** Top tasting notes seen across the user's highest-rated bottles. */
   favoredFlavorTags: string[];
   favoredRegions: string[];
   favoredCaskStyles: string[];
@@ -252,6 +280,7 @@ export interface ComparisonResult {
 
 export interface WhiskyStore {
   expressions: Expression[];
+  expressionFlavorProfiles: ExpressionFlavorProfile[];
   collectionItems: CollectionItem[];
   itemImages: ItemImage[];
   tastingEntries?: TastingEntry[];

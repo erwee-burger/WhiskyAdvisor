@@ -55,7 +55,7 @@ describe("buildCollectionSummary", () => {
     const items: CollectionViewItem[] = [
       {
         item: { id: "1", expressionId: "e1", status: "owned", fillState: "open", purchaseCurrency: "ZAR", createdAt: "", updatedAt: "" },
-        expression: { id: "e1", name: "Springbank 15", distilleryName: "Springbank", country: "Scotland", tags: [] },
+        expression: { id: "e1", name: "Springbank 15", distilleryName: "Springbank", country: "Scotland", tags: [], tastingNotes: [] },
         tastingEntries: [],
         images: []
       }

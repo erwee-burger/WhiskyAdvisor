@@ -33,6 +33,7 @@ type DraftResponse = {
     ageStatement?: number;
     barcode?: string;
     tags?: string[];
+    tastingNotes?: string[];
     description?: string;
   };
   distilleryName?: string;
@@ -52,6 +53,7 @@ type DraftResponse = {
     ageStatement?: number;
     barcode?: string;
     tags?: string[];
+    tastingNotes?: string[];
     description?: string;
   };
   suggestions: Array<{
@@ -315,6 +317,7 @@ export function AddBottleForm() {
         ageStatement: parseNumber(formData.get("ageStatement")),
         barcode: String(formData.get("barcode") ?? "").trim() || undefined,
         tags: parseFlavorTags(formData.get("tags")),
+        tastingNotes: parseFlavorTags(formData.get("tastingNotes")),
         description: String(formData.get("description") ?? "").trim() || undefined,
         status: String(formData.get("status") ?? "owned"),
         fillState: String(formData.get("fillState") ?? "sealed"),
@@ -341,7 +344,10 @@ export function AddBottleForm() {
         return;
       }
 
-      const saved = (await response.json()) as { itemId: string };
+      const saved = (await response.json()) as { itemId: string; flavorRefreshNeeded?: boolean };
+      if (saved.flavorRefreshNeeded) {
+        await fetch(`/api/items/${saved.itemId}/flavor-profile`, { method: "POST" }).catch(() => undefined);
+      }
       setNotice({ tone: "success", text: "Bottle saved. Opening the record now..." });
       window.location.assign(`/collection/${saved.itemId}`);
     } catch (error) {
@@ -563,7 +569,7 @@ export function AddBottleForm() {
 
               <div className="field full-span form-section-title">
                 <label>Specs</label>
-                <p>Collector fields for country, strength, tags, and short description.</p>
+                <p>Collector fields for country, strength, structural tags, tasting notes, and short description.</p>
               </div>
               <div className="field">
                 <label htmlFor="country">Country</label>
@@ -590,9 +596,19 @@ export function AddBottleForm() {
                   defaultValue={(draft.expression.tags ?? []).join(", ")}
                   id="tags"
                   name="tags"
-                  placeholder="single-malt, sherry-cask, peated, limited, spicy, dried-fruit"
+                  placeholder="single-malt, sherry-cask, peated, limited"
                 />
-                <p className="muted">Comma-separated. AI fills these automatically, and you can adjust them before save.</p>
+                <p className="muted">Comma-separated structural tags. AI fills these automatically, and you can adjust them before save.</p>
+              </div>
+              <div className="field full-span">
+                <label htmlFor="tastingNotes">Tasting notes</label>
+                <input
+                  defaultValue={(draft.expression.tastingNotes ?? []).join(", ")}
+                  id="tastingNotes"
+                  name="tastingNotes"
+                  placeholder="dried fruit, orange peel, pepper, oily"
+                />
+                <p className="muted">Comma-separated descriptor phrases used for flavor profiling.</p>
               </div>
               <div className="field full-span">
                 <label htmlFor="description">Bottle description</label>
