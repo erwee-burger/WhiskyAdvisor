@@ -15,6 +15,7 @@ import type {
   TastingSessionView
 } from "@/lib/types";
 import { formatDate, readResponseMessage } from "@/lib/utils";
+import { TastingChat } from "@/components/tasting-chat";
 
 type StatusNote = {
   tone: "success" | "error" | "info";
@@ -174,6 +175,14 @@ function getBottleSubline(entry: CollectionViewItem) {
     .join(" / ");
 }
 
+function SparkleIcon() {
+  return (
+    <svg aria-hidden="true" fill="currentColor" height="14" viewBox="0 0 24 24" width="14">
+      <path d="m12 2 1.76 5.24L19 9l-5.24 1.76L12 16l-1.76-5.24L5 9l5.24-1.76L12 2Zm7 11 1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3ZM5 14l.8 2.2L8 17l-2.2.8L5 20l-.8-2.2L2 17l2.2-.8L5 14Z" />
+    </svg>
+  );
+}
+
 function TastingSection({
   id,
   title,
@@ -247,6 +256,7 @@ export function TastingsHub({
   const [placesOpen, setPlacesOpen] = useState(false);
   const [sessionBottleQuery, setSessionBottleQuery] = useState("");
   const [expandedSessionIds, setExpandedSessionIds] = useState<string[]>([]);
+  const [isBriefingLoading, setIsBriefingLoading] = useState(false);
 
   const groupMembersById = useMemo(
     () => new Map(groups.map((group) => [group.id, group.memberPersonIds] as const)),
@@ -380,6 +390,99 @@ export function TastingsHub({
     setEditingSessionId(null);
     setSessionBottleQuery("");
     setSessionForm(createSessionForm());
+  }
+
+  async function handleGenerateBriefing() {
+    if (sessionForm.bottleItemIds.length === 0) return;
+    setIsBriefingLoading(true);
+    try {
+      const response = await fetch("/api/tastings/briefing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bottleItemIds: sessionForm.bottleItemIds,
+          placeId: sessionForm.placeId || null,
+          groupId: sessionForm.groupId || null,
+          attendeePersonIds: sessionForm.attendeePersonIds,
+          occasionType: sessionForm.occasionType
+        })
+      });
+      if (!response.ok) {
+        setNotice({ tone: "error", text: "Could not generate briefing." });
+        return;
+      }
+      const data = (await response.json()) as {
+        suggestedName: string;
+        briefing: {
+          tastingOrder: Array<{ bottleName: string; reason: string }>;
+          bottleProfiles: Array<{
+            bottleName: string;
+            keyNotes: string[];
+            watchFor: string;
+            background: string;
+          }>;
+          tips: string[];
+        };
+      };
+
+      const sections: string[] = [];
+      if (data.briefing.tastingOrder.length > 0) {
+        sections.push("## Tasting Order");
+        data.briefing.tastingOrder.forEach((entry, i) => {
+          sections.push(`${i + 1}. ${entry.bottleName} — ${entry.reason}`);
+        });
+      }
+      if (data.briefing.bottleProfiles.length > 0) {
+        sections.push("\n## Bottle Profiles");
+        for (const profile of data.briefing.bottleProfiles) {
+          sections.push(`### ${profile.bottleName}`);
+          if (profile.keyNotes.length > 0) sections.push(`Key notes: ${profile.keyNotes.join(", ")}`);
+          if (profile.watchFor) sections.push(`Watch for: ${profile.watchFor}`);
+          if (profile.background) sections.push(`Background: ${profile.background}`);
+        }
+      }
+      if (data.briefing.tips.length > 0) {
+        sections.push("\n## Tips");
+        data.briefing.tips.forEach((tip) => sections.push(`- ${tip}`));
+      }
+
+      setSessionForm((current) => ({
+        ...current,
+        title: current.title || data.suggestedName,
+        notes: sections.join("\n")
+      }));
+
+      setNotice({ tone: "success", text: "Briefing generated. Review and edit before saving." });
+    } catch {
+      setNotice({ tone: "error", text: "Could not generate briefing." });
+    } finally {
+      setIsBriefingLoading(false);
+    }
+  }
+
+  async function handleSuggestName() {
+    if (sessionForm.bottleItemIds.length === 0) return;
+    setIsBriefingLoading(true);
+    try {
+      const response = await fetch("/api/tastings/briefing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bottleItemIds: sessionForm.bottleItemIds,
+          placeId: sessionForm.placeId || null,
+          groupId: sessionForm.groupId || null,
+          attendeePersonIds: sessionForm.attendeePersonIds,
+          occasionType: sessionForm.occasionType
+        })
+      });
+      if (!response.ok) return;
+      const data = (await response.json()) as { suggestedName: string };
+      setSessionForm((current) => ({ ...current, title: data.suggestedName }));
+    } catch {
+      // silent — user can type manually
+    } finally {
+      setIsBriefingLoading(false);
+    }
   }
 
   function resetPersonForm() {
@@ -734,11 +837,15 @@ export function TastingsHub({
           <button className="button-subtle" onClick={() => openSectionAndScroll("log-session", setSessionOpen)} type="button">
             Log session
           </button>
-          <a className="button-subtle" href="/advisor">
-            Ask advisor what to take
-          </a>
         </div>
       </section>
+
+      <TastingChat
+        onApply={(bottleItemIds) => {
+          setSessionForm((current) => ({ ...current, bottleItemIds }));
+          openSectionAndScroll("log-session", setSessionOpen);
+        }}
+      />
 
       {notice ? <div className={`status-note status-note-${notice.tone}`}>{notice.text}</div> : null}
 
@@ -918,17 +1025,29 @@ export function TastingsHub({
         <form className="form-grid" onSubmit={handleSessionSubmit}>
           <div className="field">
             <label htmlFor="session-title">Title</label>
-            <input
-              id="session-title"
-              onChange={(event) =>
-                setSessionForm((current) => ({
-                  ...current,
-                  title: event.target.value
-                }))
-              }
-              placeholder="Whisky Friday at home"
-              value={sessionForm.title}
-            />
+            <div className="tasting-input-with-action">
+              <input
+                id="session-title"
+                onChange={(event) =>
+                  setSessionForm((current) => ({
+                    ...current,
+                    title: event.target.value
+                  }))
+                }
+                placeholder="Whisky Friday at home"
+                value={sessionForm.title}
+              />
+              <button
+                aria-label="Suggest a name with AI"
+                className="detail-icon-button"
+                disabled={sessionForm.bottleItemIds.length === 0 || isBriefingLoading}
+                onClick={handleSuggestName}
+                title="Suggest a session name"
+                type="button"
+              >
+                <SparkleIcon />
+              </button>
+            </div>
           </div>
           <div className="field">
             <label htmlFor="session-date">Date</label>
@@ -1005,7 +1124,17 @@ export function TastingsHub({
             </select>
           </div>
           <div className="field full-span">
-            <label htmlFor="session-notes">Notes</label>
+            <div className="tasting-label-with-action">
+              <label htmlFor="session-notes">Notes</label>
+              <button
+                className="button-subtle tasting-briefing-btn"
+                disabled={sessionForm.bottleItemIds.length === 0 || isBriefingLoading}
+                onClick={handleGenerateBriefing}
+                type="button"
+              >
+                {isBriefingLoading ? "Generating..." : "✦ Generate briefing"}
+              </button>
+            </div>
             <textarea
               id="session-notes"
               onChange={(event) =>
