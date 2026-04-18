@@ -59,3 +59,27 @@ describe("whisky domain logic", () => {
     expect(comparison.summary.length).toBeGreaterThan(10);
   });
 });
+
+describe("extractBottleSuggestions", async () => {
+  const { extractBottleSuggestions } = await import("@/components/tasting-chat");
+
+  it("returns empty array when no JSON block", () => {
+    const result = extractBottleSuggestions("Here are some bottles for you.");
+    expect(result.bottles).toEqual([]);
+    expect(result.text).toBe("Here are some bottles for you.");
+  });
+
+  it("parses bottle suggestions from JSON block", () => {
+    const content = 'Try these:\n{"bottleSuggestions":[{"id":"abc","name":"Ardbeg 10"}]}';
+    const result = extractBottleSuggestions(content);
+    expect(result.bottles).toEqual([{ id: "abc", name: "Ardbeg 10" }]);
+    expect(result.text).toBe("Try these:");
+  });
+
+  it("leaves text intact when JSON block is malformed", () => {
+    const content = 'text {"bottleSuggestions": bad json}';
+    const result = extractBottleSuggestions(content);
+    expect(result.bottles).toEqual([]);
+    expect(result.text).toBe(content);
+  });
+});
