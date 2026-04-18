@@ -1,22 +1,31 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockRepository = vi.hoisted(() => ({
   createQuickBottleShare: vi.fn(),
   createTastingSession: vi.fn(),
   getTastingSessions: vi.fn(),
   deleteTastingPerson: vi.fn(),
-  updateTastingPerson: vi.fn()
+  updateTastingPerson: vi.fn(),
+  getCollectionView: vi.fn(),
+  getTastingGroups: vi.fn(),
+  getTastingPlaces: vi.fn(),
+  getTastingPeople: vi.fn()
 }));
 
 vi.mock("@/lib/repository", () => mockRepository);
 
 import { DELETE as deleteTastingPersonRoute } from "@/app/api/tastings/people/[personId]/route";
 import { POST as postTastingSessions } from "@/app/api/tastings/sessions/route";
+import { POST as postBriefing } from "@/app/api/tastings/briefing/route";
 import { createQuickBottleShare, createTastingSession, deleteTastingPerson } from "@/lib/repository";
 
 const mockedCreateQuickBottleShare = vi.mocked(createQuickBottleShare);
 const mockedCreateTastingSession = vi.mocked(createTastingSession);
 const mockedDeleteTastingPerson = vi.mocked(deleteTastingPerson);
+const mockedGetCollectionView = vi.mocked(mockRepository.getCollectionView);
+const mockedGetTastingGroups = vi.mocked(mockRepository.getTastingGroups);
+const mockedGetTastingPlaces = vi.mocked(mockRepository.getTastingPlaces);
+const mockedGetTastingPeople = vi.mocked(mockRepository.getTastingPeople);
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -191,51 +200,70 @@ describe("formatBriefingAsText", () => {
 });
 
 describe("POST /api/tastings/briefing", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("returns 400 for invalid JSON", async () => {
-    const response = await fetch("http://localhost:3000/api/tastings/briefing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "invalid json"
-    });
+    const response = await postBriefing(
+      new Request("http://localhost/api/tastings/briefing", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "invalid json"
+      })
+    );
     expect(response.status).toBe(400);
   });
 
   it("returns 400 for empty bottleItemIds", async () => {
-    const response = await fetch("http://localhost:3000/api/tastings/briefing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bottleItemIds: [] })
-    });
+    const response = await postBriefing(
+      new Request("http://localhost/api/tastings/briefing", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ bottleItemIds: [] })
+      })
+    );
     expect(response.status).toBe(400);
   });
 
   it("returns 400 for non-array bottleItemIds", async () => {
-    const response = await fetch("http://localhost:3000/api/tastings/briefing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bottleItemIds: "not-an-array" })
-    });
+    const response = await postBriefing(
+      new Request("http://localhost/api/tastings/briefing", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ bottleItemIds: "not-an-array" })
+      })
+    );
     expect(response.status).toBe(400);
   });
 
   it("returns 400 for invalid attendeePersonIds (not array)", async () => {
-    const response = await fetch("http://localhost:3000/api/tastings/briefing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        bottleItemIds: ["item-1"],
-        attendeePersonIds: "not-an-array"
+    const response = await postBriefing(
+      new Request("http://localhost/api/tastings/briefing", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          bottleItemIds: ["item-1"],
+          attendeePersonIds: "not-an-array"
+        })
       })
-    });
+    );
     expect(response.status).toBe(400);
   });
 
   it("returns 404 for non-existent bottles", async () => {
-    const response = await fetch("http://localhost:3000/api/tastings/briefing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bottleItemIds: ["nonexistent-id"] })
-    });
+    mockedGetCollectionView.mockResolvedValueOnce([]);
+    mockedGetTastingGroups.mockResolvedValueOnce([]);
+    mockedGetTastingPlaces.mockResolvedValueOnce([]);
+    mockedGetTastingPeople.mockResolvedValueOnce([]);
+
+    const response = await postBriefing(
+      new Request("http://localhost/api/tastings/briefing", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ bottleItemIds: ["nonexistent-id"] })
+      })
+    );
     expect(response.status).toBe(404);
   });
 });
