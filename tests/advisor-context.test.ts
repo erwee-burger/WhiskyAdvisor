@@ -130,4 +130,10 @@ describe("buildTastingBottleContext", () => {
     expect(result).toContain("46%");
     expect(result).toContain("bourbon-cask");
   });
+
+  it("includes distillery name", () => {
+    const result = buildTastingBottleContext([makeItem({ expression: { ...makeItem().expression, distilleryName: "Springbank" } })]);
+    expect(result).toContain("Springbank 15");
+    expect(result).toContain("| Springbank |");
+  });
 });

@@ -101,6 +101,7 @@ export function buildTastingBottleContext(items: CollectionViewItem[]): string {
 
   const lines = available.map((i) => {
     const e = i.expression;
+    const distillery = e.distilleryName || "distillery unknown";
     const abv = e.abv ? `${e.abv}%` : "ABV unknown";
     const age = e.ageStatement ? `${e.ageStatement}yo` : "NAS";
     const cask = e.tags.filter((t) => t.includes("cask")).join(", ") || "cask unknown";
@@ -108,7 +109,7 @@ export function buildTastingBottleContext(items: CollectionViewItem[]): string {
     const notes = e.tags.filter((t) => !t.includes("cask") && !t.includes("peat") && !t.includes("smoke")).slice(0, 4).join(", ");
     const rating = i.item.rating ? ` | rated ${i.item.rating}/3${i.item.isFavorite ? " ★" : ""}` : "";
     const fill = i.item.fillState;
-    return `- [id:${i.item.id}] ${e.name} | ${age} | ${abv} | ${peat} | ${cask}${notes ? ` | notes: ${notes}` : ""}${rating} | ${fill}`;
+    return `- [id:${i.item.id}] ${e.name} | ${distillery} | ${age} | ${abv} | ${peat} | ${cask}${notes ? ` | notes: ${notes}` : ""}${rating} | ${fill}`;
   });
 
   return ["AVAILABLE BOTTLES FOR TASTING:", ...lines].join("\n");
