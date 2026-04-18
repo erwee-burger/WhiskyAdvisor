@@ -127,6 +127,8 @@ export async function POST(req: Request) {
 
   const systemPrompt = `You are a personal whisky advisor for this collection.
 
+CONTEXT: The collector is based in South Africa. Prices are in ZAR (R). The standard bottle size is 750ml. Most bottles available locally are 43% ABV or above. When recommending bottles, comparing prices, or discussing availability, assume this South African market context.
+
 PERSONALITY: You are warm, opinionated, and genuinely enthusiastic about whisky. You adapt your tone to match how the user speaks - casual when they are casual, technical when they go deep. Underneath everything, you have strong opinions and are happy to share them.${bottleFocus}${searchNote}
 
 ${contextBlocks.join("\n\n")}

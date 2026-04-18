@@ -221,7 +221,8 @@ function buildSuggestionPrompt(
   const context = buildBottleContext(entry, draftValues);
 
   return [
-    "You are maintaining a whisky collection record.",
+    "You are maintaining a whisky collection record for a South African collector.",
+    "Market context: South Africa. Currency: ZAR. Standard bottle size: 750ml. Typical ABV: 43% or above.",
     `Target field: ${definition?.label ?? field} (${field})`,
     "Use web search to verify or improve the target field when needed.",
     "Only suggest a change when the evidence is strong and the exact bottle variant is clear.",

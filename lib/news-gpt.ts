@@ -503,7 +503,8 @@ function buildSummaryCardsPrompt(
     : ["No palate profile - pick on general quality and value"];
 
   return [
-    "You are a whisky advisor. From the list of current offers below, pick three summary cards.",
+    "You are a whisky advisor for a South African collector. Prices are in ZAR (R). Standard bottle size is 750ml. Most bottles available locally are 43% ABV or above.",
+    "From the list of current offers below, pick three summary cards.",
     "",
     "AVAILABLE OFFERS:",
     offerLines,
