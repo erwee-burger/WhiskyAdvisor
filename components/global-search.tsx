@@ -27,6 +27,7 @@ export function GlobalSearch() {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -54,18 +55,22 @@ export function GlobalSearch() {
   // Debounced search
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (query.length < 2) {
+    if (query.trim().length < 2) {
       setResults([]);
+      setIsLoading(false);
       return;
     }
+    setIsLoading(true);
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await fetch(`/api/collection/search?q=${encodeURIComponent(query)}`);
         if (!res.ok) return;
         const data = await res.json() as { results: SearchResult[] };
         setResults(data.results);
+        setIsLoading(false);
       } catch {
         // Non-fatal: leave stale results
+        setIsLoading(false);
       }
     }, 250);
     return () => {
@@ -129,9 +134,9 @@ export function GlobalSearch() {
             ✕
           </button>
 
-          {(results.length > 0 || query.length >= 2) && (
+          {(results.length > 0 || (query.length >= 2 && !isLoading)) && (
             <div className="global-search-dropdown">
-              {results.length === 0 ? (
+              {results.length === 0 && !isLoading ? (
                 <div className="global-search-empty">No bottles found</div>
               ) : (
                 <>
@@ -150,7 +155,7 @@ export function GlobalSearch() {
                     </button>
                   ))}
                   <div className="global-search-footer">
-                    Press Enter to see all {results.length === 5 ? "5+" : results.length} results in Collection →
+                    Press Enter to see all {results.length} results →
                   </div>
                 </>
               )}
