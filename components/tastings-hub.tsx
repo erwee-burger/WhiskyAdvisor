@@ -239,9 +239,9 @@ export function TastingsHub({
   const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingPlaceId, setEditingPlaceId] = useState<string | null>(null);
-  const [quickShareOpen, setQuickShareOpen] = useState(true);
-  const [sessionOpen, setSessionOpen] = useState(true);
-  const [recentOpen, setRecentOpen] = useState(true);
+  const [quickShareOpen, setQuickShareOpen] = useState(false);
+  const [sessionOpen, setSessionOpen] = useState(false);
+  const [recentOpen, setRecentOpen] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [groupsOpen, setGroupsOpen] = useState(false);
   const [placesOpen, setPlacesOpen] = useState(false);
