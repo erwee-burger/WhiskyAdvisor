@@ -10,19 +10,37 @@ import { getDashboardData, getRecentTastingSessions } from "@/lib/repository";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const body = (await req.json()) as { messages: UIMessage[] };
-  const uiMessages = body.messages ?? [];
+  try {
+    let body: any;
+    try {
+      body = await req.json();
+    } catch (error) {
+      return new Response(
+        JSON.stringify({ error: "Invalid request body" }),
+        { status: 400, headers: { "content-type": "application/json" } }
+      );
+    }
 
-  const { OPENAI_MODEL } = getServerEnv();
+    // Validate: check if messages is array
+    const uiMessages = Array.isArray(body?.messages) ? body.messages : [];
+    if (uiMessages.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "No messages provided" }),
+        { status: 400, headers: { "content-type": "application/json" } }
+      );
+    }
 
-  const [dashboard, recentSessions] = await Promise.all([
-    getDashboardData(),
-    getRecentTastingSessions(5)
-  ]);
+    const { OPENAI_MODEL } = getServerEnv();
 
-  const { collection, profile } = dashboard;
+    try {
+      const [dashboard, recentSessions] = await Promise.all([
+        getDashboardData(),
+        getRecentTastingSessions(5)
+      ]);
 
-  const systemPrompt = `You are a tasting session advisor for a private whisky collection.
+      const { collection, profile } = dashboard;
+
+      const systemPrompt = `You are a tasting session advisor for a private whisky collection.
 
 CONTEXT: The collector is based in South Africa. Prices are in ZAR (R). Standard bottle 750ml, 43%+ ABV.
 
@@ -43,17 +61,32 @@ RULES:
 - Keep answers concise and scannable.
 - End each response with 2-3 follow-up chips: {"suggestions": ["...", "...", "..."]}`;
 
-  const messages: ModelMessage[] = uiMessages.map((message) => {
-    const content =
-      message.parts?.map((part) => ("text" in part ? (part as { text: string }).text : "")).join(" ") || "";
-    return { role: message.role as "user" | "assistant", content };
-  });
+      const messages: ModelMessage[] = uiMessages.map((message: any) => {
+        const content =
+          message.parts?.map((part: any) => ("text" in part ? (part as { text: string }).text : "")).join(" ") || "";
+        const role: "user" | "assistant" = message.role === "assistant" ? "assistant" : "user";
+        return { role, content };
+      });
 
-  const result = streamText({
-    model: openai(OPENAI_MODEL),
-    system: systemPrompt,
-    messages
-  });
+      const result = streamText({
+        model: openai(OPENAI_MODEL),
+        system: systemPrompt,
+        messages
+      });
 
-  return createUIMessageStreamResponse({ stream: result.toUIMessageStream() });
+      return createUIMessageStreamResponse({ stream: result.toUIMessageStream() });
+    } catch (error) {
+      console.error("Failed to load advisor context:", error);
+      return new Response(
+        JSON.stringify({ error: "Failed to load collection context" }),
+        { status: 500, headers: { "content-type": "application/json" } }
+      );
+    }
+  } catch (error) {
+    console.error("Advisor endpoint error:", error);
+    return new Response(
+      JSON.stringify({ error: "Internal server error" }),
+      { status: 500, headers: { "content-type": "application/json" } }
+    );
+  }
 }
