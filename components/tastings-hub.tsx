@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { getBottleDisplayImage } from "@/lib/bottle-image";
@@ -257,6 +257,14 @@ export function TastingsHub({
   const [sessionBottleQuery, setSessionBottleQuery] = useState("");
   const [expandedSessionIds, setExpandedSessionIds] = useState<string[]>([]);
   const [isBriefingLoading, setIsBriefingLoading] = useState(false);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = notesRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [sessionForm.notes]);
 
   const groupMembersById = useMemo(
     () => new Map(groups.map((group) => [group.id, group.memberPersonIds] as const)),
@@ -1136,6 +1144,7 @@ export function TastingsHub({
               </button>
             </div>
             <textarea
+              ref={notesRef}
               id="session-notes"
               onChange={(event) =>
                 setSessionForm((current) => ({
@@ -1144,6 +1153,7 @@ export function TastingsHub({
                 }))
               }
               placeholder="Anything worth remembering about the lineup or the company."
+              style={{ overflow: "hidden", resize: "vertical" }}
               value={sessionForm.notes}
             />
           </div>
