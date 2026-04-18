@@ -1,4 +1,3 @@
-import Papa from "papaparse";
 
 import { buildBuyNextSuggestions, buildDrinkNowSuggestions } from "@/lib/advisor";
 import { buildCollectionAnalytics } from "@/lib/analytics";
@@ -1291,37 +1290,6 @@ export async function compareWhiskies(leftId: string, rightId: string) {
   }
 
   return buildComparison(left, right);
-}
-
-export async function exportCollection(format: "csv" | "json") {
-  const collection = await getCollectionView();
-
-  if (format === "json") {
-    return JSON.stringify(collection, null, 2);
-  }
-
-  const rows = collection.map(
-    ({ item, expression }) => ({
-      expression: expression.name,
-      brand: expression.brand ?? "",
-      distillery: expression.distilleryName ?? "",
-      bottler: expression.bottlerName ?? "",
-      abv: expression.abv ?? "",
-      ageStatement: expression.ageStatement ?? "",
-      barcode: expression.barcode ?? "",
-      description: expression.description ?? "",
-      status: item.status,
-      fillState: item.fillState,
-      purchasePrice: item.purchasePrice ?? "",
-      purchaseCurrency: item.purchaseCurrency ?? "",
-      purchaseSource: item.purchaseSource ?? "",
-      rating: item.rating ?? "",
-      isFavorite: item.isFavorite ? "yes" : "",
-      personalNotes: item.personalNotes ?? ""
-    })
-  );
-
-  return Papa.unparse(rows);
 }
 
 export async function getDrafts() {

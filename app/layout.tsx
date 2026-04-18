@@ -25,8 +25,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           { href: "/advisor", label: "Advisor" },
           { href: "/tastings", label: "Tastings" },
           { href: "/compare", label: "Compare" },
-          { href: "/export", label: "Export" },
-          { href: "/news", label: "News" }
+{ href: "/news", label: "News" }
         ]
       : [
           { href: "/collection", label: "Collection" },
