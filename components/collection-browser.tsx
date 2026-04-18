@@ -1,26 +1,52 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { CollectionCard } from "@/components/collection-card";
+import { CollectionListView } from "@/components/collection-list-view";
 import { MultiSelectCombobox } from "@/components/multi-select-combobox";
 import { applyFilters, buildSearchHaystack, DEFAULT_FILTERS, filtersFromSearchParams } from "@/lib/collection-filters";
 import type { CollectionFilters } from "@/lib/collection-filters";
 import type { CollectionViewItem } from "@/lib/types";
+
+type CollectionViewMode = "grid" | "list";
 
 function uniq(arr: (string | undefined | null)[]): string[] {
   return [...new Set(arr.filter((v): v is string => typeof v === "string" && v.length > 0))].sort();
 }
 
 export function CollectionBrowser({ collection }: { collection: CollectionViewItem[] }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [status, setStatus] = useState("all");
   const [filters, setFilters] = useState<CollectionFilters>(() =>
     filtersFromSearchParams(searchParams)
   );
+  const [viewMode, setViewMode] = useState<CollectionViewMode>(() =>
+    searchParams.get("view") === "list" ? "list" : "grid"
+  );
   const [filterOpen, setFilterOpen] = useState(false);
+
+  useEffect(() => {
+    setViewMode(searchParams.get("view") === "list" ? "list" : "grid");
+  }, [searchParams]);
+
+  function updateViewMode(nextView: CollectionViewMode) {
+    setViewMode(nextView);
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    if (nextView === "grid") {
+      nextParams.delete("view");
+    } else {
+      nextParams.set("view", nextView);
+    }
+
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+  }
 
   const allOptions = useMemo(
     () => ({
@@ -143,6 +169,29 @@ export function CollectionBrowser({ collection }: { collection: CollectionViewIt
             <option value="owned">Owned</option>
             <option value="wishlist">Wishlist</option>
           </select>
+        </div>
+        <div className="field shelf-view-toggle-field">
+          <label>View</label>
+          <div aria-label="Choose collection layout" className="collection-view-toggle" role="tablist">
+            <button
+              aria-selected={viewMode === "grid"}
+              className={`collection-view-toggle-btn${viewMode === "grid" ? " collection-view-toggle-btn-active" : ""}`}
+              onClick={() => updateViewMode("grid")}
+              role="tab"
+              type="button"
+            >
+              Grid
+            </button>
+            <button
+              aria-selected={viewMode === "list"}
+              className={`collection-view-toggle-btn${viewMode === "list" ? " collection-view-toggle-btn-active" : ""}`}
+              onClick={() => updateViewMode("list")}
+              role="tab"
+              type="button"
+            >
+              List
+            </button>
+          </div>
         </div>
         <button
           className={`filter-toggle-btn${activeFilterCount > 0 ? " filter-toggle-btn-active" : ""}`}
@@ -364,26 +413,32 @@ export function CollectionBrowser({ collection }: { collection: CollectionViewIt
       )}
 
       <div className="shelf-caption">
-        <p>{visible.length} bottles on the shelf right now.</p>
+        <p>{visible.length} bottles in view right now.</p>
         <div className="pill-row">
-          <span className="pill">Hover a bottle for quick details</span>
+          <span className="pill">
+            {viewMode === "grid" ? "Hover a bottle for quick details" : "Scan more bottle details at a glance"}
+          </span>
           <span className="pill">Search matches flavor tags too</span>
         </div>
       </div>
 
       {visible.length > 0 ? (
-        <div className="shelf-stack">
-          {rows.map((row, index) => (
-            <section className="shelf-row" key={`row-${index}`}>
-              <div className="shelf-grid">
-                {row.map((entry) => (
-                  <CollectionCard entry={entry} interactive key={entry.item.id} />
-                ))}
-              </div>
-              <div className="shelf-rail" />
-            </section>
-          ))}
-        </div>
+        viewMode === "grid" ? (
+          <div className="shelf-stack">
+            {rows.map((row, index) => (
+              <section className="shelf-row" key={`row-${index}`}>
+                <div className="shelf-grid">
+                  {row.map((entry) => (
+                    <CollectionCard entry={entry} interactive key={entry.item.id} />
+                  ))}
+                </div>
+                <div className="shelf-rail" />
+              </section>
+            ))}
+          </div>
+        ) : (
+          <CollectionListView entries={visible} />
+        )
       ) : (
         <div className="empty-state">
           No whiskies matched that search. Try a tag like `smoke`, `sherry`, `Campbeltown`, or

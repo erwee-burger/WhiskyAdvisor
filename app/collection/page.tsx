@@ -20,7 +20,7 @@ export default async function CollectionPage({
         <h1>Walk the shelf like you are choosing your next pour.</h1>
         <p>
           Dark wood, back-bar glow, and bottle-first browsing. Search by distillery, region, release
-          series, or your flavor tags while quick details appear on hover.
+          series, or your flavor tags while you switch between the shelf view and a denser bottle list.
         </p>
       </section>
       {params.notice === "deleted" ? (
