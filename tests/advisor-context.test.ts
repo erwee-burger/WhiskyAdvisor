@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { detectContextTriggers, buildCollectionSummary } from "@/lib/advisor-context";
+import {
+  detectContextTriggers,
+  buildCollectionSummary,
+  buildTastingBottleContext
+} from "@/lib/advisor-context";
 import type { CollectionViewItem } from "@/lib/types";
 
 describe("detectContextTriggers", () => {
@@ -63,5 +67,67 @@ describe("buildCollectionSummary", () => {
     const summary = buildCollectionSummary(items);
     expect(summary).toContain("1 owned");
     expect(summary).toContain("Scotland");
+  });
+});
+
+describe("buildTastingBottleContext", () => {
+  const makeItem = (overrides: Partial<CollectionViewItem> = {}): CollectionViewItem =>
+    ({
+      item: {
+        id: "item-1",
+        expressionId: "exp-1",
+        status: "owned",
+        fillState: "sealed",
+        rating: undefined,
+        isFavorite: false,
+        purchasePrice: undefined,
+        purchaseCurrency: "ZAR",
+        purchaseDate: undefined,
+        purchaseSource: undefined,
+        personalNotes: undefined,
+        createdAt: "",
+        updatedAt: ""
+      },
+      expression: {
+        id: "exp-1",
+        name: "Springbank 15",
+        brand: "Springbank",
+        distilleryName: "Springbank",
+        bottlerName: "Springbank",
+        country: "Scotland",
+        abv: 46,
+        ageStatement: 15,
+        barcode: undefined,
+        description: undefined,
+        tags: ["bourbon-cask", "lightly-peated"],
+        imageUrl: undefined,
+        tastingNotes: []
+      },
+      images: [],
+      ...overrides
+    } as CollectionViewItem);
+
+  it("includes owned non-finished bottles", () => {
+    const result = buildTastingBottleContext([makeItem()]);
+    expect(result).toContain("Springbank 15");
+    expect(result).toContain("item-1");
+  });
+
+  it("excludes finished bottles", () => {
+    const item = makeItem({ item: { ...makeItem().item, fillState: "finished" } });
+    const result = buildTastingBottleContext([item]);
+    expect(result).not.toContain("Springbank 15");
+  });
+
+  it("excludes wishlist bottles", () => {
+    const item = makeItem({ item: { ...makeItem().item, status: "wishlist" } });
+    const result = buildTastingBottleContext([item]);
+    expect(result).not.toContain("Springbank 15");
+  });
+
+  it("includes ABV and cask tags", () => {
+    const result = buildTastingBottleContext([makeItem()]);
+    expect(result).toContain("46%");
+    expect(result).toContain("bourbon-cask");
   });
 });

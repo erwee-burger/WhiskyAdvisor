@@ -94,6 +94,26 @@ export function buildDrinkNowBlock(items: CollectionViewItem[]): string {
   return ["OWNED BOTTLES AVAILABLE TO DRINK:", ...lines].join("\n");
 }
 
+export function buildTastingBottleContext(items: CollectionViewItem[]): string {
+  const available = items.filter(
+    (i) => i.item.status === "owned" && i.item.fillState !== "finished"
+  );
+
+  const lines = available.map((i) => {
+    const e = i.expression;
+    const abv = e.abv ? `${e.abv}%` : "ABV unknown";
+    const age = e.ageStatement ? `${e.ageStatement}yo` : "NAS";
+    const cask = e.tags.filter((t) => t.includes("cask")).join(", ") || "cask unknown";
+    const peat = e.tags.find((t) => t.includes("peat") || t.includes("smoke")) ?? "unpeated";
+    const notes = e.tags.filter((t) => !t.includes("cask") && !t.includes("peat") && !t.includes("smoke")).slice(0, 4).join(", ");
+    const rating = i.item.rating ? ` | rated ${i.item.rating}/3${i.item.isFavorite ? " ★" : ""}` : "";
+    const fill = i.item.fillState;
+    return `- [id:${i.item.id}] ${e.name} | ${age} | ${abv} | ${peat} | ${cask}${notes ? ` | notes: ${notes}` : ""}${rating} | ${fill}`;
+  });
+
+  return ["AVAILABLE BOTTLES FOR TASTING:", ...lines].join("\n");
+}
+
 export function buildWishlistBlock(items: CollectionViewItem[]): string {
   const wishlist = items.filter(i => i.item.status === "wishlist");
   const lines = wishlist.map(i => {
