@@ -149,3 +149,43 @@ describe("tastings API shape", () => {
     });
   });
 });
+
+describe("formatBriefingAsText", () => {
+  it("formats tasting order section", async () => {
+    const { formatBriefingAsText } = await import("@/app/api/tastings/briefing/route");
+    const briefing = {
+      tastingOrder: [
+        { bottleName: "Glenlivet 12", reason: "Lightest — good opener" },
+        { bottleName: "Ardbeg 10", reason: "Heavy peat — best last" }
+      ],
+      bottleProfiles: [],
+      tips: []
+    };
+    const result = formatBriefingAsText(briefing);
+    expect(result).toContain("## Tasting Order");
+    expect(result).toContain("1. Glenlivet 12");
+    expect(result).toContain("Lightest — good opener");
+  });
+
+  it("formats bottle profiles section", async () => {
+    const { formatBriefingAsText } = await import("@/app/api/tastings/briefing/route");
+    const briefing = {
+      tastingOrder: [],
+      bottleProfiles: [
+        {
+          bottleName: "Ardbeg 10",
+          keyNotes: ["smoke", "citrus"],
+          watchFor: "The medicinal finish.",
+          background: "Islay distillery."
+        }
+      ],
+      tips: ["Serve neat"]
+    };
+    const result = formatBriefingAsText(briefing);
+    expect(result).toContain("### Ardbeg 10");
+    expect(result).toContain("smoke, citrus");
+    expect(result).toContain("The medicinal finish.");
+    expect(result).toContain("## Tips");
+    expect(result).toContain("- Serve neat");
+  });
+});
