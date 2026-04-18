@@ -1,6 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 import { getServerEnv } from "@/lib/env";
 import { getCollectionView, getTastingGroups, getTastingPlaces, getTastingPeople } from "@/lib/repository";
@@ -47,6 +48,23 @@ interface BriefingResponse {
   suggestedName: string;
   briefing: Briefing;
 }
+
+const briefingResponseSchema = z.object({
+  suggestedName: z.string().min(1),
+  briefing: z.object({
+    tastingOrder: z.array(z.object({
+      bottleName: z.string(),
+      reason: z.string()
+    })),
+    bottleProfiles: z.array(z.object({
+      bottleName: z.string(),
+      keyNotes: z.array(z.string()),
+      watchFor: z.string(),
+      background: z.string()
+    })),
+    tips: z.array(z.string())
+  })
+});
 
 export function formatBriefingAsText(briefing: Briefing): string {
   const sections: string[] = [];
@@ -99,11 +117,11 @@ export async function POST(req: Request) {
 
     const { bottleItemIds, placeId, groupId, attendeePersonIds = [], occasionType } = body;
 
-    if (!Array.isArray(bottleItemIds) || bottleItemIds.length === 0) {
-      return NextResponse.json({ error: "No bottles selected" }, { status: 400 });
+    const { OPENAI_MODEL, OPENAI_API_KEY } = getServerEnv();
+    if (!OPENAI_API_KEY) {
+      console.error("OPENAI_API_KEY not configured");
+      return NextResponse.json({ error: "Service configuration error" }, { status: 500 });
     }
-
-    const { OPENAI_MODEL } = getServerEnv();
 
     try {
       const [collection, groups, places, people] = await Promise.all([
@@ -121,6 +139,16 @@ export async function POST(req: Request) {
       const place = placeId ? places.find((p) => p.id === placeId) : null;
       const group = groupId ? groups.find((g) => g.id === groupId) : null;
       const attendees = people.filter((p) => attendeePersonIds.includes(p.id));
+
+      if (placeId && !place) {
+        return NextResponse.json({ error: "Place not found" }, { status: 404 });
+      }
+      if (groupId && !group) {
+        return NextResponse.json({ error: "Group not found" }, { status: 404 });
+      }
+      if (attendeePersonIds.length > 0 && attendees.length === 0) {
+        return NextResponse.json({ error: "Attendees not found" }, { status: 404 });
+      }
 
       const bottleDescriptions = selectedBottles.map((i) => {
         const e = i.expression;
@@ -169,14 +197,21 @@ Return only the JSON object. No markdown, no explanation.`;
         prompt
       });
 
-      let parsed: BriefingResponse;
+      let parsed: unknown;
       try {
-        parsed = JSON.parse(text) as BriefingResponse;
-      } catch {
+        parsed = JSON.parse(text);
+      } catch (error) {
+        console.error("Failed to parse AI response as JSON:", error);
         return NextResponse.json({ error: "Could not parse AI response" }, { status: 500 });
       }
 
-      return NextResponse.json(parsed);
+      const validated = briefingResponseSchema.safeParse(parsed);
+      if (!validated.success) {
+        console.error("AI response failed validation:", validated.error);
+        return NextResponse.json({ error: "Invalid AI response format" }, { status: 500 });
+      }
+
+      return NextResponse.json(validated.data);
     } catch (error) {
       console.error("Failed to generate briefing:", error);
       return NextResponse.json({ error: "Failed to generate briefing" }, { status: 500 });
