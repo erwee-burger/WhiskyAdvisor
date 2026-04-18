@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 
+import { GlobalSearch } from "@/components/global-search";
 import { PendingLink } from "@/components/navigation-feedback";
 
 type NavItem = {
@@ -25,6 +26,8 @@ export function TopNav({ items }: { items: NavItem[] }) {
         </div>
 
         <div className="top-nav-menu-wrap">
+          <GlobalSearch />
+
           <button
             aria-controls="main-menu"
             aria-expanded={isOpen}
