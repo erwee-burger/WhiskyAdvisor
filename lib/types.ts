@@ -153,6 +153,7 @@ export interface IntakeDraft {
 export interface CollectionViewItem {
   item: CollectionItem;
   expression: Expression;
+  flavorProfile?: ExpressionFlavorProfile;
   images: ItemImage[];
   tastingEntries?: TastingEntry[];
   latestTasting?: TastingEntry;
@@ -211,6 +212,49 @@ export interface CollectionAnalytics {
   peatProfile: Array<{ tag: string; count: number; peatLevel?: string }>;
   topDistilleries: Array<{ name: string; count: number }>;
   topBottlers: Array<{ name: string; count: number }>;
+  tasteIdentity: {
+    profileCoverage: {
+      profiledOwnedCount: number;
+      totalOwnedCount: number;
+      percent: number;
+    };
+    pillarAverages: Record<FlavorPillar, number>;
+    strongestPillars: Array<{ pillar: FlavorPillar; value: number }>;
+    weakestPillars: Array<{ pillar: FlavorPillar; value: number }>;
+    topNotes: Array<{ note: string; count: number }>;
+    dominantSummary: string;
+  };
+  collectionShape: {
+    caskStyles: Array<{ tag: string; label: string; count: number; share: number }>;
+    peatLevels: Array<{ tag: string; label: string; count: number; share: number }>;
+    independentVsOfficial: {
+      independent: number;
+      official: number;
+    };
+    regionConcentration: number;
+    distilleryConcentration: number;
+    topRegionShare: number;
+    topDistilleryShare: number;
+  };
+  ratingsInsight: {
+    ratedCount: number;
+    favoriteCount: number;
+    favoriteRate: number;
+    averageRating: number | null;
+    unratedOwnedCount: number;
+    topRatedRegions: Array<{ region: string; count: number }>;
+    topRatedCaskStyles: Array<{ tag: string; label: string; count: number }>;
+  };
+  spendInsight: {
+    paidTotalZar: number;
+    averageOwnedBottlePriceZar: number | null;
+    medianOwnedBottlePriceZar: number | null;
+  };
+  blindSpots: Array<{
+    title: string;
+    detail: string;
+    tone: "gap" | "bias" | "opportunity";
+  }>;
   marketValue?: {
     paidTotalZar: number;
     marketLowZar: number;

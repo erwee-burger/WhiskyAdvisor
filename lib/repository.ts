@@ -244,11 +244,14 @@ function buildCollectionViewFromStore(store: WhiskyStore): CollectionViewItem[] 
       tags: [],
       tastingNotes: []
     };
+    const flavorProfile =
+      store.expressionFlavorProfiles.find((entry) => entry.expressionId === item.expressionId) ?? undefined;
     const images = store.itemImages.filter((img) => img.collectionItemId === item.id);
 
     return {
       item,
       expression,
+      flavorProfile,
       images,
       distillery: expression.distilleryName ? { name: expression.distilleryName } : undefined,
       bottler: expression.bottlerName ? { name: expression.bottlerName } : undefined,

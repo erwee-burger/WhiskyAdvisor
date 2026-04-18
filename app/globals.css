@@ -632,6 +632,192 @@ textarea {
   gap: 14px;
 }
 
+.analytics-hero {
+  background:
+    radial-gradient(circle at top right, rgba(201, 138, 53, 0.18), transparent 26%),
+    linear-gradient(135deg, rgba(17, 23, 34, 0.96), rgba(15, 11, 10, 0.94));
+}
+
+.analytics-summary-panel,
+.analytics-feature-panel,
+.analytics-shape-panel,
+.analytics-blindspot-panel {
+  display: grid;
+  gap: 20px;
+}
+
+.analytics-summary-copy {
+  display: grid;
+  gap: 10px;
+}
+
+.analytics-summary-copy h2 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.4vw, 2.2rem);
+  line-height: 1.04;
+}
+
+.analytics-summary-copy p {
+  margin: 0;
+  max-width: 860px;
+}
+
+.analytics-metric-band {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.analytics-metric-tile,
+.analytics-highlight-card,
+.analytics-kpi-card,
+.analytics-inline-card,
+.analytics-shape-card,
+.analytics-blindspot-card {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 252, 248, 0.04);
+  border: 1px solid rgba(255, 225, 190, 0.08);
+}
+
+.analytics-metric-tile {
+  display: grid;
+  gap: 6px;
+}
+
+.analytics-metric-label,
+.analytics-highlight-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(248, 238, 223, 0.58);
+}
+
+.analytics-metric-value {
+  font-size: clamp(1.45rem, 2vw, 2rem);
+  line-height: 1;
+}
+
+.analytics-metric-tile p,
+.analytics-kpi-card p,
+.analytics-inline-card p,
+.analytics-blindspot-card p {
+  margin: 0;
+  color: rgba(248, 238, 223, 0.68);
+}
+
+.analytics-main-grid,
+.analytics-shelf-grid,
+.analytics-shape-cards,
+.analytics-blindspot-grid {
+  align-items: start;
+}
+
+.analytics-flavor-hero {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+  gap: 18px;
+}
+
+.analytics-flavor-highlights,
+.analytics-kpi-stack,
+.analytics-inline-list,
+.analytics-note-cluster,
+.analytics-mini-list {
+  display: grid;
+  gap: 12px;
+}
+
+.analytics-flavor-balance,
+.analytics-distribution-list {
+  display: grid;
+  gap: 12px;
+}
+
+.analytics-flavor-row,
+.analytics-mini-row,
+.analytics-distribution-row {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+}
+
+.analytics-flavor-row {
+  grid-template-columns: 88px minmax(0, 1fr) 58px;
+}
+
+.analytics-distribution-row {
+  grid-template-columns: minmax(140px, 0.8fr) minmax(0, 1fr) 54px;
+}
+
+.analytics-distribution-copy,
+.analytics-kpi-card,
+.analytics-inline-card,
+.analytics-blindspot-card {
+  display: grid;
+  gap: 6px;
+}
+
+.analytics-distribution-copy p {
+  margin: 0;
+  color: rgba(248, 238, 223, 0.62);
+}
+
+.analytics-flavor-track,
+.analytics-distribution-meter {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.analytics-flavor-fill,
+.analytics-distribution-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgba(255, 210, 143, 0.95), rgba(201, 138, 53, 0.68));
+}
+
+.analytics-note-cluster h3,
+.analytics-shape-card h3,
+.analytics-blindspot-card h3 {
+  margin: 0;
+}
+
+.analytics-distribution-value,
+.analytics-mini-row span {
+  color: rgba(248, 238, 223, 0.72);
+}
+
+.analytics-mini-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.analytics-blindspot-grid {
+  gap: 14px;
+}
+
+.analytics-blindspot-gap {
+  background:
+    linear-gradient(135deg, rgba(72, 49, 25, 0.34), rgba(255, 252, 248, 0.03)),
+    rgba(255, 252, 248, 0.04);
+}
+
+.analytics-blindspot-bias {
+  background:
+    linear-gradient(135deg, rgba(58, 23, 26, 0.34), rgba(255, 252, 248, 0.03)),
+    rgba(255, 252, 248, 0.04);
+}
+
+.analytics-blindspot-opportunity {
+  background:
+    linear-gradient(135deg, rgba(28, 55, 46, 0.34), rgba(255, 252, 248, 0.03)),
+    rgba(255, 252, 248, 0.04);
+}
+
 .stat-card {
   padding: 18px;
   border-radius: var(--radius-md);
@@ -2498,6 +2684,15 @@ td {
     grid-template-columns: 1fr;
   }
 
+  .analytics-metric-band {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .analytics-flavor-hero,
+  .analytics-distribution-row {
+    grid-template-columns: 1fr;
+  }
+
   .image-preview-card {
     grid-template-columns: 1fr;
   }
@@ -2530,6 +2725,10 @@ td {
 
   .recent-session-summary-stats {
     justify-content: flex-start;
+  }
+
+  .analytics-flavor-row {
+    grid-template-columns: 78px minmax(0, 1fr) 52px;
   }
 
   .top-nav {
@@ -2596,6 +2795,11 @@ td {
   .tasting-bottle-card-image,
   .recent-session-bottle-image {
     justify-content: flex-start;
+  }
+
+  .analytics-metric-band,
+  .analytics-blindspot-grid {
+    grid-template-columns: 1fr;
   }
 }
 
