@@ -111,9 +111,10 @@ const CASK_DETAIL_PATTERNS = [
   { tag: "butt", patterns: ["butt"] },
   { tag: "puncheon", patterns: ["puncheon"] }
 ];
-const VALID_MODES = new Set(["all", "missing-flavor-profiles", "stale"]);
+const VALID_MODES = new Set(["all", "missing-flavor-profiles", "stale", "weak-notes"]);
 const MIN_PREFERRED_TASTING_NOTES = 8;
 const MAX_TASTING_NOTES = 15;
+const MIN_RELIABLE_TASTING_NOTES = 6;
 
 function parseArgs(argv) {
   const parsed = {
@@ -175,11 +176,13 @@ function printHelp() {
     "Usage:",
     "  node --env-file=.env.local scripts/cleanup-expressions.mjs --mode all",
     "  node --env-file=.env.local scripts/cleanup-expressions.mjs --mode missing-flavor-profiles --dry-run",
+    "  node --env-file=.env.local scripts/cleanup-expressions.mjs --mode weak-notes",
     "  node scripts/cleanup-expressions.mjs --mode stale --limit 5",
     "",
     "Modes:",
     "  all",
     "  missing-flavor-profiles",
+    "  weak-notes",
     "  stale",
     "",
     "Flags:",
@@ -763,6 +766,14 @@ function selectExpressions(expressions, profiles, mode) {
 
   if (mode === "missing-flavor-profiles") {
     return expressions.filter((expression) => !profileByExpressionId.has(expression.id));
+  }
+
+  if (mode === "weak-notes") {
+    return expressions.filter((expression) => {
+      const notes = toStringArray(expression.tastingNotes);
+      const profile = profileByExpressionId.get(expression.id);
+      return notes.length < MIN_RELIABLE_TASTING_NOTES || (profile?.evidenceCount ?? 0) < MIN_RELIABLE_TASTING_NOTES;
+    });
   }
 
   return expressions.filter((expression) => {

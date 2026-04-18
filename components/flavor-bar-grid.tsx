@@ -4,9 +4,15 @@ const PILLAR_ORDER: FlavorPillar[] = [
   "smoky", "sweet", "spicy", "fruity", "oaky", "floral", "malty", "coastal"
 ];
 
-export function FlavorBarGrid({ pillars }: { pillars: Record<FlavorPillar, number> }) {
+export function FlavorBarGrid({
+  pillars,
+  lowEvidence = false
+}: {
+  pillars: Record<FlavorPillar, number>;
+  lowEvidence?: boolean;
+}) {
   return (
-    <div className="flavor-bar-grid">
+    <div className={`flavor-bar-grid${lowEvidence ? " flavor-bar-grid-low-evidence" : ""}`}>
       {PILLAR_ORDER.map((pillar) => {
         const value = pillars[pillar] ?? 0;
         return (

@@ -685,6 +685,11 @@ td {
   border: 1px solid rgba(198, 90, 52, 0.26);
 }
 
+.status-note-warning {
+  background: rgba(160, 118, 44, 0.18);
+  border: 1px solid rgba(212, 157, 69, 0.26);
+}
+
 .review-panel {
   display: grid;
   gap: 14px;
@@ -3017,4 +3022,9 @@ td {
   height: 100%;
   border-radius: 3px;
   background: linear-gradient(90deg, rgba(212, 157, 69, 0.5), #d49d45);
+}
+
+.flavor-bar-grid-low-evidence .flavor-bar-fill {
+  opacity: 0.58;
+  filter: saturate(0.8);
 }

@@ -171,6 +171,9 @@ export function BottleRecordEditor({
 
   const currentTags = parseTagsText(formValues.tags);
   const currentTastingNotes = parseTagsText(formValues.tastingNotes);
+  const hasLowEvidenceProfile = Boolean(
+    profileState && (profileState.evidenceCount < 6 || profileState.confidence < 0.45)
+  );
   const bottleImage = previewUrl || getBottleDisplayImage(formValues.name || entry.expression.name, entry.images);
   const heroSummary = buildHeroSummary(formValues);
   const caskTags = getAllCaskTags(currentTags);
@@ -1120,14 +1123,21 @@ export function BottleRecordEditor({
         </div>
         {profileState ? (
           <>
-            <FlavorBarGrid pillars={profileState.pillars} />
+            <FlavorBarGrid lowEvidence={hasLowEvidenceProfile} pillars={profileState.pillars} />
             <div className="grid columns-2">
-              <div className="status-note">
+              <div className={`status-note${hasLowEvidenceProfile ? " status-note-warning" : ""}`}>
                 Confidence {Math.round(profileState.confidence * 100)}% | Evidence {profileState.evidenceCount}
+                {hasLowEvidenceProfile ? " | Low evidence" : ""}
                 {profileState.staleAt ? " | Stale" : ""}
               </div>
               <div className="status-note">{profileState.explanation}</div>
             </div>
+            {hasLowEvidenceProfile ? (
+              <div className="status-note status-note-warning">
+                This profile is based on sparse tasting-note evidence. Treat the bar shape as provisional until the bottle
+                has richer notes.
+              </div>
+            ) : null}
             <div className="stack" style={{ gap: "10px" }}>
               <span className="detail-suggestion-label">Profile top signals</span>
               <div className="pill-row">

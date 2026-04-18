@@ -98,9 +98,10 @@ const CASK_DETAIL_PATTERNS = [
   { tag: "puncheon", patterns: ["puncheon"] }
 ];
 
-export const VALID_MODES = new Set(["all", "missing-flavor-profiles", "stale"]);
+export const VALID_MODES = new Set(["all", "missing-flavor-profiles", "stale", "weak-notes"]);
 export const MIN_PREFERRED_TASTING_NOTES = 8;
 export const MAX_TASTING_NOTES = 15;
+export const MIN_RELIABLE_TASTING_NOTES = 6;
 export const DEFAULT_MODEL = process.env.OPENAI_ENRICHMENT_MODEL || process.env.OPENAI_MODEL || "gpt-5.4";
 export const BATCH_ENDPOINT = "/v1/responses";
 export const BATCH_COMPLETION_WINDOW = "24h";
@@ -687,6 +688,14 @@ export function selectExpressions(expressions, profiles, mode) {
 
   if (mode === "missing-flavor-profiles") {
     return expressions.filter((expression) => !profileByExpressionId.has(expression.id));
+  }
+
+  if (mode === "weak-notes") {
+    return expressions.filter((expression) => {
+      const notes = toStringArray(expression.tastingNotes);
+      const profile = profileByExpressionId.get(expression.id);
+      return notes.length < MIN_RELIABLE_TASTING_NOTES || (profile?.evidenceCount ?? 0) < MIN_RELIABLE_TASTING_NOTES;
+    });
   }
 
   return expressions.filter((expression) => {
