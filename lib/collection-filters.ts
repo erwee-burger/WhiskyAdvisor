@@ -120,6 +120,25 @@ export function applyFilters(
   });
 }
 
+export function buildSearchHaystack(entry: CollectionViewItem): string {
+  return [
+    entry.expression.name,
+    entry.expression.brand,
+    entry.expression.distilleryName,
+    entry.expression.bottlerName,
+    entry.expression.country,
+    entry.expression.description,
+    entry.expression.tags.join(" "),
+    entry.item.status,
+    entry.item.fillState,
+    entry.item.purchaseSource,
+    entry.item.personalNotes
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
 export function filtersFromSearchParams(params: URLSearchParams): CollectionFilters {
   const filters: CollectionFilters = { ...DEFAULT_FILTERS };
 

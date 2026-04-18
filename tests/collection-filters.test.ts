@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { applyFilters, DEFAULT_FILTERS, filtersFromSearchParams, hasActiveFilters } from "@/lib/collection-filters";
+import { applyFilters, buildSearchHaystack, DEFAULT_FILTERS, filtersFromSearchParams, hasActiveFilters } from "@/lib/collection-filters";
 import type { CollectionViewItem } from "@/lib/types";
 
 function makeEntry(overrides: {
@@ -257,5 +257,34 @@ describe("filtersFromSearchParams", () => {
   it("ignores invalid rating values", () => {
     const result = filtersFromSearchParams(params({ rating: "99" }));
     expect(result.ratings).toEqual([]);
+  });
+});
+
+describe("buildSearchHaystack", () => {
+  it("includes name, distillery, country, tags, fill state", () => {
+    const entry = makeEntry({
+      distilleryName: "Ardbeg",
+      country: "Scotland",
+      tags: ["peated", "islay"],
+      fillState: "open"
+    });
+    entry.expression.name = "Ardbeg 10 Year";
+    const haystack = buildSearchHaystack(entry);
+    expect(haystack).toContain("ardbeg 10 year");
+    expect(haystack).toContain("ardbeg");
+    expect(haystack).toContain("scotland");
+    expect(haystack).toContain("peated");
+    expect(haystack).toContain("islay");
+    expect(haystack).toContain("open");
+  });
+
+  it("is lowercase", () => {
+    const entry = makeEntry({ distilleryName: "GlenLivet" });
+    expect(buildSearchHaystack(entry)).not.toMatch(/[A-Z]/);
+  });
+
+  it("excludes undefined fields gracefully", () => {
+    const entry = makeEntry({});
+    expect(() => buildSearchHaystack(entry)).not.toThrow();
   });
 });

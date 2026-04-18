@@ -5,28 +5,9 @@ import { useSearchParams } from "next/navigation";
 
 import { CollectionCard } from "@/components/collection-card";
 import { MultiSelectCombobox } from "@/components/multi-select-combobox";
-import { applyFilters, DEFAULT_FILTERS, filtersFromSearchParams } from "@/lib/collection-filters";
+import { applyFilters, buildSearchHaystack, DEFAULT_FILTERS, filtersFromSearchParams } from "@/lib/collection-filters";
 import type { CollectionFilters } from "@/lib/collection-filters";
 import type { CollectionViewItem } from "@/lib/types";
-
-function buildSearchHaystack(entry: CollectionViewItem) {
-  return [
-    entry.expression.name,
-    entry.expression.brand,
-    entry.expression.distilleryName,
-    entry.expression.bottlerName,
-    entry.expression.country,
-    entry.expression.description,
-    entry.expression.tags.join(" "),
-    entry.item.status,
-    entry.item.fillState,
-    entry.item.purchaseSource,
-    entry.item.personalNotes
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-}
 
 function uniq(arr: (string | undefined | null)[]): string[] {
   return [...new Set(arr.filter((v): v is string => typeof v === "string" && v.length > 0))].sort();
