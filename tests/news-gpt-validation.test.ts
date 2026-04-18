@@ -9,6 +9,7 @@ import {
   canonicalizeRetailerProductUrl,
   parseWhiskyBrotherCollectionHtml,
   parseBottegaCollectionHtml,
+  parseWhiskyEmporiumCollectionHtml,
   parseMotherCityCollectionHtml
 } from "@/lib/news-gpt";
 
@@ -65,16 +66,17 @@ describe("validateGptOffer", () => {
     ).toThrow(/url/);
   });
 
-  it("APPROVED_SOURCE_KEYS contains exactly the 4 approved retailers", () => {
+  it("APPROVED_SOURCE_KEYS contains exactly the 5 approved retailers", () => {
     expect(APPROVED_SOURCE_KEYS).toEqual(
       expect.arrayContaining([
         "whiskybrother",
         "bottegawhiskey",
         "mothercityliquor",
+        "whiskyemporium",
         "normangoodfellows"
       ])
     );
-    expect(APPROVED_SOURCE_KEYS).toHaveLength(4);
+    expect(APPROVED_SOURCE_KEYS).toHaveLength(5);
   });
 
   it("accepts Norman Goodfellows product urls with or without www", () => {
@@ -220,6 +222,14 @@ describe("buildRetailerPrompt", () => {
     expect(prompt).toContain("Include whiskies or whiskeys only");
   });
 
+  it("pins Whisky Emporium to the provided new-arrivals page and disables specials", () => {
+    const prompt = buildRetailerPrompt("whiskyemporium");
+
+    expect(prompt).toContain("https://whiskyemporium.co.za/shop-premium-whiskeys/?orderby=date");
+    expect(prompt).toContain("Always return specials: [] for source key whiskyemporium.");
+    expect(prompt).toContain("return the first 10 in-stock whiskies from that page");
+  });
+
   it("pins Norman Goodfellows to promotions and no new-arrivals output", () => {
     const prompt = buildRetailerPrompt("normangoodfellows");
 
@@ -316,6 +326,32 @@ describe("direct retailer parsers", () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.name).toBe("Glengoyne 15 Year Old");
     expect(result[0]?.url).toBe("https://mothercityliquor.co.za/products/glengoyne-15-year-old");
+  });
+
+  it("parses Whisky Emporium premium whiskies as WooCommerce new arrivals", () => {
+    const html = `
+      <ul class="products">
+        <li class="product instock product_cat-whisky">
+          <a class="woocommerce-LoopProduct-link" href="https://whiskyemporium.co.za/product/the-whistler-triple-oak/">
+            <img src="https://whiskyemporium.co.za/wp-content/uploads/2026/03/the-whistler-triple-oak-300x300.webp">
+            <h2 class="woocommerce-loop-product__title">The Whistler Triple Oak</h2>
+            <span class="price"><span class="woocommerce-Price-amount amount">R399.99</span></span>
+          </a>
+        </li>
+      </ul>
+    `;
+
+    const result = parseWhiskyEmporiumCollectionHtml(
+      html,
+      "https://whiskyemporium.co.za/shop-premium-whiskeys/?orderby=date",
+      "new_release"
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.source).toBe("whiskyemporium");
+    expect(result[0]?.name).toBe("The Whistler Triple Oak");
+    expect(result[0]?.price).toBeCloseTo(399.99, 2);
+    expect(result[0]?.url).toBe("https://whiskyemporium.co.za/product/the-whistler-triple-oak/");
   });
 });
 
@@ -486,6 +522,41 @@ describe("enforceRetailerOfferRules", () => {
     expect(result.newArrivals[0]?.name).toBe("Bottega Whisky 1");
     expect(result.newArrivals[9]?.name).toBe("Bottega Whisky 10");
     expect(result.newArrivals.find(item => item.name === "Bottega Tequila")).toBeUndefined();
+  });
+
+  it("caps Whisky Emporium new arrivals at the first 10 in-stock whiskies and drops specials", () => {
+    const specials = [
+      {
+        source: "whiskyemporium" as const,
+        kind: "special" as const,
+        name: "Should Not Surface",
+        price: 999,
+        url: "https://whiskyemporium.co.za/product/should-not-surface/",
+        inStock: true,
+        relevanceScore: 70,
+        whyItMatters: "",
+        citations: []
+      }
+    ];
+
+    const newArrivals = Array.from({ length: 12 }, (_, index) => ({
+      source: "whiskyemporium" as const,
+      kind: "new_release" as const,
+      name: `Emporium Bottle ${index + 1}`,
+      price: 1000 + index,
+      url: `https://whiskyemporium.co.za/product/emporium-bottle-${index + 1}/`,
+      inStock: true,
+      relevanceScore: 60,
+      whyItMatters: "",
+      citations: []
+    }));
+
+    const result = enforceRetailerOfferRules(specials, newArrivals);
+
+    expect(result.specials).toHaveLength(0);
+    expect(result.newArrivals).toHaveLength(10);
+    expect(result.newArrivals[0]?.name).toBe("Emporium Bottle 1");
+    expect(result.newArrivals[9]?.name).toBe("Emporium Bottle 10");
   });
 
   it("removes obvious non-whisky Mother City sale items while keeping whiskies", () => {

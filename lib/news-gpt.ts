@@ -9,6 +9,7 @@ export const APPROVED_SOURCE_DOMAINS: Record<string, string> = {
   whiskybrother: "whiskybrother.com",
   bottegawhiskey: "bottegawhiskey.com",
   mothercityliquor: "mothercityliquor.co.za",
+  whiskyemporium: "whiskyemporium.co.za",
   normangoodfellows: "www.ngf.co.za"
 };
 
@@ -26,6 +27,10 @@ const RETAILER_COLLECTION_URLS: Record<string, { specials: string; newArrivals: 
   mothercityliquor: {
     specials: "https://mothercityliquor.co.za/collections/sale?sort_by=created-descending",
     newArrivals: "https://mothercityliquor.co.za/collections/new-whisky-arrivals?sort_by=created-descending"
+  },
+  whiskyemporium: {
+    specials: "https://whiskyemporium.co.za/shop-premium-whiskeys/?orderby=date",
+    newArrivals: "https://whiskyemporium.co.za/shop-premium-whiskeys/?orderby=date"
   },
   normangoodfellows: {
     specials: "https://www.ngf.co.za/promotions/",
@@ -101,6 +106,16 @@ const RETAILER_HINTS: Record<string, { specials: string; newArrivals: string; ex
       "For specials, use https://mothercityliquor.co.za/collections/sale?sort_by=created-descending as the source of truth.",
       "The Mother City sale page can be mixed with other spirits. Include whiskies or whiskeys only and exclude tequila, gin, rum, vodka, liqueurs, and other non-whisky products.",
       "For new arrivals, use https://mothercityliquor.co.za/collections/new-whisky-arrivals?sort_by=created-descending as the source of truth."
+    ]
+  },
+  whiskyemporium: {
+    specials: "Whisky Emporium does not have a dedicated specials page in this feed, so return specials: []",
+    newArrivals: "Use https://whiskyemporium.co.za/shop-premium-whiskeys/?orderby=date and return the first 10 in-stock whiskies shown on that page",
+    extraRules: [
+      "Use https://whiskyemporium.co.za/shop-premium-whiskeys/?orderby=date as the source of truth.",
+      "Always return specials: [] for source key whiskyemporium.",
+      "For new arrivals, return the first 10 in-stock whiskies from that page.",
+      "Include whiskies or whiskeys only, and exclude other spirits or barware if they appear."
     ]
   },
   normangoodfellows: {
@@ -588,7 +603,7 @@ export function parseWhiskyBrotherCollectionHtml(
 function parseWooCommerceCollectionHtml(
   html: string,
   pageUrl: string,
-  source: "bottegawhiskey" | "normangoodfellows",
+  source: "bottegawhiskey" | "whiskyemporium" | "normangoodfellows",
   kind: OfferKind
 ): GptOffer[] {
   const $ = cheerio.load(html);
@@ -654,6 +669,14 @@ export function parseBottegaCollectionHtml(
   kind: OfferKind
 ): GptOffer[] {
   return parseWooCommerceCollectionHtml(html, pageUrl, "bottegawhiskey", kind);
+}
+
+export function parseWhiskyEmporiumCollectionHtml(
+  html: string,
+  pageUrl: string,
+  kind: OfferKind
+): GptOffer[] {
+  return parseWooCommerceCollectionHtml(html, pageUrl, "whiskyemporium", kind);
 }
 
 export function parseMotherCityCollectionHtml(
@@ -878,6 +901,10 @@ export function enforceRetailerOfferRules(
   newArrivals: GptOffer[]
 ): { specials: GptOffer[]; newArrivals: GptOffer[] } {
   const filteredSpecials = specials.filter(offer => {
+    if (offer.source === "whiskyemporium") {
+      return false;
+    }
+
     if (offer.source === "whiskybrother" && !offer.inStock) {
       return false;
     }
@@ -901,6 +928,7 @@ export function enforceRetailerOfferRules(
 
   let whiskyBrotherNewArrivalCount = 0;
   let bottegaNewArrivalCount = 0;
+  let whiskyEmporiumNewArrivalCount = 0;
   const filteredNewArrivals = newArrivals.filter(offer => {
     if (offer.source === "whiskybrother") {
       if (!offer.inStock) {
@@ -922,6 +950,19 @@ export function enforceRetailerOfferRules(
 
       bottegaNewArrivalCount += 1;
       return bottegaNewArrivalCount <= 10;
+    }
+
+    if (offer.source === "whiskyemporium") {
+      if (!offer.inStock) {
+        return false;
+      }
+
+      if (isObviousNonWhiskyOffer(offer)) {
+        return false;
+      }
+
+      whiskyEmporiumNewArrivalCount += 1;
+      return whiskyEmporiumNewArrivalCount <= 10;
     }
 
     if (offer.source === "normangoodfellows") {
@@ -1001,6 +1042,17 @@ async function discoverRetailerOffers(
           specials: parseMotherCityCollectionHtml(specialsHtml, urls.specials, "special"),
           newArrivals: urls.newArrivals
             ? parseMotherCityCollectionHtml(newArrivalsHtml, urls.newArrivals, "new_release")
+            : []
+        };
+      }
+      case "whiskyemporium": {
+        const newArrivalsHtml = urls.newArrivals ? await fetchHtml(urls.newArrivals) : "";
+
+        return {
+          source,
+          specials: [],
+          newArrivals: urls.newArrivals
+            ? parseWhiskyEmporiumCollectionHtml(newArrivalsHtml, urls.newArrivals, "new_release")
             : []
         };
       }
