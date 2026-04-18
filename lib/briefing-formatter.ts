@@ -1,4 +1,4 @@
-interface Briefing {
+export interface Briefing {
   tastingOrder: Array<{ bottleName: string; reason: string }>;
   bottleProfiles: Array<{
     bottleName: string;
@@ -9,38 +9,44 @@ interface Briefing {
   tips: string[];
 }
 
-export function formatBriefingAsText(briefing: Briefing): string {
-  const sections: string[] = [];
+export function formatBriefingAsMarkdown(briefing: Briefing): string {
+  const blocks: string[] = [];
 
   if (briefing.tastingOrder.length > 0) {
-    sections.push("## Tasting Order");
-    briefing.tastingOrder.forEach((entry, index) => {
-      sections.push(`${index + 1}. ${entry.bottleName} — ${entry.reason}`);
-    });
+    blocks.push(
+      [
+        "## Tasting Order",
+        "",
+        ...briefing.tastingOrder.map((entry, index) => `${index + 1}. ${entry.bottleName} — ${entry.reason}`)
+      ].join("\n")
+    );
   }
 
   if (briefing.bottleProfiles.length > 0) {
-    sections.push("\n## Bottle Profiles");
-    for (const profile of briefing.bottleProfiles) {
-      sections.push(`### ${profile.bottleName}`);
+    const profileBlocks = briefing.bottleProfiles.map((profile) => {
+      const lines = [`### ${profile.bottleName}`, ""];
+
       if (profile.keyNotes.length > 0) {
-        sections.push(`Key notes: ${profile.keyNotes.join(", ")}`);
+        lines.push(`**Key notes:** ${profile.keyNotes.join(", ")}`);
       }
       if (profile.watchFor) {
-        sections.push(`Watch for: ${profile.watchFor}`);
+        lines.push(`**Watch for:** ${profile.watchFor}`);
       }
       if (profile.background) {
-        sections.push(`Background: ${profile.background}`);
+        lines.push(`**Background:** ${profile.background}`);
       }
-    }
+
+      return lines.join("\n");
+    });
+
+    blocks.push(["## Bottle Profiles", "", ...profileBlocks].join("\n\n"));
   }
 
   if (briefing.tips.length > 0) {
-    sections.push("\n## Tips");
-    for (const tip of briefing.tips) {
-      sections.push(`- ${tip}`);
-    }
+    blocks.push(["## Tips", "", ...briefing.tips.map((tip) => `- ${tip}`)].join("\n"));
   }
 
-  return sections.join("\n");
+  return blocks.join("\n\n").trim();
 }
+
+export const formatBriefingAsText = formatBriefingAsMarkdown;

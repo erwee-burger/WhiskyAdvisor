@@ -1,11 +1,17 @@
 "use client";
 
 import Image from "next/image";
+import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { getBottleDisplayImage } from "@/lib/bottle-image";
+import type { Briefing } from "@/lib/briefing-formatter";
+import { formatBriefingAsMarkdown } from "@/lib/briefing-formatter";
+import { formatTagLabel } from "@/lib/tags";
 import type {
   CollectionViewItem,
   RelationshipType,
@@ -175,6 +181,20 @@ function getBottleSubline(entry: CollectionViewItem) {
     .join(" / ");
 }
 
+function getBottleFactLine(entry: CollectionViewItem) {
+  return [
+    typeof entry.expression.abv === "number" ? `${entry.expression.abv}% ABV` : null,
+    typeof entry.expression.ageStatement === "number" ? `${entry.expression.ageStatement}yo` : null,
+    entry.expression.country
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function getBottleHighlightTags(entry: CollectionViewItem) {
+  return [...new Set(entry.expression.tags.map((tag) => formatTagLabel(tag)))].slice(0, 2);
+}
+
 function SparkleIcon() {
   return (
     <svg aria-hidden="true" fill="currentColor" height="14" viewBox="0 0 24 24" width="14">
@@ -257,14 +277,6 @@ export function TastingsHub({
   const [sessionBottleQuery, setSessionBottleQuery] = useState("");
   const [expandedSessionIds, setExpandedSessionIds] = useState<string[]>([]);
   const [isBriefingLoading, setIsBriefingLoading] = useState(false);
-  const notesRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    const el = notesRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [sessionForm.notes]);
 
   const groupMembersById = useMemo(
     () => new Map(groups.map((group) => [group.id, group.memberPersonIds] as const)),
@@ -421,43 +433,12 @@ export function TastingsHub({
       }
       const data = (await response.json()) as {
         suggestedName: string;
-        briefing: {
-          tastingOrder: Array<{ bottleName: string; reason: string }>;
-          bottleProfiles: Array<{
-            bottleName: string;
-            keyNotes: string[];
-            watchFor: string;
-            background: string;
-          }>;
-          tips: string[];
-        };
+        briefing: Briefing;
       };
-
-      const sections: string[] = [];
-      if (data.briefing.tastingOrder.length > 0) {
-        sections.push("## Tasting Order");
-        data.briefing.tastingOrder.forEach((entry, i) => {
-          sections.push(`${i + 1}. ${entry.bottleName} — ${entry.reason}`);
-        });
-      }
-      if (data.briefing.bottleProfiles.length > 0) {
-        sections.push("\n## Bottle Profiles");
-        for (const profile of data.briefing.bottleProfiles) {
-          sections.push(`### ${profile.bottleName}`);
-          if (profile.keyNotes.length > 0) sections.push(`Key notes: ${profile.keyNotes.join(", ")}`);
-          if (profile.watchFor) sections.push(`Watch for: ${profile.watchFor}`);
-          if (profile.background) sections.push(`Background: ${profile.background}`);
-        }
-      }
-      if (data.briefing.tips.length > 0) {
-        sections.push("\n## Tips");
-        data.briefing.tips.forEach((tip) => sections.push(`- ${tip}`));
-      }
-
       setSessionForm((current) => ({
         ...current,
         title: current.title || data.suggestedName,
-        notes: sections.join("\n")
+        notes: formatBriefingAsMarkdown(data.briefing)
       }));
 
       setNotice({ tone: "success", text: "Briefing generated. Review and edit before saving." });
@@ -1140,11 +1121,11 @@ export function TastingsHub({
                 onClick={handleGenerateBriefing}
                 type="button"
               >
-                {isBriefingLoading ? "Generating..." : "✦ Generate briefing"}
+                {isBriefingLoading ? "Generating..." : "Generate briefing"}
               </button>
             </div>
             <textarea
-              ref={notesRef}
+              className="session-notes-editor"
               id="session-notes"
               onChange={(event) =>
                 setSessionForm((current) => ({
@@ -1153,7 +1134,6 @@ export function TastingsHub({
                 }))
               }
               placeholder="Anything worth remembering about the lineup or the company."
-              style={{ overflow: "hidden", resize: "vertical" }}
               value={sessionForm.notes}
             />
           </div>
@@ -1352,30 +1332,15 @@ export function TastingsHub({
                         </span>
                       ))}
                       <span className="tastings-section-chevron" aria-hidden="true">
-                        {expanded ? "−" : "+"}
+                        {expanded ? "-" : "+"}
                       </span>
                     </div>
                   </button>
 
                   {expanded ? (
                     <div className="recent-session-detail">
-                      <div className="recent-session-detail-grid">
-                        <section className="recent-session-detail-block">
-                          <h4>People</h4>
-                          {attendeeNames.length > 0 ? (
-                            <div className="pill-row">
-                              {attendeeNames.map((name) => (
-                                <span className="pill" key={name}>
-                                  {name}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="muted">Solo tasting.</p>
-                          )}
-                        </section>
-
-                        <section className="recent-session-detail-block">
+                      <div className="recent-session-overview">
+                        <section className="recent-session-detail-block recent-session-context-block">
                           <h4>Context</h4>
                           <div className="recent-session-context-list">
                             <div>
@@ -1396,6 +1361,21 @@ export function TastingsHub({
                             ) : null}
                           </div>
                         </section>
+
+                        <section className="recent-session-detail-block recent-session-people-block">
+                          <h4>People</h4>
+                          {attendeeNames.length > 0 ? (
+                            <div className="recent-session-people-row">
+                              {attendeeNames.map((name) => (
+                                <span className="pill" key={name}>
+                                  {name}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="muted">Solo tasting.</p>
+                          )}
+                        </section>
                       </div>
 
                       <section className="recent-session-detail-block">
@@ -1414,11 +1394,19 @@ export function TastingsHub({
                                 />
                               </div>
                               <div className="recent-session-bottle-copy">
-                                <strong>{entry.expression.name}</strong>
-                                <p>{getBottleSubline(entry) || "Bottle from your collection"}</p>
-                                <div className="pill-row">
+                                <strong className="recent-session-bottle-name">{entry.expression.name}</strong>
+                                <p className="recent-session-bottle-subline">{getBottleSubline(entry) || "Bottle from your collection"}</p>
+                                {getBottleFactLine(entry) ? (
+                                  <p className="recent-session-bottle-facts">{getBottleFactLine(entry)}</p>
+                                ) : null}
+                                <div className="pill-row recent-session-bottle-pill-row">
                                   <span className="pill">{entry.item.fillState}</span>
                                   <span className="pill">{entry.item.status}</span>
+                                  {getBottleHighlightTags(entry).map((tag) => (
+                                    <span className="pill recent-session-bottle-tag" key={`${entry.item.id}-${tag}`}>
+                                      {tag}
+                                    </span>
+                                  ))}
                                 </div>
                               </div>
                             </article>
@@ -1429,7 +1417,11 @@ export function TastingsHub({
                       {sessionView.session.notes ? (
                         <section className="recent-session-detail-block">
                           <h4>Notes</h4>
-                          <p>{sessionView.session.notes}</p>
+                          <div className="recent-session-notes-scroll">
+                            <div className="tasting-notes-markdown">
+                              <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{sessionView.session.notes}</ReactMarkdown>
+                            </div>
+                          </div>
                         </section>
                       ) : null}
 

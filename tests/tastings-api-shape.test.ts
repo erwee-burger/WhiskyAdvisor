@@ -17,8 +17,8 @@ vi.mock("@/lib/repository", () => mockRepository);
 import { DELETE as deleteTastingPersonRoute } from "@/app/api/tastings/people/[personId]/route";
 import { POST as postTastingSessions } from "@/app/api/tastings/sessions/route";
 import { POST as postBriefing } from "@/app/api/tastings/briefing/route";
+import { formatBriefingAsMarkdown } from "@/lib/briefing-formatter";
 import { createQuickBottleShare, createTastingSession, deleteTastingPerson } from "@/lib/repository";
-import { formatBriefingAsText } from "@/lib/briefing-formatter";
 
 const mockedCreateQuickBottleShare = vi.mocked(createQuickBottleShare);
 const mockedCreateTastingSession = vi.mocked(createTastingSession);
@@ -160,7 +160,7 @@ describe("tastings API shape", () => {
   });
 });
 
-describe("formatBriefingAsText", () => {
+describe("formatBriefingAsMarkdown", () => {
   it("formats tasting order section", async () => {
     const briefing = {
       tastingOrder: [
@@ -170,7 +170,7 @@ describe("formatBriefingAsText", () => {
       bottleProfiles: [],
       tips: []
     };
-    const result = formatBriefingAsText(briefing);
+    const result = formatBriefingAsMarkdown(briefing);
     expect(result).toContain("## Tasting Order");
     expect(result).toContain("1. Glenlivet 12");
     expect(result).toContain("Lightest — good opener");
@@ -189,12 +189,39 @@ describe("formatBriefingAsText", () => {
       ],
       tips: ["Serve neat"]
     };
-    const result = formatBriefingAsText(briefing);
+    const result = formatBriefingAsMarkdown(briefing);
     expect(result).toContain("### Ardbeg 10");
     expect(result).toContain("smoke, citrus");
     expect(result).toContain("The medicinal finish.");
     expect(result).toContain("## Tips");
     expect(result).toContain("- Serve neat");
+  });
+
+  it("adds readable spacing between sections and bottle profiles", async () => {
+    const briefing = {
+      tastingOrder: [{ bottleName: "Bottle One", reason: "Open with the gentler dram" }],
+      bottleProfiles: [
+        {
+          bottleName: "Bottle One",
+          keyNotes: ["pear", "vanilla"],
+          watchFor: "The lift on the finish.",
+          background: "Ex-bourbon maturation."
+        },
+        {
+          bottleName: "Bottle Two",
+          keyNotes: ["smoke"],
+          watchFor: "The coastal edge.",
+          background: "Island style."
+        }
+      ],
+      tips: ["Pour small measures"]
+    };
+    const result = formatBriefingAsMarkdown(briefing);
+    expect(result).toContain("## Bottle Profiles");
+    expect(result).toContain("### Bottle One");
+    expect(result).toContain("**Background:** Ex-bourbon maturation.\n\n### Bottle Two");
+    expect(result).toContain("## Tips");
+    expect(result).toContain("- Pour small measures");
   });
 });
 

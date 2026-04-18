@@ -1163,9 +1163,8 @@ textarea {
   padding: 0 20px 20px;
 }
 
-.recent-session-detail-grid {
+.recent-session-overview {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -1180,12 +1179,24 @@ textarea {
 
 .recent-session-context-list {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
 }
 
 .recent-session-context-list div {
   display: grid;
   gap: 4px;
+}
+
+.recent-session-people-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.recent-session-people-row .pill {
+  background: rgba(255, 225, 190, 0.08);
+  color: rgba(248, 238, 223, 0.8);
 }
 
 .recent-session-bottle-grid {
@@ -1225,10 +1236,89 @@ textarea {
   gap: 6px;
 }
 
+.recent-session-bottle-name {
+  line-height: 1.35;
+}
+
 .recent-session-bottle-copy p {
   margin: 0;
   color: rgba(248, 238, 223, 0.68);
   font-size: 0.9rem;
+}
+
+.recent-session-bottle-subline {
+  color: rgba(248, 238, 223, 0.76);
+}
+
+.recent-session-bottle-facts {
+  font-size: 0.82rem;
+  letter-spacing: 0.01em;
+}
+
+.recent-session-bottle-pill-row {
+  margin-top: 4px;
+}
+
+.recent-session-bottle-tag {
+  background: rgba(255, 225, 190, 0.06);
+  color: rgba(248, 238, 223, 0.72);
+}
+
+.recent-session-notes-scroll {
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.recent-session-notes-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.recent-session-notes-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 225, 190, 0.16);
+}
+
+.tasting-notes-markdown {
+  display: grid;
+  gap: 12px;
+  color: rgba(248, 238, 223, 0.86);
+  line-height: 1.7;
+}
+
+.tasting-notes-markdown > * {
+  margin: 0;
+}
+
+.tasting-notes-markdown h2,
+.tasting-notes-markdown h3 {
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.tasting-notes-markdown h2 {
+  font-size: 1.02rem;
+}
+
+.tasting-notes-markdown h3 {
+  font-size: 0.95rem;
+}
+
+.tasting-notes-markdown p,
+.tasting-notes-markdown li {
+  color: rgba(248, 238, 223, 0.84);
+}
+
+.tasting-notes-markdown ol,
+.tasting-notes-markdown ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.tasting-notes-markdown strong {
+  color: var(--text);
 }
 
 .muted {
@@ -1298,6 +1388,13 @@ textarea {
 .field textarea {
   min-height: 120px;
   resize: vertical;
+}
+
+.field textarea.session-notes-editor {
+  height: 240px;
+  min-height: 240px;
+  overflow-y: auto;
+  resize: none;
 }
 
 .checkbox-label {
@@ -2703,7 +2800,7 @@ td {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .recent-session-detail-grid {
+  .recent-session-context-list {
     grid-template-columns: 1fr;
   }
 
