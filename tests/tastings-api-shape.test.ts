@@ -18,6 +18,7 @@ import { DELETE as deleteTastingPersonRoute } from "@/app/api/tastings/people/[p
 import { POST as postTastingSessions } from "@/app/api/tastings/sessions/route";
 import { POST as postBriefing } from "@/app/api/tastings/briefing/route";
 import { createQuickBottleShare, createTastingSession, deleteTastingPerson } from "@/lib/repository";
+import { formatBriefingAsText } from "@/lib/briefing-formatter";
 
 const mockedCreateQuickBottleShare = vi.mocked(createQuickBottleShare);
 const mockedCreateTastingSession = vi.mocked(createTastingSession);
@@ -161,7 +162,6 @@ describe("tastings API shape", () => {
 
 describe("formatBriefingAsText", () => {
   it("formats tasting order section", async () => {
-    const { formatBriefingAsText } = await import("@/app/api/tastings/briefing/route");
     const briefing = {
       tastingOrder: [
         { bottleName: "Glenlivet 12", reason: "Lightest — good opener" },
@@ -177,7 +177,6 @@ describe("formatBriefingAsText", () => {
   });
 
   it("formats bottle profiles section", async () => {
-    const { formatBriefingAsText } = await import("@/app/api/tastings/briefing/route");
     const briefing = {
       tastingOrder: [],
       bottleProfiles: [

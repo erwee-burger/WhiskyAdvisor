@@ -1,7 +1,6 @@
 import type { ModelMessage } from "@ai-sdk/provider-utils";
 import { openai } from "@ai-sdk/openai";
 import { createUIMessageStreamResponse, streamText } from "ai";
-import type { UIMessage } from "ai";
 
 import { buildTastingBottleContext, buildPalateContextBlock, buildRecentTastingSessionsBlock } from "@/lib/advisor-context";
 import { getServerEnv } from "@/lib/env";
@@ -11,10 +10,10 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    let body: any;
+    let body: Record<string, unknown>;
     try {
       body = await req.json();
-    } catch (error) {
+    } catch {
       return new Response(
         JSON.stringify({ error: "Invalid request body" }),
         { status: 400, headers: { "content-type": "application/json" } }
@@ -61,9 +60,9 @@ RULES:
 - Keep answers concise and scannable.
 - End each response with 2-3 follow-up chips: {"suggestions": ["...", "...", "..."]}`;
 
-      const messages: ModelMessage[] = uiMessages.map((message: any) => {
+      const messages: ModelMessage[] = uiMessages.map((message: Record<string, unknown>) => {
         const content =
-          message.parts?.map((part: any) => ("text" in part ? (part as { text: string }).text : "")).join(" ") || "";
+          (message.parts as Array<{text?: string}>)?.map((part: Record<string, unknown>) => ("text" in part ? (part as { text: string }).text : "")).join(" ") || "";
         const role: "user" | "assistant" = message.role === "assistant" ? "assistant" : "user";
         return { role, content };
       });
@@ -75,15 +74,15 @@ RULES:
       });
 
       return createUIMessageStreamResponse({ stream: result.toUIMessageStream() });
-    } catch (error) {
-      console.error("Failed to load advisor context:", error);
+    } catch {
+      console.error("Failed to load advisor context");
       return new Response(
         JSON.stringify({ error: "Failed to load collection context" }),
         { status: 500, headers: { "content-type": "application/json" } }
       );
     }
-  } catch (error) {
-    console.error("Advisor endpoint error:", error);
+  } catch {
+    console.error("Advisor endpoint error");
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { "content-type": "application/json" } }

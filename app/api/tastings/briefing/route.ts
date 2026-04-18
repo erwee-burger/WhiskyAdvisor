@@ -31,24 +31,6 @@ function isValidBriefingRequest(data: unknown): data is BriefingRequest {
   return true;
 }
 
-interface BottleProfile {
-  bottleName: string;
-  keyNotes: string[];
-  watchFor: string;
-  background: string;
-}
-
-interface Briefing {
-  tastingOrder: Array<{ bottleName: string; reason: string }>;
-  bottleProfiles: BottleProfile[];
-  tips: string[];
-}
-
-interface BriefingResponse {
-  suggestedName: string;
-  briefing: Briefing;
-}
-
 const briefingResponseSchema = z.object({
   suggestedName: z.string().min(1),
   briefing: z.object({
@@ -66,48 +48,12 @@ const briefingResponseSchema = z.object({
   })
 });
 
-export function formatBriefingAsText(briefing: Briefing): string {
-  const sections: string[] = [];
-
-  if (briefing.tastingOrder.length > 0) {
-    sections.push("## Tasting Order");
-    briefing.tastingOrder.forEach((entry, index) => {
-      sections.push(`${index + 1}. ${entry.bottleName} — ${entry.reason}`);
-    });
-  }
-
-  if (briefing.bottleProfiles.length > 0) {
-    sections.push("\n## Bottle Profiles");
-    for (const profile of briefing.bottleProfiles) {
-      sections.push(`### ${profile.bottleName}`);
-      if (profile.keyNotes.length > 0) {
-        sections.push(`Key notes: ${profile.keyNotes.join(", ")}`);
-      }
-      if (profile.watchFor) {
-        sections.push(`Watch for: ${profile.watchFor}`);
-      }
-      if (profile.background) {
-        sections.push(`Background: ${profile.background}`);
-      }
-    }
-  }
-
-  if (briefing.tips.length > 0) {
-    sections.push("\n## Tips");
-    for (const tip of briefing.tips) {
-      sections.push(`- ${tip}`);
-    }
-  }
-
-  return sections.join("\n");
-}
-
 export async function POST(req: Request) {
   try {
     let body: unknown;
     try {
       body = await req.json();
-    } catch (error) {
+    } catch {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
 
@@ -200,24 +146,24 @@ Return only the JSON object. No markdown, no explanation.`;
       let parsed: unknown;
       try {
         parsed = JSON.parse(text);
-      } catch (error) {
-        console.error("Failed to parse AI response as JSON:", error);
+      } catch {
+        console.error("Failed to parse AI response as JSON");
         return NextResponse.json({ error: "Could not parse AI response" }, { status: 500 });
       }
 
       const validated = briefingResponseSchema.safeParse(parsed);
       if (!validated.success) {
-        console.error("AI response failed validation:", validated.error);
+        console.error("AI response failed validation");
         return NextResponse.json({ error: "Invalid AI response format" }, { status: 500 });
       }
 
       return NextResponse.json(validated.data);
-    } catch (error) {
-      console.error("Failed to generate briefing:", error);
+    } catch {
+      console.error("Failed to generate briefing");
       return NextResponse.json({ error: "Failed to generate briefing" }, { status: 500 });
     }
-  } catch (error) {
-    console.error("Briefing endpoint error:", error);
+  } catch {
+    console.error("Briefing endpoint error");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
