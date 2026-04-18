@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { readResponseMessage, formatDate } from "@/lib/utils";
+import { getBottleDisplayImage } from "@/lib/bottle-image";
 import type {
   CollectionViewItem,
   RelationshipType,
@@ -12,6 +14,7 @@ import type {
   TastingPlace,
   TastingSessionView
 } from "@/lib/types";
+import { formatDate, readResponseMessage } from "@/lib/utils";
 
 type StatusNote = {
   tone: "success" | "error" | "info";
@@ -82,18 +85,6 @@ function toIsoDatetime(value: string) {
   return new Date(value).toISOString();
 }
 
-function describeSession(view: TastingSessionView) {
-  const attendees = view.attendees.map((entry) => entry.name).join(", ") || "Solo";
-  const bottles = view.bottles.map((entry) => entry.expression.name).join(", ") || "No bottles linked";
-  const context = [view.group?.name, view.place?.name].filter(Boolean).join(" - ");
-
-  return {
-    attendees,
-    bottles,
-    context
-  };
-}
-
 function createQuickShareForm(collectionItemId: string): QuickShareForm {
   return {
     title: "",
@@ -152,6 +143,80 @@ function toBottleOptionLabel(entry: CollectionViewItem) {
   return `${entry.expression.name} (${entry.item.fillState})`;
 }
 
+function formatOccasionLabel(value: string) {
+  return value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function buildBottleSearchHaystack(entry: CollectionViewItem) {
+  return [
+    entry.expression.name,
+    entry.expression.brand,
+    entry.expression.distilleryName,
+    entry.expression.bottlerName,
+    entry.expression.country,
+    entry.item.fillState,
+    ...entry.expression.tags
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function getBottleImage(entry: CollectionViewItem) {
+  return getBottleDisplayImage(entry.expression.name, entry.images);
+}
+
+function getBottleSubline(entry: CollectionViewItem) {
+  return [entry.expression.distilleryName, entry.expression.brand, entry.expression.bottlerName]
+    .filter(Boolean)
+    .map((value) => String(value).trim())
+    .filter((value, index, array) => array.indexOf(value) === index)
+    .join(" / ");
+}
+
+function TastingSection({
+  id,
+  title,
+  description,
+  countLabel,
+  open,
+  onToggle,
+  children,
+  busy = false
+}: {
+  id?: string;
+  title: string;
+  description: string;
+  countLabel?: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+  busy?: boolean;
+}) {
+  return (
+    <section className={`panel stack tastings-section${busy ? " panel-busy" : ""}${open ? " tastings-section-open" : ""}`} id={id}>
+      <button
+        aria-expanded={open}
+        className="tastings-section-toggle"
+        onClick={onToggle}
+        type="button"
+      >
+        <div className="tastings-section-toggle-copy">
+          <h2>{title}</h2>
+          <p>{description}</p>
+        </div>
+        <div className="tastings-section-toggle-side">
+          {countLabel ? <span className="pill">{countLabel}</span> : null}
+          <span className="tastings-section-chevron" aria-hidden="true">
+            {open ? "−" : "+"}
+          </span>
+        </div>
+      </button>
+      {open ? <div className="tastings-section-body">{children}</div> : null}
+    </section>
+  );
+}
+
 export function TastingsHub({
   recentSessions,
   people,
@@ -174,47 +239,95 @@ export function TastingsHub({
   const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingPlaceId, setEditingPlaceId] = useState<string | null>(null);
+  const [quickShareOpen, setQuickShareOpen] = useState(true);
+  const [sessionOpen, setSessionOpen] = useState(true);
+  const [recentOpen, setRecentOpen] = useState(true);
+  const [peopleOpen, setPeopleOpen] = useState(false);
+  const [groupsOpen, setGroupsOpen] = useState(false);
+  const [placesOpen, setPlacesOpen] = useState(false);
+  const [sessionBottleQuery, setSessionBottleQuery] = useState("");
+  const [expandedSessionIds, setExpandedSessionIds] = useState<string[]>([]);
 
-  const groupMembersById = new Map(groups.map((group) => [group.id, group.memberPersonIds] as const));
-  const peopleById = new Map(people.map((person) => [person.id, person] as const));
-  const availableBottleIds = new Set(availableBottles.map((entry) => entry.item.id));
-  const sessionBottleOptionsById = new Map<string, SessionBottleOption>();
+  const groupMembersById = useMemo(
+    () => new Map(groups.map((group) => [group.id, group.memberPersonIds] as const)),
+    [groups]
+  );
+  const peopleById = useMemo(
+    () => new Map(people.map((person) => [person.id, person] as const)),
+    [people]
+  );
+  const availableBottleIds = useMemo(
+    () => new Set(availableBottles.map((entry) => entry.item.id)),
+    [availableBottles]
+  );
 
-  for (const bottle of availableBottles) {
-    sessionBottleOptionsById.set(bottle.item.id, {
-      itemId: bottle.item.id,
-      label: toBottleOptionLabel(bottle),
-      available: true
-    });
-  }
+  const { sessionBottleOptions, sessionBottleOptionsById, sessionBottleEntriesById } = useMemo(() => {
+    const optionsById = new Map<string, SessionBottleOption>();
+    const entriesById = new Map<string, CollectionViewItem>();
 
-  for (const sessionView of recentSessions) {
-    for (const bottle of sessionView.bottles) {
-      if (!sessionBottleOptionsById.has(bottle.item.id)) {
-        sessionBottleOptionsById.set(bottle.item.id, {
-          itemId: bottle.item.id,
-          label: toBottleOptionLabel(bottle),
-          available: availableBottleIds.has(bottle.item.id)
+    for (const bottle of availableBottles) {
+      optionsById.set(bottle.item.id, {
+        itemId: bottle.item.id,
+        label: toBottleOptionLabel(bottle),
+        available: true
+      });
+      entriesById.set(bottle.item.id, bottle);
+    }
+
+    for (const sessionView of recentSessions) {
+      for (const bottle of sessionView.bottles) {
+        if (!optionsById.has(bottle.item.id)) {
+          optionsById.set(bottle.item.id, {
+            itemId: bottle.item.id,
+            label: toBottleOptionLabel(bottle),
+            available: availableBottleIds.has(bottle.item.id)
+          });
+        }
+
+        if (!entriesById.has(bottle.item.id)) {
+          entriesById.set(bottle.item.id, bottle);
+        }
+      }
+    }
+
+    for (const itemId of sessionForm.bottleItemIds) {
+      if (!optionsById.has(itemId)) {
+        optionsById.set(itemId, {
+          itemId,
+          label: `Unknown bottle (${itemId})`,
+          available: false
         });
       }
     }
-  }
 
-  for (const itemId of sessionForm.bottleItemIds) {
-    if (!sessionBottleOptionsById.has(itemId)) {
-      sessionBottleOptionsById.set(itemId, {
+    return {
+      sessionBottleOptions: [...optionsById.values()].sort((left, right) => left.label.localeCompare(right.label)),
+      sessionBottleOptionsById: optionsById,
+      sessionBottleEntriesById: entriesById
+    };
+  }, [availableBottles, availableBottleIds, recentSessions, sessionForm.bottleItemIds]);
+
+  const filteredBottleResults = useMemo(() => {
+    const normalized = sessionBottleQuery.trim().toLowerCase();
+    const pool = availableBottles.filter((entry) =>
+      normalized ? buildBottleSearchHaystack(entry).includes(normalized) : true
+    );
+
+    return pool.slice(0, normalized ? 18 : 12);
+  }, [availableBottles, sessionBottleQuery]);
+
+  const selectedSessionBottleCards = useMemo(
+    () =>
+      sessionForm.bottleItemIds.map((itemId) => ({
         itemId,
-        label: `Unknown bottle (${itemId})`,
-        available: false
-      });
-    }
-  }
-
-  const sessionBottleOptions = [...sessionBottleOptionsById.values()].sort((left, right) =>
-    left.label.localeCompare(right.label)
+        option: sessionBottleOptionsById.get(itemId),
+        entry: sessionBottleEntriesById.get(itemId)
+      })),
+    [sessionBottleEntriesById, sessionBottleOptionsById, sessionForm.bottleItemIds]
   );
+
   const hasUnavailableSelectedBottles = sessionForm.bottleItemIds.some(
-    (itemId) => !availableBottleIds.has(itemId)
+    (itemId) => !sessionBottleOptionsById.get(itemId)?.available
   );
   const hasQuickShareAttendees = quickShare.attendeePersonIds.length > 0;
   const canSubmitSession = sessionForm.bottleItemIds.length > 0 && !hasUnavailableSelectedBottles;
@@ -232,12 +345,40 @@ export function TastingsHub({
     return [...new Set(groupMembersById.get(groupId) ?? [])];
   }
 
+  function toggleExpandedSession(sessionId: string) {
+    setExpandedSessionIds((current) =>
+      current.includes(sessionId)
+        ? current.filter((entry) => entry !== sessionId)
+        : [...current, sessionId]
+    );
+  }
+
+  function toggleSessionBottle(itemId: string) {
+    setSessionForm((current) => {
+      const selected = current.bottleItemIds.includes(itemId);
+      return {
+        ...current,
+        bottleItemIds: selected
+          ? current.bottleItemIds.filter((entry) => entry !== itemId)
+          : [...current.bottleItemIds, itemId]
+      };
+    });
+  }
+
+  function openSectionAndScroll(id: string, setter: Dispatch<SetStateAction<boolean>>) {
+    setter(true);
+    requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
   function resetQuickShareForm() {
     setQuickShare(createQuickShareForm(defaultBottleId));
   }
 
   function resetSessionForm() {
     setEditingSessionId(null);
+    setSessionBottleQuery("");
     setSessionForm(createSessionForm());
   }
 
@@ -300,7 +441,9 @@ export function TastingsHub({
   }
 
   function startSessionEdit(sessionView: TastingSessionView) {
+    setSessionOpen(true);
     setEditingSessionId(sessionView.session.id);
+    setSessionBottleQuery("");
     setSessionForm({
       title: sessionView.session.title ?? "",
       occasionType: sessionView.session.occasionType,
@@ -315,9 +458,13 @@ export function TastingsHub({
       tone: "info",
       text: "Editing tasting session. Save to apply changes, or cancel to discard them."
     });
+    requestAnimationFrame(() => {
+      document.getElementById("log-session")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   function startPersonEdit(person: TastingPerson) {
+    setPeopleOpen(true);
     setEditingPersonId(person.id);
     setPersonForm({
       name: person.name,
@@ -332,6 +479,7 @@ export function TastingsHub({
   }
 
   function startGroupEdit(group: TastingGroup) {
+    setGroupsOpen(true);
     setEditingGroupId(group.id);
     setGroupForm({
       name: group.name,
@@ -345,6 +493,7 @@ export function TastingsHub({
   }
 
   function startPlaceEdit(place: TastingPlace) {
+    setPlacesOpen(true);
     setEditingPlaceId(place.id);
     setPlaceForm({
       name: place.name,
@@ -370,7 +519,7 @@ export function TastingsHub({
         groupId: quickShare.groupId || undefined,
         placeId: quickShare.placeId || undefined,
         sessionDate: toIsoDatetime(quickShare.sessionDate)
-      },
+      }
     });
 
     if (ok) {
@@ -386,18 +535,14 @@ export function TastingsHub({
       url: isEditing ? `/api/tastings/sessions/${editingSessionId}` : "/api/tastings/sessions",
       method: isEditing ? "PATCH" : "POST",
       action: "session-save",
-      successText: isEditing
-        ? "Tasting session updated."
-        : "Saved. Your tastings history is up to date.",
-      errorText: isEditing
-        ? "Could not update the tasting session."
-        : "Could not save your changes.",
+      successText: isEditing ? "Tasting session updated." : "Saved. Your tastings history is up to date.",
+      errorText: isEditing ? "Could not update the tasting session." : "Could not save your changes.",
       body: {
         ...sessionForm,
         groupId: sessionForm.groupId || undefined,
         placeId: sessionForm.placeId || undefined,
         sessionDate: toIsoDatetime(sessionForm.sessionDate)
-      },
+      }
     });
 
     if (ok) {
@@ -419,7 +564,7 @@ export function TastingsHub({
         ...personForm,
         notes: personForm.notes || undefined,
         preferenceTags: personForm.preferenceTags
-      },
+      }
     });
 
     if (ok) {
@@ -440,7 +585,7 @@ export function TastingsHub({
       body: {
         ...groupForm,
         notes: groupForm.notes || undefined
-      },
+      }
     });
 
     if (ok) {
@@ -461,7 +606,7 @@ export function TastingsHub({
       body: {
         ...placeForm,
         notes: placeForm.notes || undefined
-      },
+      }
     });
 
     if (ok) {
@@ -543,12 +688,8 @@ export function TastingsHub({
       resetGroupForm();
     }
 
-    setQuickShare((current) =>
-      current.groupId === group.id ? { ...current, groupId: "" } : current
-    );
-    setSessionForm((current) =>
-      current.groupId === group.id ? { ...current, groupId: "" } : current
-    );
+    setQuickShare((current) => (current.groupId === group.id ? { ...current, groupId: "" } : current));
+    setSessionForm((current) => (current.groupId === group.id ? { ...current, groupId: "" } : current));
   }
 
   async function handleDeletePlace(place: TastingPlace) {
@@ -572,12 +713,8 @@ export function TastingsHub({
       resetPlaceForm();
     }
 
-    setQuickShare((current) =>
-      current.placeId === place.id ? { ...current, placeId: "" } : current
-    );
-    setSessionForm((current) =>
-      current.placeId === place.id ? { ...current, placeId: "" } : current
-    );
+    setQuickShare((current) => (current.placeId === place.id ? { ...current, placeId: "" } : current));
+    setSessionForm((current) => (current.placeId === place.id ? { ...current, placeId: "" } : current));
   }
 
   return (
@@ -591,12 +728,12 @@ export function TastingsHub({
           bring next.
         </p>
         <div className="hero-actions">
-          <a className="button" href="#quick-share">
+          <button className="button" onClick={() => openSectionAndScroll("quick-share", setQuickShareOpen)} type="button">
             Quick share
-          </a>
-          <a className="button-subtle" href="#log-session">
+          </button>
+          <button className="button-subtle" onClick={() => openSectionAndScroll("log-session", setSessionOpen)} type="button">
             Log session
-          </a>
+          </button>
           <a className="button-subtle" href="/advisor">
             Ask advisor what to take
           </a>
@@ -605,25 +742,26 @@ export function TastingsHub({
 
       {notice ? <div className={`status-note status-note-${notice.tone}`}>{notice.text}</div> : null}
 
-      <section className={`panel stack${isQuickShareBusy ? " panel-busy" : ""}`} id="quick-share">
-        <div className="section-title">
-          <div>
-            <h2>Quick share</h2>
-            <p>Log one bottle you took somewhere without opening a full session form.</p>
-          </div>
-        </div>
+      <TastingSection
+        busy={isQuickShareBusy}
+        description="Log one bottle you took somewhere without opening a full session form."
+        id="quick-share"
+        open={quickShareOpen}
+        onToggle={() => setQuickShareOpen((current) => !current)}
+        title="Quick share"
+      >
         <form className="form-grid" onSubmit={handleQuickShareSubmit}>
           <div className="field">
             <label htmlFor="quick-share-bottle">Bottle</label>
             <select
               id="quick-share-bottle"
-              value={quickShare.collectionItemId}
               onChange={(event) =>
                 setQuickShare((current) => ({
                   ...current,
                   collectionItemId: event.target.value
                 }))
               }
+              value={quickShare.collectionItemId}
             >
               {availableBottles.map((entry) => (
                 <option key={entry.item.id} value={entry.item.id}>
@@ -636,21 +774,20 @@ export function TastingsHub({
             <label htmlFor="quick-share-date">Date</label>
             <input
               id="quick-share-date"
-              type="datetime-local"
-              value={quickShare.sessionDate}
               onChange={(event) =>
                 setQuickShare((current) => ({
                   ...current,
                   sessionDate: event.target.value
                 }))
               }
+              type="datetime-local"
+              value={quickShare.sessionDate}
             />
           </div>
           <div className="field">
             <label htmlFor="quick-share-group">Group</label>
             <select
               id="quick-share-group"
-              value={quickShare.groupId}
               onChange={(event) =>
                 setQuickShare((current) => ({
                   ...current,
@@ -660,6 +797,7 @@ export function TastingsHub({
                     : current.attendeePersonIds
                 }))
               }
+              value={quickShare.groupId}
             >
               <option value="">No linked group</option>
               {groups.map((group) => (
@@ -673,13 +811,13 @@ export function TastingsHub({
             <label htmlFor="quick-share-place">Place</label>
             <select
               id="quick-share-place"
-              value={quickShare.placeId}
               onChange={(event) =>
                 setQuickShare((current) => ({
                   ...current,
                   placeId: event.target.value
                 }))
               }
+              value={quickShare.placeId}
             >
               <option value="">No place set</option>
               {places.map((place) => (
@@ -693,28 +831,28 @@ export function TastingsHub({
             <label htmlFor="quick-share-title">Title</label>
             <input
               id="quick-share-title"
-              placeholder="Optional short label"
-              value={quickShare.title}
               onChange={(event) =>
                 setQuickShare((current) => ({
                   ...current,
                   title: event.target.value
                 }))
               }
+              placeholder="Optional short label"
+              value={quickShare.title}
             />
           </div>
           <div className="field full-span">
             <label htmlFor="quick-share-notes">Notes</label>
             <textarea
               id="quick-share-notes"
-              placeholder="Optional context about the visit or how the bottle landed."
-              value={quickShare.notes}
               onChange={(event) =>
                 setQuickShare((current) => ({
                   ...current,
                   notes: event.target.value
                 }))
               }
+              placeholder="Optional context about the visit or how the bottle landed."
+              value={quickShare.notes}
             />
           </div>
           <div className="field full-span">
@@ -731,7 +869,6 @@ export function TastingsHub({
                 people.map((person) => (
                   <label className="checkbox-label" key={person.id}>
                     <input
-                      type="checkbox"
                       checked={quickShare.attendeePersonIds.includes(person.id)}
                       onChange={(event) =>
                         setQuickShare((current) => ({
@@ -743,6 +880,7 @@ export function TastingsHub({
                           )
                         }))
                       }
+                      type="checkbox"
                     />
                     <span>
                       {person.name}
@@ -763,59 +901,60 @@ export function TastingsHub({
             </button>
           </div>
         </form>
-      </section>
+      </TastingSection>
 
-      <section className={`panel stack${isSessionBusy ? " panel-busy" : ""}`} id="log-session">
-        <div className="section-title">
-          <div>
-            <h2>{editingSessionId ? "Edit session" : "Log session"}</h2>
-            <p>
-              {editingSessionId
-                ? "Update the linked bottles, attendees, and context for this tasting."
-                : "Capture a full tasting with multiple bottles, attendees, and context."}
-            </p>
-          </div>
-        </div>
+      <TastingSection
+        busy={isSessionBusy}
+        description={
+          editingSessionId
+            ? "Update the linked bottles, attendees, and context for this tasting."
+            : "Capture a full tasting with multiple bottles, attendees, and context."
+        }
+        id="log-session"
+        open={sessionOpen}
+        onToggle={() => setSessionOpen((current) => !current)}
+        title={editingSessionId ? "Edit session" : "Log session"}
+      >
         <form className="form-grid" onSubmit={handleSessionSubmit}>
           <div className="field">
             <label htmlFor="session-title">Title</label>
             <input
               id="session-title"
-              placeholder="Whisky Friday at home"
-              value={sessionForm.title}
               onChange={(event) =>
                 setSessionForm((current) => ({
                   ...current,
                   title: event.target.value
                 }))
               }
+              placeholder="Whisky Friday at home"
+              value={sessionForm.title}
             />
           </div>
           <div className="field">
             <label htmlFor="session-date">Date</label>
             <input
               id="session-date"
-              type="datetime-local"
-              value={sessionForm.sessionDate}
               onChange={(event) =>
                 setSessionForm((current) => ({
                   ...current,
                   sessionDate: event.target.value
                 }))
               }
+              type="datetime-local"
+              value={sessionForm.sessionDate}
             />
           </div>
           <div className="field">
             <label htmlFor="session-occasion">Occasion</label>
             <select
               id="session-occasion"
-              value={sessionForm.occasionType}
               onChange={(event) =>
                 setSessionForm((current) => ({
                   ...current,
                   occasionType: event.target.value
                 }))
               }
+              value={sessionForm.occasionType}
             >
               <option value="visit">Visit</option>
               <option value="whisky_friday">Whisky Friday</option>
@@ -826,7 +965,6 @@ export function TastingsHub({
             <label htmlFor="session-group">Group</label>
             <select
               id="session-group"
-              value={sessionForm.groupId}
               onChange={(event) =>
                 setSessionForm((current) => ({
                   ...current,
@@ -836,6 +974,7 @@ export function TastingsHub({
                     : current.attendeePersonIds
                 }))
               }
+              value={sessionForm.groupId}
             >
               <option value="">No linked group</option>
               {groups.map((group) => (
@@ -849,13 +988,13 @@ export function TastingsHub({
             <label htmlFor="session-place">Place</label>
             <select
               id="session-place"
-              value={sessionForm.placeId}
               onChange={(event) =>
                 setSessionForm((current) => ({
                   ...current,
                   placeId: event.target.value
                 }))
               }
+              value={sessionForm.placeId}
             >
               <option value="">No place set</option>
               {places.map((place) => (
@@ -869,55 +1008,123 @@ export function TastingsHub({
             <label htmlFor="session-notes">Notes</label>
             <textarea
               id="session-notes"
-              placeholder="Anything worth remembering about the lineup or the company."
-              value={sessionForm.notes}
               onChange={(event) =>
                 setSessionForm((current) => ({
                   ...current,
                   notes: event.target.value
                 }))
               }
+              placeholder="Anything worth remembering about the lineup or the company."
+              value={sessionForm.notes}
             />
           </div>
+
           <div className="field full-span">
-            <label>Bottles</label>
+            <label htmlFor="session-bottle-search">Lineup</label>
             {hasUnavailableSelectedBottles ? (
               <div className="status-note status-note-error">
-                This session includes bottles that are no longer shareable. Remove or replace them
-                before saving.
+                This session includes bottles that are no longer shareable. Remove or replace them before saving.
               </div>
             ) : null}
-            <div className="tastings-checklist">
-              {sessionBottleOptions.map((bottle) => {
-                const isSelected = sessionForm.bottleItemIds.includes(bottle.itemId);
-                const isDisabled = !bottle.available && !isSelected;
 
-                return (
-                  <label className="checkbox-label" key={bottle.itemId}>
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      disabled={isDisabled}
-                      onChange={(event) =>
-                        setSessionForm((current) => ({
-                          ...current,
-                          bottleItemIds: toggleIdSelection(
-                            current.bottleItemIds,
-                            bottle.itemId,
-                            event.target.checked
-                          )
-                        }))
-                      }
-                    />
-                    <span>
-                      {bottle.label}
-                      {!bottle.available ? " - currently unavailable for new sessions" : ""}
-                    </span>
-                  </label>
-                );
-              })}
+            <div className="tasting-bottle-search">
+              <input
+                id="session-bottle-search"
+                onChange={(event) => setSessionBottleQuery(event.target.value)}
+                placeholder="Search by bottle, distillery, brand, or tag"
+                value={sessionBottleQuery}
+              />
             </div>
+
+            <div className="tasting-selected-lineup">
+              <div className="section-title">
+                <div>
+                  <h3>Selected lineup</h3>
+                  <p>{selectedSessionBottleCards.length === 0 ? "Pick at least one bottle for this session." : `${selectedSessionBottleCards.length} bottles selected.`}</p>
+                </div>
+              </div>
+              {selectedSessionBottleCards.length > 0 ? (
+                <div className="tasting-selected-grid">
+                  {selectedSessionBottleCards.map(({ itemId, option, entry }) => (
+                    <article className={`tasting-selected-card${option?.available === false ? " tasting-selected-card-unavailable" : ""}`} key={itemId}>
+                      <div className="tasting-selected-card-copy">
+                        <strong>{entry?.expression.name ?? option?.label ?? `Unknown bottle (${itemId})`}</strong>
+                        <p>{entry ? `${entry.item.fillState} · ${getBottleSubline(entry) || "Bottle from a previous session"}` : option?.available === false ? "No longer shareable for new sessions" : "Bottle metadata unavailable"}</p>
+                      </div>
+                      <button
+                        className="button-subtle"
+                        onClick={() => toggleSessionBottle(itemId)}
+                        type="button"
+                      >
+                        Remove
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="status-note status-note-info">No bottles selected yet.</div>
+              )}
+            </div>
+
+            <div className="tasting-bottle-picker">
+              <div className="section-title">
+                <div>
+                  <h3>Choose from your shelf</h3>
+                  <p>Search and tap bottles to build the tasting lineup.</p>
+                </div>
+              </div>
+              {filteredBottleResults.length > 0 ? (
+                <div className="tasting-bottle-grid">
+                  {filteredBottleResults.map((entry) => {
+                    const selected = sessionForm.bottleItemIds.includes(entry.item.id);
+
+                    return (
+                      <button
+                        className={`tasting-bottle-card${selected ? " tasting-bottle-card-selected" : ""}`}
+                        key={entry.item.id}
+                        onClick={() => toggleSessionBottle(entry.item.id)}
+                        type="button"
+                      >
+                        <div className="tasting-bottle-card-image">
+                          <Image
+                            alt={`${entry.expression.name} bottle`}
+                            className="tasting-bottle-card-cutout"
+                            height={120}
+                            src={getBottleImage(entry)}
+                            unoptimized
+                            width={70}
+                          />
+                        </div>
+                        <div className="tasting-bottle-card-copy">
+                          <strong>{entry.expression.name}</strong>
+                          {getBottleSubline(entry) ? <p>{getBottleSubline(entry)}</p> : null}
+                          <div className="pill-row">
+                            <span className="pill">{entry.item.fillState}</span>
+                            <span className="pill">{entry.item.status}</span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="status-note status-note-info">No bottles matched that search.</div>
+              )}
+            </div>
+
+            {sessionBottleOptions.some((option) => option.available === false && sessionForm.bottleItemIds.includes(option.itemId)) ? (
+              <div className="tasting-unavailable-list">
+                {sessionBottleOptions
+                  .filter((option) => option.available === false && sessionForm.bottleItemIds.includes(option.itemId))
+                  .map((option) => (
+                    <span className="pill" key={option.itemId}>
+                      {option.label}
+                    </span>
+                  ))}
+              </div>
+            ) : null}
           </div>
+
           <div className="field full-span">
             <label>Attendees</label>
             <div className="tastings-checklist">
@@ -927,7 +1134,6 @@ export function TastingsHub({
                 people.map((person) => (
                   <label className="checkbox-label" key={person.id}>
                     <input
-                      type="checkbox"
                       checked={sessionForm.attendeePersonIds.includes(person.id)}
                       onChange={(event) =>
                         setSessionForm((current) => ({
@@ -939,6 +1145,7 @@ export function TastingsHub({
                           )
                         }))
                       }
+                      type="checkbox"
                     />
                     <span>
                       {person.name}
@@ -964,72 +1171,165 @@ export function TastingsHub({
             ) : null}
           </div>
         </form>
-      </section>
+      </TastingSection>
 
-      <section className="panel stack">
-        <div className="section-title">
-          <div>
-            <h2>Recent sessions</h2>
-            <p>The latest shared-drinking history across people, places, and bottles.</p>
-          </div>
-        </div>
+      <TastingSection
+        countLabel={recentSessions.length === 1 ? "1 session" : `${recentSessions.length} sessions`}
+        description="Compact summaries stay scannable. Open a session to inspect the full lineup, people, and notes."
+        open={recentOpen}
+        onToggle={() => setRecentOpen((current) => !current)}
+        title="Recent sessions"
+      >
         {recentSessions.length === 0 ? (
           <div className="status-note status-note-info">
             No tastings logged yet. Start with a quick share above and the history will appear here.
           </div>
         ) : (
-          <div className="card-list">
+          <div className="recent-session-list">
             {recentSessions.map((sessionView) => {
-              const { attendees, bottles, context } = describeSession(sessionView);
+              const expanded = expandedSessionIds.includes(sessionView.session.id);
+              const attendeeNames = sessionView.attendees.map((entry) => entry.name);
+              const contextParts = [sessionView.group?.name, sessionView.place?.name].filter(Boolean);
 
               return (
-                <article className="advisor-card stack" key={sessionView.session.id}>
-                  <div className="section-title">
-                    <div>
+                <article className={`recent-session-card${expanded ? " recent-session-card-expanded" : ""}`} key={sessionView.session.id}>
+                  <button
+                    aria-expanded={expanded}
+                    className="recent-session-summary"
+                    onClick={() => toggleExpandedSession(sessionView.session.id)}
+                    type="button"
+                  >
+                    <div className="recent-session-summary-copy">
                       <h3>{sessionView.session.title ?? "Untitled tasting"}</h3>
                       <p>{formatDate(sessionView.session.sessionDate)}</p>
                     </div>
-                  </div>
-                  <div className="meta-line">
-                    <span>{attendees}</span>
-                    {context ? <span>{context}</span> : null}
-                    <span>{sessionView.session.occasionType.replace("_", " ")}</span>
-                  </div>
-                  <p className="muted">{bottles}</p>
-                  {sessionView.session.notes ? <p>{sessionView.session.notes}</p> : null}
-                  <div className="editor-actions">
-                    <button
-                      className="button-subtle"
-                      disabled={busyAction !== null}
-                      onClick={() => startSessionEdit(sessionView)}
-                      type="button"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="button-danger"
-                      disabled={busyAction !== null}
-                      onClick={() => void handleDeleteSession(sessionView.session.id)}
-                      type="button"
-                    >
-                      Delete
-                    </button>
-                  </div>
+                    <div className="recent-session-summary-stats">
+                      <span className="pill">{formatOccasionLabel(sessionView.session.occasionType)}</span>
+                      <span className="pill">{sessionView.attendees.length || 1} people</span>
+                      <span className="pill">{sessionView.bottles.length} bottles</span>
+                      {contextParts.map((part) => (
+                        <span className="pill" key={part}>
+                          {part}
+                        </span>
+                      ))}
+                      <span className="tastings-section-chevron" aria-hidden="true">
+                        {expanded ? "−" : "+"}
+                      </span>
+                    </div>
+                  </button>
+
+                  {expanded ? (
+                    <div className="recent-session-detail">
+                      <div className="recent-session-detail-grid">
+                        <section className="recent-session-detail-block">
+                          <h4>People</h4>
+                          {attendeeNames.length > 0 ? (
+                            <div className="pill-row">
+                              {attendeeNames.map((name) => (
+                                <span className="pill" key={name}>
+                                  {name}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="muted">Solo tasting.</p>
+                          )}
+                        </section>
+
+                        <section className="recent-session-detail-block">
+                          <h4>Context</h4>
+                          <div className="recent-session-context-list">
+                            <div>
+                              <span className="muted">Occasion</span>
+                              <strong>{formatOccasionLabel(sessionView.session.occasionType)}</strong>
+                            </div>
+                            {sessionView.group ? (
+                              <div>
+                                <span className="muted">Group</span>
+                                <strong>{sessionView.group.name}</strong>
+                              </div>
+                            ) : null}
+                            {sessionView.place ? (
+                              <div>
+                                <span className="muted">Place</span>
+                                <strong>{sessionView.place.name}</strong>
+                              </div>
+                            ) : null}
+                          </div>
+                        </section>
+                      </div>
+
+                      <section className="recent-session-detail-block">
+                        <h4>Bottles</h4>
+                        <div className="recent-session-bottle-grid">
+                          {sessionView.bottles.map((entry) => (
+                            <article className="recent-session-bottle-card" key={entry.item.id}>
+                              <div className="recent-session-bottle-image">
+                                <Image
+                                  alt={`${entry.expression.name} bottle`}
+                                  className="recent-session-bottle-cutout"
+                                  height={96}
+                                  src={getBottleImage(entry)}
+                                  unoptimized
+                                  width={58}
+                                />
+                              </div>
+                              <div className="recent-session-bottle-copy">
+                                <strong>{entry.expression.name}</strong>
+                                <p>{getBottleSubline(entry) || "Bottle from your collection"}</p>
+                                <div className="pill-row">
+                                  <span className="pill">{entry.item.fillState}</span>
+                                  <span className="pill">{entry.item.status}</span>
+                                </div>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      </section>
+
+                      {sessionView.session.notes ? (
+                        <section className="recent-session-detail-block">
+                          <h4>Notes</h4>
+                          <p>{sessionView.session.notes}</p>
+                        </section>
+                      ) : null}
+
+                      <div className="editor-actions">
+                        <button
+                          className="button-subtle"
+                          disabled={busyAction !== null}
+                          onClick={() => startSessionEdit(sessionView)}
+                          type="button"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="button-danger"
+                          disabled={busyAction !== null}
+                          onClick={() => void handleDeleteSession(sessionView.session.id)}
+                          type="button"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </article>
               );
             })}
           </div>
         )}
-      </section>
+      </TastingSection>
 
-      <section className="grid columns-3 tastings-directory-grid">
-        <div className={`panel stack${isPersonBusy ? " panel-busy" : ""}`}>
-          <div className="section-title">
-            <div>
-              <h2>People</h2>
-              <p>Keep simple relationship context and lightweight preference tags.</p>
-            </div>
-          </div>
+      <div className="stack">
+        <TastingSection
+          busy={isPersonBusy}
+          countLabel={people.length === 1 ? "1 person" : `${people.length} people`}
+          description="Keep simple relationship context and lightweight preference tags."
+          open={peopleOpen}
+          onToggle={() => setPeopleOpen((current) => !current)}
+          title="People"
+        >
           {editingPersonId ? (
             <div className="status-note status-note-info">You are editing a saved person record.</div>
           ) : null}
@@ -1038,26 +1338,26 @@ export function TastingsHub({
               <label htmlFor="person-name">Name</label>
               <input
                 id="person-name"
-                value={personForm.name}
                 onChange={(event) =>
                   setPersonForm((current) => ({
                     ...current,
                     name: event.target.value
                   }))
                 }
+                value={personForm.name}
               />
             </div>
             <div className="field">
               <label htmlFor="person-relationship">Relationship</label>
               <select
                 id="person-relationship"
-                value={personForm.relationshipType}
                 onChange={(event) =>
                   setPersonForm((current) => ({
                     ...current,
                     relationshipType: event.target.value as RelationshipType
                   }))
                 }
+                value={personForm.relationshipType}
               >
                 <option value="friend">Friend</option>
                 <option value="family">Family</option>
@@ -1069,27 +1369,27 @@ export function TastingsHub({
               <label htmlFor="person-tags">Preference tags</label>
               <input
                 id="person-tags"
-                placeholder="peated, sherry, citrus"
-                value={personForm.preferenceTags}
                 onChange={(event) =>
                   setPersonForm((current) => ({
                     ...current,
                     preferenceTags: event.target.value
                   }))
                 }
+                placeholder="peated, sherry, citrus"
+                value={personForm.preferenceTags}
               />
             </div>
             <div className="field">
               <label htmlFor="person-notes">Notes</label>
               <textarea
                 id="person-notes"
-                value={personForm.notes}
                 onChange={(event) =>
                   setPersonForm((current) => ({
                     ...current,
                     notes: event.target.value
                   }))
                 }
+                value={personForm.notes}
               />
             </div>
             <div className="editor-actions">
@@ -1141,15 +1441,16 @@ export function TastingsHub({
               </article>
             ))}
           </div>
-        </div>
+        </TastingSection>
 
-        <div className={`panel stack${isGroupBusy ? " panel-busy" : ""}`}>
-          <div className="section-title">
-            <div>
-              <h2>Groups</h2>
-              <p>Reusable circles like whisky Friday crews, family, or office tastings.</p>
-            </div>
-          </div>
+        <TastingSection
+          busy={isGroupBusy}
+          countLabel={groups.length === 1 ? "1 group" : `${groups.length} groups`}
+          description="Reusable circles like whisky Friday crews, family, or office tastings."
+          open={groupsOpen}
+          onToggle={() => setGroupsOpen((current) => !current)}
+          title="Groups"
+        >
           {editingGroupId ? (
             <div className="status-note status-note-info">You are editing a saved group.</div>
           ) : null}
@@ -1158,13 +1459,13 @@ export function TastingsHub({
               <label htmlFor="group-name">Name</label>
               <input
                 id="group-name"
-                value={groupForm.name}
                 onChange={(event) =>
                   setGroupForm((current) => ({
                     ...current,
                     name: event.target.value
                   }))
                 }
+                value={groupForm.name}
               />
             </div>
             <div className="field">
@@ -1176,7 +1477,6 @@ export function TastingsHub({
                   people.map((person) => (
                     <label className="checkbox-label" key={person.id}>
                       <input
-                        type="checkbox"
                         checked={groupForm.memberPersonIds.includes(person.id)}
                         onChange={(event) =>
                           setGroupForm((current) => ({
@@ -1188,6 +1488,7 @@ export function TastingsHub({
                             )
                           }))
                         }
+                        type="checkbox"
                       />
                       <span>{person.name}</span>
                     </label>
@@ -1199,13 +1500,13 @@ export function TastingsHub({
               <label htmlFor="group-notes">Notes</label>
               <textarea
                 id="group-notes"
-                value={groupForm.notes}
                 onChange={(event) =>
                   setGroupForm((current) => ({
                     ...current,
                     notes: event.target.value
                   }))
                 }
+                value={groupForm.notes}
               />
             </div>
             <div className="editor-actions">
@@ -1253,15 +1554,16 @@ export function TastingsHub({
               </article>
             ))}
           </div>
-        </div>
+        </TastingSection>
 
-        <div className={`panel stack${isPlaceBusy ? " panel-busy" : ""}`}>
-          <div className="section-title">
-            <div>
-              <h2>Places</h2>
-              <p>Keep the venues and homes that matter in the tastings story.</p>
-            </div>
-          </div>
+        <TastingSection
+          busy={isPlaceBusy}
+          countLabel={places.length === 1 ? "1 place" : `${places.length} places`}
+          description="Keep the venues and homes that matter in the tastings story."
+          open={placesOpen}
+          onToggle={() => setPlacesOpen((current) => !current)}
+          title="Places"
+        >
           {editingPlaceId ? (
             <div className="status-note status-note-info">You are editing a saved place.</div>
           ) : null}
@@ -1270,26 +1572,26 @@ export function TastingsHub({
               <label htmlFor="place-name">Name</label>
               <input
                 id="place-name"
-                value={placeForm.name}
                 onChange={(event) =>
                   setPlaceForm((current) => ({
                     ...current,
                     name: event.target.value
                   }))
                 }
+                value={placeForm.name}
               />
             </div>
             <div className="field">
               <label htmlFor="place-notes">Notes</label>
               <textarea
                 id="place-notes"
-                value={placeForm.notes}
                 onChange={(event) =>
                   setPlaceForm((current) => ({
                     ...current,
                     notes: event.target.value
                   }))
                 }
+                value={placeForm.notes}
               />
             </div>
             <div className="editor-actions">
@@ -1331,8 +1633,8 @@ export function TastingsHub({
               </article>
             ))}
           </div>
-        </div>
-      </section>
+        </TastingSection>
+      </div>
     </>
   );
 }
