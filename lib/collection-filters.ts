@@ -23,14 +23,20 @@ export const DEFAULT_FILTERS: CollectionFilters = {
   bottlers: [],
   countries: [],
   purchaseSources: [],
-  fillStates: [],
+  fillStates: ["sealed", "open"],
   abvBuckets: [],
   ageBuckets: [],
   ratings: [],
   favoritesOnly: false
 };
 
+const DEFAULT_FILL_STATES: FillState[] = ["sealed", "open"];
+
 export function hasActiveFilters(filters: CollectionFilters): boolean {
+  const fillStatesDiffer =
+    filters.fillStates.length !== DEFAULT_FILL_STATES.length ||
+    filters.fillStates.some((s) => !DEFAULT_FILL_STATES.includes(s));
+
   return (
     filters.tags.length > 0 ||
     filters.brands.length > 0 ||
@@ -38,7 +44,7 @@ export function hasActiveFilters(filters: CollectionFilters): boolean {
     filters.bottlers.length > 0 ||
     filters.countries.length > 0 ||
     filters.purchaseSources.length > 0 ||
-    filters.fillStates.length > 0 ||
+    fillStatesDiffer ||
     filters.abvBuckets.length > 0 ||
     filters.ageBuckets.length > 0 ||
     filters.ratings.length > 0 ||

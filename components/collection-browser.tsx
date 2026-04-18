@@ -21,7 +21,7 @@ export function CollectionBrowser({ collection }: { collection: CollectionViewIt
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
-  const [status, setStatus] = useState("all");
+  const [status, setStatus] = useState("owned");
   const [filters, setFilters] = useState<CollectionFilters>(() =>
     filtersFromSearchParams(searchParams)
   );

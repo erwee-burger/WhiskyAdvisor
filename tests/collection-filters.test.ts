@@ -55,6 +55,15 @@ describe("hasActiveFilters", () => {
     expect(hasActiveFilters({ ...DEFAULT_FILTERS, distilleries: ["Ardbeg"] })).toBe(true);
   });
 
+  it("returns true when fillStates differs from default", () => {
+    expect(hasActiveFilters({ ...DEFAULT_FILTERS, fillStates: ["sealed"] })).toBe(true);
+    expect(hasActiveFilters({ ...DEFAULT_FILTERS, fillStates: ["sealed", "open", "finished"] })).toBe(true);
+  });
+
+  it("returns false when fillStates matches default", () => {
+    expect(hasActiveFilters({ ...DEFAULT_FILTERS, fillStates: ["sealed", "open"] })).toBe(false);
+  });
+
   it("returns true when favoritesOnly is true", () => {
     expect(hasActiveFilters({ ...DEFAULT_FILTERS, favoritesOnly: true })).toBe(true);
   });
