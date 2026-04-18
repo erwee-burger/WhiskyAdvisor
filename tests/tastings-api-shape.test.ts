@@ -189,3 +189,53 @@ describe("formatBriefingAsText", () => {
     expect(result).toContain("- Serve neat");
   });
 });
+
+describe("POST /api/tastings/briefing", () => {
+  it("returns 400 for invalid JSON", async () => {
+    const response = await fetch("http://localhost:3000/api/tastings/briefing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "invalid json"
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 400 for empty bottleItemIds", async () => {
+    const response = await fetch("http://localhost:3000/api/tastings/briefing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bottleItemIds: [] })
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 400 for non-array bottleItemIds", async () => {
+    const response = await fetch("http://localhost:3000/api/tastings/briefing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bottleItemIds: "not-an-array" })
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 400 for invalid attendeePersonIds (not array)", async () => {
+    const response = await fetch("http://localhost:3000/api/tastings/briefing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bottleItemIds: ["item-1"],
+        attendeePersonIds: "not-an-array"
+      })
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 404 for non-existent bottles", async () => {
+    const response = await fetch("http://localhost:3000/api/tastings/briefing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bottleItemIds: ["nonexistent-id"] })
+    });
+    expect(response.status).toBe(404);
+  });
+});

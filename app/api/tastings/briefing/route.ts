@@ -13,6 +13,23 @@ interface BriefingRequest {
   occasionType?: string | null;
 }
 
+function isValidBriefingRequest(data: unknown): data is BriefingRequest {
+  if (typeof data !== "object" || data === null) return false;
+  const obj = data as Record<string, unknown>;
+
+  if (!Array.isArray(obj.bottleItemIds)) return false;
+  if (obj.bottleItemIds.length === 0) return false;
+  if (!obj.bottleItemIds.every((id) => typeof id === "string")) return false;
+
+  if (obj.placeId !== undefined && obj.placeId !== null && typeof obj.placeId !== "string") return false;
+  if (obj.groupId !== undefined && obj.groupId !== null && typeof obj.groupId !== "string") return false;
+  if (obj.attendeePersonIds !== undefined && !Array.isArray(obj.attendeePersonIds)) return false;
+  if (Array.isArray(obj.attendeePersonIds) && !obj.attendeePersonIds.every((id) => typeof id === "string")) return false;
+  if (obj.occasionType !== undefined && obj.occasionType !== null && typeof obj.occasionType !== "string") return false;
+
+  return true;
+}
+
 interface BottleProfile {
   bottleName: string;
   keyNotes: string[];
@@ -69,14 +86,18 @@ export function formatBriefingAsText(briefing: Briefing): string {
 
 export async function POST(req: Request) {
   try {
-    let body: any;
+    let body: unknown;
     try {
       body = await req.json();
     } catch (error) {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
 
-    const { bottleItemIds, placeId, groupId, attendeePersonIds = [], occasionType } = body as BriefingRequest;
+    if (!isValidBriefingRequest(body)) {
+      return NextResponse.json({ error: "Invalid request format" }, { status: 400 });
+    }
+
+    const { bottleItemIds, placeId, groupId, attendeePersonIds = [], occasionType } = body;
 
     if (!Array.isArray(bottleItemIds) || bottleItemIds.length === 0) {
       return NextResponse.json({ error: "No bottles selected" }, { status: 400 });
