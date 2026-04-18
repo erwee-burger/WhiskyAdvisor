@@ -119,11 +119,11 @@ export async function POST(req: Request) {
   "suggestedName": "A short evocative tasting name (max 6 words, based on the bottles, place, occasion, or group)",
   "briefing": {
     "tastingOrder": [
-      { "bottleName": "exact bottle name", "reason": "why this position in the order" }
+      { "bottleName": "exact bottle name only", "reason": "why this position in the order" }
     ],
     "bottleProfiles": [
       {
-        "bottleName": "exact bottle name",
+        "bottleName": "exact bottle name only",
         "keyNotes": ["note1", "note2", "note3"],
         "watchFor": "one sentence on what to pay attention to",
         "background": "one sentence of interesting context"
@@ -135,6 +135,11 @@ export async function POST(req: Request) {
 
 TASTING CONTEXT:
 ${contextLines}
+
+Rules:
+- bottleName must be only the product name.
+- Do not append producer, ABV, age, tags, or any other metadata into bottleName.
+- Put explanatory detail into reason, watchFor, and background instead.
 
 Return only the JSON object. No markdown, no explanation.`;
 

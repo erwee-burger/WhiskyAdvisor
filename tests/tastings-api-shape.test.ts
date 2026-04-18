@@ -15,8 +15,8 @@ const mockRepository = vi.hoisted(() => ({
 vi.mock("@/lib/repository", () => mockRepository);
 
 import { DELETE as deleteTastingPersonRoute } from "@/app/api/tastings/people/[personId]/route";
-import { POST as postTastingSessions } from "@/app/api/tastings/sessions/route";
 import { POST as postBriefing } from "@/app/api/tastings/briefing/route";
+import { POST as postTastingSessions } from "@/app/api/tastings/sessions/route";
 import { formatBriefingAsMarkdown } from "@/lib/briefing-formatter";
 import { createQuickBottleShare, createTastingSession, deleteTastingPerson } from "@/lib/repository";
 
@@ -172,8 +172,8 @@ describe("formatBriefingAsMarkdown", () => {
     };
     const result = formatBriefingAsMarkdown(briefing);
     expect(result).toContain("## Tasting Order");
-    expect(result).toContain("1. Glenlivet 12");
-    expect(result).toContain("Lightest — good opener");
+    expect(result).toContain("1. **Glenlivet 12**");
+    expect(result).toContain("**Why here:** Lightest — good opener");
   });
 
   it("formats bottle profiles section", async () => {
@@ -191,8 +191,8 @@ describe("formatBriefingAsMarkdown", () => {
     };
     const result = formatBriefingAsMarkdown(briefing);
     expect(result).toContain("### Ardbeg 10");
-    expect(result).toContain("smoke, citrus");
-    expect(result).toContain("The medicinal finish.");
+    expect(result).toContain("- **Key notes:** smoke, citrus");
+    expect(result).toContain("- **Watch for:** The medicinal finish.");
     expect(result).toContain("## Tips");
     expect(result).toContain("- Serve neat");
   });
@@ -219,9 +219,38 @@ describe("formatBriefingAsMarkdown", () => {
     const result = formatBriefingAsMarkdown(briefing);
     expect(result).toContain("## Bottle Profiles");
     expect(result).toContain("### Bottle One");
-    expect(result).toContain("**Background:** Ex-bourbon maturation.\n\n### Bottle Two");
+    expect(result).toContain("- **Background:** Ex-bourbon maturation.\n\n### Bottle Two");
     expect(result).toContain("## Tips");
     expect(result).toContain("- Pour small measures");
+  });
+
+  it("shows packed bottle metadata only once under bottle profiles", async () => {
+    const briefing = {
+      tastingOrder: [
+        {
+          bottleName:
+            "Boplaas 1880 Aged 10 Years Single Cask Whisky Rum Cask | Boplaas | 46% | 10yo | tags: bourbon-cask, rum-cask, single-grain",
+          reason: "Start with the younger bottling for brighter cane sugar notes."
+        }
+      ],
+      bottleProfiles: [
+        {
+          bottleName:
+            "Boplaas 1880 Aged 10 Years Single Cask Whisky Rum Cask | Boplaas | 46% | 10yo | tags: bourbon-cask, rum-cask, single-grain",
+          keyNotes: ["banana", "molasses"],
+          watchFor: "The tropical lift on the nose.",
+          background: "A single-cask grain whisky finished in rum wood."
+        }
+      ],
+      tips: []
+    };
+    const result = formatBriefingAsMarkdown(briefing);
+    expect(result).toContain("1. **Boplaas 1880 Aged 10 Years Single Cask Whisky Rum Cask**");
+    expect(result).toContain("**Why here:** Start with the younger bottling for brighter cane sugar notes.");
+    expect(result).toContain("- **Producer:** Boplaas");
+    expect(result).toContain("- **Specs:** 46% · 10yo");
+    expect(result).toContain("- **Tags:** bourbon-cask, rum-cask, single-grain");
+    expect(result).not.toContain("1. **Boplaas 1880 Aged 10 Years Single Cask Whisky Rum Cask**\n   - **Producer:**");
   });
 });
 
