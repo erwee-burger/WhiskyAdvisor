@@ -34,7 +34,7 @@ const RETAILER_COLLECTION_URLS: Record<string, { specials: string; newArrivals: 
   },
   normangoodfellows: {
     specials: "https://www.ngf.co.za/promotions/",
-    newArrivals: null
+    newArrivals: "https://www.ngf.co.za/product-category/spirits/whisky/?orderby=date"
   }
 };
 
@@ -120,11 +120,12 @@ const RETAILER_HINTS: Record<string, { specials: string; newArrivals: string; ex
   },
   normangoodfellows: {
     specials: "Use https://www.ngf.co.za/promotions/ and include the whisky specials currently shown on that page",
-    newArrivals: "Norman Goodfellows does not have a dedicated new arrivals page, so return newArrivals: []",
+    newArrivals: "Use https://www.ngf.co.za/product-category/spirits/whisky/?orderby=date and return the first 10 in-stock whiskies shown on that page",
     extraRules: [
       "For specials, use https://www.ngf.co.za/promotions/ as the source of truth.",
-      "Norman Goodfellows does not have a dedicated new arrivals page.",
-      "Always return newArrivals: [] for source key normangoodfellows."
+      "For new arrivals, use https://www.ngf.co.za/product-category/spirits/whisky/?orderby=date as the source of truth.",
+      "For new arrivals, return the first 10 in-stock whiskies from that page.",
+      "Include whiskies or whiskeys only, and exclude non-whisky spirits if they appear."
     ]
   }
 };
@@ -794,6 +795,64 @@ async function discoverNormanGoodfellowsSpecials(pageUrl: string): Promise<GptOf
   });
 }
 
+export function parseNormanGoodfellowsWhiskyCategoryHtml(
+  html: string,
+  pageUrl: string,
+  kind: OfferKind
+): GptOffer[] {
+  const $ = cheerio.load(html);
+
+  return $("div.product-small.col").toArray().flatMap((element) => {
+    const item = $(element);
+    const classNames = (item.attr("class") ?? "").split(/\s+/).filter(Boolean);
+    const name = item.find(".woocommerce-loop-product__title").first().text().trim();
+    const url = toAbsoluteProductUrl(
+      pageUrl,
+      item.find("a.woocommerce-LoopProduct-link, .woocommerce-loop-product__title a, .box-image a").first().attr("href")
+    );
+    const imageUrl = normaliseImageUrl(pageUrl, item.find("img").first().attr("src"));
+    const price = parsePriceText(
+      item.find("ins .woocommerce-Price-amount").last().text()
+      || item.find(".price .woocommerce-Price-amount").last().text()
+    );
+    const inStock =
+      classNames.includes("instock")
+      || /in stock/i.test(item.find(".in_stock_text").first().text());
+
+    if (!name || !url || price === undefined) {
+      return [];
+    }
+
+    const fallbackOfferShape: GptOffer = {
+      source: "normangoodfellows",
+      kind,
+      name,
+      price,
+      url,
+      imageUrl,
+      inStock,
+      relevanceScore: 50,
+      whyItMatters: "",
+      citations: []
+    };
+
+    if (isObviousNonWhiskyOffer(fallbackOfferShape) || !isLikelyWhiskyText(`${name} ${url} ${classNames.join(" ")}`)) {
+      return [];
+    }
+
+    return [buildParsedOffer({
+      source: "normangoodfellows",
+      kind,
+      listingUrl: pageUrl,
+      name,
+      price,
+      url,
+      imageUrl,
+      inStock
+    })];
+  });
+}
+
 function createOfferCountMap(): Record<string, { specials: number; newArrivals: number }> {
   return Object.fromEntries(
     APPROVED_SOURCE_KEYS.map(source => [source, { specials: 0, newArrivals: 0 }])
@@ -929,6 +988,7 @@ export function enforceRetailerOfferRules(
   let whiskyBrotherNewArrivalCount = 0;
   let bottegaNewArrivalCount = 0;
   let whiskyEmporiumNewArrivalCount = 0;
+  let normanGoodfellowsNewArrivalCount = 0;
   const filteredNewArrivals = newArrivals.filter(offer => {
     if (offer.source === "whiskybrother") {
       if (!offer.inStock) {
@@ -966,7 +1026,12 @@ export function enforceRetailerOfferRules(
     }
 
     if (offer.source === "normangoodfellows") {
-      return false;
+      if (!offer.inStock) {
+        return false;
+      }
+
+      normanGoodfellowsNewArrivalCount += 1;
+      return normanGoodfellowsNewArrivalCount <= 10;
     }
 
     return true;
@@ -1056,12 +1121,19 @@ async function discoverRetailerOffers(
             : []
         };
       }
-      case "normangoodfellows":
+      case "normangoodfellows": {
+        const [specials, newArrivalsHtml] = await Promise.all([
+          discoverNormanGoodfellowsSpecials(urls.specials),
+          urls.newArrivals ? fetchHtml(urls.newArrivals) : Promise.resolve("")
+        ]);
         return {
           source,
-          specials: await discoverNormanGoodfellowsSpecials(urls.specials),
-          newArrivals: []
+          specials,
+          newArrivals: urls.newArrivals
+            ? parseNormanGoodfellowsWhiskyCategoryHtml(newArrivalsHtml, urls.newArrivals, "new_release")
+            : []
         };
+      }
       default:
         return { source, specials: [], newArrivals: [] };
     }

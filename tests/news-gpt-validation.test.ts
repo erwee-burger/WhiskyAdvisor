@@ -10,7 +10,8 @@ import {
   parseWhiskyBrotherCollectionHtml,
   parseBottegaCollectionHtml,
   parseWhiskyEmporiumCollectionHtml,
-  parseMotherCityCollectionHtml
+  parseMotherCityCollectionHtml,
+  parseNormanGoodfellowsWhiskyCategoryHtml
 } from "@/lib/news-gpt";
 
 describe("validateGptOffer", () => {
@@ -234,12 +235,60 @@ describe("buildRetailerPrompt", () => {
     const prompt = buildRetailerPrompt("normangoodfellows");
 
     expect(prompt).toContain("https://www.ngf.co.za/promotions/");
-    expect(prompt).toContain("Norman Goodfellows does not have a dedicated new arrivals page.");
-    expect(prompt).toContain("Always return newArrivals: [] for source key normangoodfellows.");
+    expect(prompt).toContain("https://www.ngf.co.za/product-category/spirits/whisky/?orderby=date");
+    expect(prompt).toContain("return the first 10 in-stock whiskies from that page");
   });
 });
 
 describe("direct retailer parsers", () => {
+  it("parses Norman Goodfellows whisky category cards as new arrivals", () => {
+    const html = `
+      <div class="product-small col has-hover product type-product status-publish instock product_cat-scotch-whisky product_cat-whisky">
+        <div class="col-inner">
+          <div class="product-small box">
+            <div class="box-image">
+              <a href="https://www.ngf.co.za/product/glenmorangie-lasanta-15-year-old-single-malt-scotch-whisky-750ml/">
+                <img src="https://www.ngf.co.za/wp-content/uploads/2026/03/Glenmorangie-The-Lasanta-15YO-Bottle-Box.png" />
+              </a>
+            </div>
+            <div class="box-text box-text-products text-center grid-style-2">
+              <div class="title-wrapper">
+                <p class="name product-title woocommerce-loop-product__title">
+                  <a href="https://www.ngf.co.za/product/glenmorangie-lasanta-15-year-old-single-malt-scotch-whisky-750ml/" class="woocommerce-LoopProduct-link woocommerce-loop-product__link">
+                    Glenmorangie Lasanta 15 Year Old Single Malt Scotch Whisky 750ml
+                  </a>
+                </p>
+              </div>
+              <div class="price-wrapper">
+                <div class="main_badge"><span class="in_stock_text">In Stock</span></div>
+                <span class="price"><span class="woocommerce-Price-amount amount">R1,499.00</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const result = parseNormanGoodfellowsWhiskyCategoryHtml(
+      html,
+      "https://www.ngf.co.za/product-category/spirits/whisky/?orderby=date",
+      "new_release"
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.source).toBe("normangoodfellows");
+    expect(result[0]?.name).toContain("Glenmorangie Lasanta");
+    expect(result[0]?.price).toBe(1499);
+  });
+
+  it("pins Norman Goodfellows to promotions and the whisky category new-arrivals page", () => {
+    const prompt = buildRetailerPrompt("normangoodfellows");
+
+    expect(prompt).toContain("https://www.ngf.co.za/promotions/");
+    expect(prompt).toContain("https://www.ngf.co.za/product-category/spirits/whisky/?orderby=date");
+    expect(prompt).toContain("return the first 10 in-stock whiskies from that page");
+  });
+
   it("parses Whisky Brother collection items and canonicalizes product urls", () => {
     const html = `
       <div class="grid-item grid-product">
@@ -592,24 +641,24 @@ describe("enforceRetailerOfferRules", () => {
     expect(result.specials[0]?.name).toBe("Talisker 10 Year Old");
   });
 
-  it("removes Norman Goodfellows new arrivals entirely", () => {
+  it("caps Norman Goodfellows new arrivals at the first 10 in-stock whiskies", () => {
     const result = enforceRetailerOfferRules(
       [],
-      [
-        {
-          source: "normangoodfellows",
-          kind: "new_release",
-          name: "NGF New Arrival",
-          price: 1000,
-          url: "https://www.ngf.co.za/products/ngf-new-arrival",
-          inStock: true,
-          relevanceScore: 60,
-          whyItMatters: "",
-          citations: []
-        }
-      ]
+      Array.from({ length: 12 }, (_, index) => ({
+        source: "normangoodfellows" as const,
+        kind: "new_release" as const,
+        name: `NGF New Arrival ${index + 1}`,
+        price: 1000 + index,
+        url: `https://www.ngf.co.za/product/ngf-new-arrival-${index + 1}/`,
+        inStock: true,
+        relevanceScore: 60,
+        whyItMatters: "",
+        citations: []
+      }))
     );
 
-    expect(result.newArrivals).toHaveLength(0);
+    expect(result.newArrivals).toHaveLength(10);
+    expect(result.newArrivals[0]?.name).toBe("NGF New Arrival 1");
+    expect(result.newArrivals[9]?.name).toBe("NGF New Arrival 10");
   });
 });
