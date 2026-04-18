@@ -693,6 +693,7 @@ textarea {
 .stack {
   display: grid;
   gap: 16px;
+  align-content: start;
 }
 
 .tastings-directory-grid {
@@ -1080,8 +1081,8 @@ td {
 
 .detail-field-card {
   display: grid;
-  gap: 8px;
-  padding: 12px;
+  gap: 6px;
+  padding: 10px;
   border-radius: var(--radius-md);
   border: 1px solid rgba(255, 225, 190, 0.1);
   background: rgba(14, 10, 8, 0.42);
@@ -1124,8 +1125,8 @@ td {
 }
 
 .detail-icon-button {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 999px;
   border: 1px solid rgba(255, 239, 213, 0.14);
   background: rgba(255, 255, 255, 0.04);
