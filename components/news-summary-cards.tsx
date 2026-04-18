@@ -1,12 +1,5 @@
+import { SOURCE_LABELS } from "@/lib/news-sources";
 import type { NewsSummaryCard } from "@/lib/types";
-
-const RETAILER_LABELS: Record<string, string> = {
-  whiskybrother: "Whisky Brother",
-  bottegawhiskey: "Bottega Whiskey",
-  mothercityliquor: "Mother City Liquor",
-  whiskyemporium: "Whisky Emporium",
-  normangoodfellows: "Norman Goodfellows"
-};
 
 const CARD_LABELS: Record<NewsSummaryCard["cardType"], string> = {
   best_value: "Best value",
@@ -34,7 +27,7 @@ function IntelCard({ card }: { card: NewsSummaryCard }) {
       {card.price && <div className="intel-card-price">{formatPrice(card.price)}</div>}
       {card.source && (
         <div className="intel-card-retailer">
-          {RETAILER_LABELS[card.source] || card.source}
+          {SOURCE_LABELS[card.source] || card.source}
         </div>
       )}
     </>
@@ -59,7 +52,6 @@ function IntelCard({ card }: { card: NewsSummaryCard }) {
 export function NewsSummaryCards({ cards }: Props) {
   if (cards.length === 0) return null;
 
-  // Render in canonical order regardless of DB row order
   const order: NewsSummaryCard["cardType"][] = [
     "best_value",
     "worth_stretching",

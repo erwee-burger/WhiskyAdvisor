@@ -16,9 +16,8 @@ export const maxDuration = 120;
 
 async function loadPalateProfile(): Promise<PalateProfile | null> {
   try {
-    const { getDashboardData } = await import("@/lib/repository");
-    const { profile } = await getDashboardData();
-    return profile;
+    const { getPalateProfile } = await import("@/lib/repository");
+    return await getPalateProfile();
   } catch {
     return null;
   }

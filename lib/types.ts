@@ -337,3 +337,27 @@ export interface NewsSnapshotResponse {
   stale: boolean;
   preferences: NewsBudgetPreferences;
 }
+
+export type NewsAffinityBand = "strong_fit" | "good_fit" | "outside_usual_lane";
+
+export interface NewsAffinity {
+  score: number;
+  band: NewsAffinityBand;
+  reasons: string[];
+}
+
+export type NewsBudgetFilter = "all" | "in_budget" | "stretch" | "over_budget_or_above";
+export type NewsFreshnessFilter = "all" | "new_to_you" | "seen";
+export type NewsSortOption =
+  | "recommended"
+  | "best_fit"
+  | "price_low_to_high"
+  | "price_high_to_low"
+  | "biggest_discount";
+
+export interface NewsUiFilters {
+  retailer: string;
+  budget: NewsBudgetFilter;
+  palateFit: "all" | NewsAffinityBand;
+  freshness: NewsFreshnessFilter;
+}

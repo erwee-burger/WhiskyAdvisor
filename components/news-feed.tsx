@@ -2,17 +2,23 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { buildNewsBrowseResult, DEFAULT_NEWS_UI_FILTERS } from "@/lib/news-browse";
+import { computeBudgetFit } from "@/lib/news-budget";
+import { SOURCE_LABELS } from "@/lib/news-sources";
+import { reconcileSeenNewsItems } from "@/lib/news-visit";
 import type {
+  NewsBudgetFilter,
   NewsBudgetPreferences,
   NewsFeedItem,
   NewsSnapshotResponse,
-  NewsSummaryCard
+  NewsSortOption,
+  NewsSummaryCard,
+  NewsUiFilters,
+  PalateProfile
 } from "@/lib/types";
-import { computeBudgetFit } from "@/lib/news-budget";
-import { getNewsItemVisitKey, reconcileSeenNewsItems } from "@/lib/news-visit";
-import { NewsSummaryCards } from "./news-summary-cards";
 import { NewsItem } from "./news-item";
 import { NewsPreferencesPanel } from "./news-preferences-panel";
+import { NewsSummaryCards } from "./news-summary-cards";
 
 interface NewsFeedProps {
   initialSpecials: NewsFeedItem[];
@@ -22,14 +28,29 @@ interface NewsFeedProps {
   initialStale: boolean;
   initialPreferences: NewsBudgetPreferences;
   initialSeenItemKeys: string[] | null;
+  initialProfile: PalateProfile | null;
   isOwner: boolean;
 }
 
-const RETAILER_LABELS: Record<string, string> = {
-  whiskybrother: "Whisky Brother",
-  bottegawhiskey: "Bottega Whiskey",
-  mothercityliquor: "Mother City Liquor",
-  normangoodfellows: "Norman Goodfellows"
+const BUDGET_FILTER_LABELS: Record<NewsBudgetFilter, string> = {
+  all: "All",
+  in_budget: "In budget",
+  stretch: "Stretch",
+  over_budget_or_above: "Over / above budget"
+};
+
+const PALATE_FILTER_LABELS: Record<Exclude<NewsUiFilters["palateFit"], "all">, string> = {
+  strong_fit: "Strong fit",
+  good_fit: "Good fit",
+  outside_usual_lane: "Outside usual lane"
+};
+
+const SORT_LABELS: Record<NewsSortOption, string> = {
+  recommended: "Recommended",
+  best_fit: "Best fit",
+  price_low_to_high: "Price: low to high",
+  price_high_to_low: "Price: high to low",
+  biggest_discount: "Biggest discount"
 };
 
 function formatTime(isoString: string): string {
@@ -59,18 +80,40 @@ async function persistSeenKeys(seenKeys: string[]) {
   }
 }
 
-function sortFreshFirst(items: NewsFeedItem[], unseenKeySet: Set<string>): NewsFeedItem[] {
-  return items
-    .map((item, index) => ({
-      item,
-      index,
-      isFresh: unseenKeySet.has(getNewsItemVisitKey(item))
-    }))
-    .sort((left, right) => {
-      if (left.isFresh === right.isFresh) return left.index - right.index;
-      return left.isFresh ? -1 : 1;
-    })
-    .map(({ item }) => item);
+function activeFilterSummary(filters: NewsUiFilters, showPalateFit: boolean, showVisitState: boolean): string[] {
+  const labels: string[] = [];
+
+  if (filters.retailer !== "all") {
+    labels.push(SOURCE_LABELS[filters.retailer] ?? filters.retailer);
+  }
+
+  if (filters.budget !== "all") {
+    labels.push(BUDGET_FILTER_LABELS[filters.budget]);
+  }
+
+  if (showPalateFit && filters.palateFit !== "all") {
+    labels.push(PALATE_FILTER_LABELS[filters.palateFit]);
+  }
+
+  if (showVisitState && filters.freshness !== "all") {
+    labels.push(filters.freshness === "new_to_you" ? "New to you" : "Seen before");
+  }
+
+  return labels;
+}
+
+function buildEmptyMessage(
+  sectionLabel: string,
+  filters: NewsUiFilters,
+  showPalateFit: boolean,
+  showVisitState: boolean
+): string {
+  const labels = activeFilterSummary(filters, showPalateFit, showVisitState);
+  if (labels.length === 0) {
+    return `No ${sectionLabel.toLowerCase()} right now.`;
+  }
+
+  return `No ${sectionLabel.toLowerCase()} match ${labels.join(", ")}.`;
 }
 
 export function NewsFeed({
@@ -81,6 +124,7 @@ export function NewsFeed({
   initialStale,
   initialPreferences,
   initialSeenItemKeys,
+  initialProfile,
   isOwner
 }: NewsFeedProps) {
   const initialVisitStateRef = useRef(
@@ -97,7 +141,8 @@ export function NewsFeed({
   const [fetchedAt, setFetchedAt] = useState(initialFetchedAt);
   const [stale, setStale] = useState(initialStale);
   const [prefs, setPrefs] = useState(initialPreferences);
-  const [activeRetailerFilter, setActiveRetailerFilter] = useState("all");
+  const [filters, setFilters] = useState<NewsUiFilters>(DEFAULT_NEWS_UI_FILTERS);
+  const [sortOption, setSortOption] = useState<NewsSortOption>("recommended");
   const [hasVisitBaseline, setHasVisitBaseline] = useState(initialVisitStateRef.current.hadBaseline);
   const [knownSeenItemKeys, setKnownSeenItemKeys] = useState(initialVisitStateRef.current.seenKeys);
   const [unseenItemKeys, setUnseenItemKeys] = useState(initialVisitStateRef.current.unseenKeys);
@@ -166,24 +211,37 @@ export function NewsFeed({
   };
 
   const showVisitState = isOwner && hasVisitBaseline;
-  const unseenKeySet = showVisitState ? new Set(unseenItemKeys) : new Set<string>();
   const newToYouCount = unseenItemKeys.length;
+  const browse = buildNewsBrowseResult({
+    specials,
+    newArrivals,
+    filters,
+    sortOption,
+    profile: initialProfile,
+    showVisitState,
+    unseenItemKeys
+  });
 
-  const filteredSpecials = sortFreshFirst(
-    activeRetailerFilter === "all"
-      ? specials
-      : specials.filter((item) => item.source === activeRetailerFilter),
-    unseenKeySet
-  );
-  const filteredArrivals = sortFreshFirst(
-    activeRetailerFilter === "all"
-      ? newArrivals
-      : newArrivals.filter((item) => item.source === activeRetailerFilter),
-    unseenKeySet
-  );
+  useEffect(() => {
+    if (filters.retailer !== "all" && !browse.retailers.includes(filters.retailer)) {
+      setFilters((current) => ({ ...current, retailer: "all" }));
+    }
+  }, [browse.retailers, filters.retailer]);
 
-  const knownRetailers = ["whiskybrother", "bottegawhiskey", "mothercityliquor", "normangoodfellows"];
-  const retailers = ["all", ...knownRetailers];
+  useEffect(() => {
+    if (!browse.showPalateFit && filters.palateFit !== "all") {
+      setFilters((current) => ({ ...current, palateFit: "all" }));
+    }
+  }, [browse.showPalateFit, filters.palateFit]);
+
+  useEffect(() => {
+    if (!showVisitState && filters.freshness !== "all") {
+      setFilters((current) => ({ ...current, freshness: "all" }));
+    }
+  }, [filters.freshness, showVisitState]);
+
+  const retailerOptions = ["all", ...browse.retailers];
+  const showSummaryCards = summaryCards.length > 0 && !browse.hasActiveFilters;
 
   return (
     <>
@@ -228,11 +286,119 @@ export function NewsFeed({
         />
       )}
 
-      {summaryCards.length > 0 && (
+      <section className="news-browse-panel">
+        <div className="news-toolbar">
+          <div className="news-filter-group">
+            <span className="news-filter-label">Retailer</span>
+            <div className="news-filters">
+              {retailerOptions.map((retailer) => (
+                <button
+                  key={retailer}
+                  className={`news-pill ${filters.retailer === retailer ? "active" : ""}`}
+                  onClick={() => setFilters((current) => ({ ...current, retailer }))}
+                >
+                  {retailer === "all" ? "All" : SOURCE_LABELS[retailer] || retailer}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="news-filter-group">
+            <span className="news-filter-label">Budget</span>
+            <div className="news-filters">
+              {Object.entries(BUDGET_FILTER_LABELS).map(([value, label]) => (
+                <button
+                  key={value}
+                  className={`news-pill ${filters.budget === value ? "active" : ""}`}
+                  onClick={() => setFilters((current) => ({ ...current, budget: value as NewsBudgetFilter }))}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {browse.showPalateFit && (
+            <div className="news-filter-group">
+              <span className="news-filter-label">Palate fit</span>
+              <div className="news-filters">
+                <button
+                  className={`news-pill ${filters.palateFit === "all" ? "active" : ""}`}
+                  onClick={() => setFilters((current) => ({ ...current, palateFit: "all" }))}
+                >
+                  All
+                </button>
+                {Object.entries(PALATE_FILTER_LABELS).map(([value, label]) => (
+                  <button
+                    key={value}
+                    className={`news-pill ${filters.palateFit === value ? "active" : ""}`}
+                    onClick={() => setFilters((current) => ({ ...current, palateFit: value as NewsUiFilters["palateFit"] }))}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {showVisitState && (
+            <div className="news-filter-group">
+              <span className="news-filter-label">Freshness</span>
+              <div className="news-filters">
+                {[
+                  { value: "all", label: "All" },
+                  { value: "new_to_you", label: "New to you" },
+                  { value: "seen", label: "Seen" }
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    className={`news-pill ${filters.freshness === option.value ? "active" : ""}`}
+                    onClick={() => setFilters((current) => ({
+                      ...current,
+                      freshness: option.value as NewsUiFilters["freshness"]
+                    }))}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="news-toolbar-footer">
+            <div className="news-sort-control">
+              <label className="news-filter-label" htmlFor="news-sort">Sort</label>
+              <select
+                id="news-sort"
+                className="news-sort-select"
+                value={sortOption}
+                onChange={(event) => setSortOption(event.target.value as NewsSortOption)}
+              >
+                {Object.entries(SORT_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+
+            {browse.hasActiveFilters ? (
+              <button
+                className="button-subtle"
+                onClick={() => setFilters(DEFAULT_NEWS_UI_FILTERS)}
+              >
+                Clear filters
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      {showSummaryCards && (
         <section className="news-section">
           <div className="section-header">
-            <h2>Today's picks</h2>
-            <p>GPT's top three - curated for your palate and budget</p>
+            <div className="section-header-copy">
+              <h2>Today's picks</h2>
+              <p>GPT's top three - curated for your palate and budget.</p>
+            </div>
           </div>
           <NewsSummaryCards cards={summaryCards} />
         </section>
@@ -241,39 +407,30 @@ export function NewsFeed({
       {specials.length > 0 && (
         <section className="news-section">
           <div className="section-header">
-            <h2>Specials</h2>
-            <p>Price reductions spotted today. New-to-you items are pinned first.</p>
+            <div className="section-header-copy">
+              <h2>
+                Specials <span className="section-count">{browse.specials.length}</span>
+              </h2>
+              <p>Price reductions spotted today, with savings and palate fit surfaced first.</p>
+            </div>
           </div>
-          <div className="news-filters">
-            <span className="news-filter-label">Retailer</span>
-            {retailers.map((retailer) => (
-              <button
-                key={retailer}
-                className={`news-pill ${activeRetailerFilter === retailer ? "active" : ""}`}
-                onClick={() => setActiveRetailerFilter(retailer)}
-              >
-                {retailer === "all" ? "All" : RETAILER_LABELS[retailer] || retailer}
-              </button>
-            ))}
-          </div>
-          {filteredSpecials.length > 0 ? (
+          {browse.specials.length > 0 ? (
             <div className="news-items-grid">
-              {filteredSpecials.map((item) => (
+              {browse.specials.map((browseItem) => (
                 <NewsItem
-                  key={item.id}
-                  item={item}
-                  kind="special"
+                  key={browseItem.item.id}
+                  item={browseItem.item}
                   showBudget={isOwner}
-                  visitState={showVisitState
-                    ? unseenKeySet.has(getNewsItemVisitKey(item))
-                      ? "new_to_you"
-                      : "seen"
-                    : undefined}
+                  affinity={browseItem.affinity}
+                  reasonTags={browseItem.reasonTags}
+                  signalLabel={browseItem.signalLabel}
+                  saveAmount={browseItem.saveAmount}
+                  visitState={browseItem.visitState}
                 />
               ))}
             </div>
           ) : (
-            <div className="news-empty">No specials from that retailer right now.</div>
+            <div className="news-empty">{buildEmptyMessage("Specials", filters, browse.showPalateFit, showVisitState)}</div>
           )}
         </section>
       )}
@@ -281,39 +438,30 @@ export function NewsFeed({
       {newArrivals.length > 0 && (
         <section className="news-section">
           <div className="section-header">
-            <h2>New arrivals</h2>
-            <p>Fresh stock spotted for the first time this week. New-to-you items are pinned first.</p>
+            <div className="section-header-copy">
+              <h2>
+                New arrivals <span className="section-count">{browse.newArrivals.length}</span>
+              </h2>
+              <p>Fresh stock, notable releases, and bottles that fit your lane.</p>
+            </div>
           </div>
-          <div className="news-filters">
-            <span className="news-filter-label">Retailer</span>
-            {retailers.map((retailer) => (
-              <button
-                key={retailer}
-                className={`news-pill ${activeRetailerFilter === retailer ? "active" : ""}`}
-                onClick={() => setActiveRetailerFilter(retailer)}
-              >
-                {retailer === "all" ? "All" : RETAILER_LABELS[retailer] || retailer}
-              </button>
-            ))}
-          </div>
-          {filteredArrivals.length > 0 ? (
+          {browse.newArrivals.length > 0 ? (
             <div className="news-items-grid">
-              {filteredArrivals.map((item) => (
+              {browse.newArrivals.map((browseItem) => (
                 <NewsItem
-                  key={item.id}
-                  item={item}
-                  kind="new_release"
+                  key={browseItem.item.id}
+                  item={browseItem.item}
                   showBudget={isOwner}
-                  visitState={showVisitState
-                    ? unseenKeySet.has(getNewsItemVisitKey(item))
-                      ? "new_to_you"
-                      : "seen"
-                    : undefined}
+                  affinity={browseItem.affinity}
+                  reasonTags={browseItem.reasonTags}
+                  signalLabel={browseItem.signalLabel}
+                  saveAmount={browseItem.saveAmount}
+                  visitState={browseItem.visitState}
                 />
               ))}
             </div>
           ) : (
-            <div className="news-empty">No new arrivals from that retailer right now.</div>
+            <div className="news-empty">{buildEmptyMessage("New arrivals", filters, browse.showPalateFit, showVisitState)}</div>
           )}
         </section>
       )}
