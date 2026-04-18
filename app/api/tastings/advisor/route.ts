@@ -1,0 +1,59 @@
+import type { ModelMessage } from "@ai-sdk/provider-utils";
+import { openai } from "@ai-sdk/openai";
+import { createUIMessageStreamResponse, streamText } from "ai";
+import type { UIMessage } from "ai";
+
+import { buildTastingBottleContext, buildPalateContextBlock, buildRecentTastingSessionsBlock } from "@/lib/advisor-context";
+import { getServerEnv } from "@/lib/env";
+import { getDashboardData, getRecentTastingSessions } from "@/lib/repository";
+
+export const runtime = "nodejs";
+
+export async function POST(req: Request) {
+  const body = (await req.json()) as { messages: UIMessage[] };
+  const uiMessages = body.messages ?? [];
+
+  const { OPENAI_MODEL } = getServerEnv();
+
+  const [dashboard, recentSessions] = await Promise.all([
+    getDashboardData(),
+    getRecentTastingSessions(5)
+  ]);
+
+  const { collection, profile } = dashboard;
+
+  const systemPrompt = `You are a tasting session advisor for a private whisky collection.
+
+CONTEXT: The collector is based in South Africa. Prices are in ZAR (R). Standard bottle 750ml, 43%+ ABV.
+
+${buildPalateContextBlock(profile)}
+
+${buildTastingBottleContext(collection)}
+
+${buildRecentTastingSessionsBlock(recentSessions)}
+
+RULES:
+- Only suggest bottles from the AVAILABLE BOTTLES list above using their exact [id:...] identifiers.
+- When suggesting bottles for a session, format each bottle as:
+  ### Bottle Name
+  - Why it fits: reason tied to occasion or palate
+- After your bottle recommendations, ALWAYS include a JSON block on its own line with the suggested bottle IDs:
+  {"bottleSuggestions": [{"id": "item-id-here", "name": "Bottle Name"}]}
+- Consider tasting order: lighter/unpeated before heavier/peated, lower ABV before cask strength.
+- Keep answers concise and scannable.
+- End each response with 2-3 follow-up chips: {"suggestions": ["...", "...", "..."]}`;
+
+  const messages: ModelMessage[] = uiMessages.map((message) => {
+    const content =
+      message.parts?.map((part) => ("text" in part ? (part as { text: string }).text : "")).join(" ") || "";
+    return { role: message.role as "user" | "assistant", content };
+  });
+
+  const result = streamText({
+    model: openai(OPENAI_MODEL),
+    system: systemPrompt,
+    messages
+  });
+
+  return createUIMessageStreamResponse({ stream: result.toUIMessageStream() });
+}
