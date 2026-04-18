@@ -15,7 +15,7 @@ function uniq(arr: (string | undefined | null)[]): string[] {
 
 export function CollectionBrowser({ collection }: { collection: CollectionViewItem[] }) {
   const searchParams = useSearchParams();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [status, setStatus] = useState("all");
   const [filters, setFilters] = useState<CollectionFilters>(() =>
     filtersFromSearchParams(searchParams)
