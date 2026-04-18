@@ -4158,3 +4158,19 @@ td {
   opacity: 0.58;
   filter: saturate(0.8);
 }
+
+/* ── Tasting Chat (floating popup) ───────────────────────────────────────── */
+
+.tasting-chat__fab {
+  bottom: 28px;
+  right: 92px; /* offset left of bottle-chat__fab which is at right: 28px */
+}
+
+.tasting-chat__panel {
+  right: 92px;
+}
+
+.tasting-chat__apply {
+  margin-top: 10px;
+  font-size: 0.85rem;
+}
