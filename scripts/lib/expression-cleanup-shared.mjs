@@ -1,31 +1,10 @@
-/**
- * Cleanup expressions into the canonical tasting-notes + structural-tags model.
- *
- * Usage:
- *   node --env-file=.env.local scripts/cleanup-expressions.mjs --mode all
- *   node --env-file=.env.local scripts/cleanup-expressions.mjs --mode missing-flavor-profiles
- *   node --env-file=.env.local scripts/cleanup-expressions.mjs --mode stale --dry-run
- *   node scripts/cleanup-expressions.mjs --mode all --limit 10
- *
- * Modes:
- *   --mode all                      Process every expression.
- *   --mode missing-flavor-profiles  Process only expressions without a saved flavor profile.
- *   --mode stale                    Process only expressions with stale profiles.
- *
- * Flags:
- *   --dry-run     Run the full pipeline but do not persist writes.
- *   --limit N     Only process the first N matched expressions.
- *   --model NAME  Override the OpenAI model for enrichment.
- *   --help        Show this message.
- */
-
 import { createClient } from "@supabase/supabase-js";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const storePath = path.join(__dirname, "../data/mock-store.json");
+const storePath = path.join(__dirname, "../../data/mock-store.json");
 
 const PEAT_TAGS = new Set(["unpeated", "peated", "heavily-peated"]);
 const KNOWN_CASK_TYPE_TAGS = new Set([
@@ -34,7 +13,14 @@ const KNOWN_CASK_TYPE_TAGS = new Set([
   "oloroso",
   "mizunara",
   "virgin-oak",
-  "refill-cask"
+  "refill-cask",
+  "first-fill",
+  "second-fill",
+  "refill",
+  "barrel",
+  "hogshead",
+  "butt",
+  "puncheon"
 ]);
 const FLAVOR_DENYLIST = new Set([
   "fig",
@@ -111,98 +97,28 @@ const CASK_DETAIL_PATTERNS = [
   { tag: "butt", patterns: ["butt"] },
   { tag: "puncheon", patterns: ["puncheon"] }
 ];
-const VALID_MODES = new Set(["all", "missing-flavor-profiles", "stale"]);
-const MIN_PREFERRED_TASTING_NOTES = 8;
-const MAX_TASTING_NOTES = 15;
 
-function parseArgs(argv) {
-  const parsed = {
-    mode: "all",
-    dryRun: false,
-    limit: Infinity,
-    model: process.env.OPENAI_ENRICHMENT_MODEL || process.env.OPENAI_MODEL || "gpt-5.4"
-  };
+export const VALID_MODES = new Set(["all", "missing-flavor-profiles", "stale"]);
+export const MIN_PREFERRED_TASTING_NOTES = 8;
+export const MAX_TASTING_NOTES = 15;
+export const DEFAULT_MODEL = process.env.OPENAI_ENRICHMENT_MODEL || process.env.OPENAI_MODEL || "gpt-5.4";
+export const BATCH_ENDPOINT = "/v1/responses";
+export const BATCH_COMPLETION_WINDOW = "24h";
+export const BATCH_CUSTOM_ID_PREFIX = "expr-cleanup:";
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-
-    if (arg === "--help" || arg === "-h") {
-      printHelp();
-      process.exit(0);
-    }
-
-    if (arg === "--dry-run") {
-      parsed.dryRun = true;
-      continue;
-    }
-
-    if (arg === "--mode") {
-      parsed.mode = argv[index + 1] ?? "";
-      index += 1;
-      continue;
-    }
-
-    if (arg === "--limit") {
-      parsed.limit = Number(argv[index + 1] ?? "");
-      index += 1;
-      continue;
-    }
-
-    if (arg === "--model") {
-      parsed.model = argv[index + 1] ?? parsed.model;
-      index += 1;
-      continue;
-    }
-
-    throw new Error(`Unknown argument: ${arg}`);
-  }
-
-  if (!VALID_MODES.has(parsed.mode)) {
-    throw new Error(`Invalid --mode "${parsed.mode}". Expected one of: ${[...VALID_MODES].join(", ")}`);
-  }
-
-  if (parsed.limit !== Infinity && (!Number.isFinite(parsed.limit) || parsed.limit <= 0)) {
-    throw new Error(`Invalid --limit "${parsed.limit}". Expected a positive number.`);
-  }
-
-  return parsed;
-}
-
-function printHelp() {
-  console.log([
-    "Cleanup expressions into canonical structural tags + tasting notes + flavor profiles.",
-    "",
-    "Usage:",
-    "  node --env-file=.env.local scripts/cleanup-expressions.mjs --mode all",
-    "  node --env-file=.env.local scripts/cleanup-expressions.mjs --mode missing-flavor-profiles --dry-run",
-    "  node scripts/cleanup-expressions.mjs --mode stale --limit 5",
-    "",
-    "Modes:",
-    "  all",
-    "  missing-flavor-profiles",
-    "  stale",
-    "",
-    "Flags:",
-    "  --dry-run",
-    "  --limit N",
-    "  --model NAME",
-    "  --help"
-  ].join("\n"));
-}
-
-function normalizeText(value) {
+export function normalizeText(value) {
   if (value == null) return undefined;
   const text = String(value).trim();
   return text || undefined;
 }
 
-function normalizeNumber(value) {
+export function normalizeNumber(value) {
   if (value == null || value === "") return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function normalizeToken(value) {
+export function normalizeToken(value) {
   return String(value ?? "")
     .trim()
     .toLowerCase()
@@ -210,12 +126,12 @@ function normalizeToken(value) {
     .replace(/^-+|-+$/g, "");
 }
 
-function toStringArray(value) {
+export function toStringArray(value) {
   if (!Array.isArray(value)) return [];
   return value.filter((entry) => typeof entry === "string");
 }
 
-function uniqueStrings(values) {
+export function uniqueStrings(values) {
   return [...new Set(values.filter(Boolean))];
 }
 
@@ -416,7 +332,7 @@ function getCaskStyleTags(tags) {
   );
 }
 
-function classifyFlavorProfile(expression, previousProfile) {
+export function classifyFlavorProfile(expression, previousProfile) {
   const rawPillars = emptyPillars();
   const notes = toStringArray(expression.tastingNotes).map((note) => note.trim().toLowerCase()).filter(Boolean);
 
@@ -491,7 +407,7 @@ function toAbsolutePillarScore(rawScore) {
   return 10;
 }
 
-function buildLookupPrompt(expression) {
+export function buildLookupPrompt(expression) {
   const searchHint = [
     expression.name,
     expression.distilleryName,
@@ -541,41 +457,32 @@ function buildLookupPrompt(expression) {
   ].join("\n");
 }
 
-async function callOpenAiForExpression(expression, model) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return { parsed: null, rawText: null, reason: "OPENAI_API_KEY not set" };
-  }
+export function buildBatchCustomId(expressionId) {
+  return `${BATCH_CUSTOM_ID_PREFIX}${expressionId}`;
+}
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
+export function parseBatchCustomId(customId) {
+  if (typeof customId !== "string" || !customId.startsWith(BATCH_CUSTOM_ID_PREFIX)) {
+    return null;
+  }
+  return customId.slice(BATCH_CUSTOM_ID_PREFIX.length);
+}
+
+export function buildBatchRequestLine(expression, model) {
+  return {
+    custom_id: buildBatchCustomId(expression.id),
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
+    url: BATCH_ENDPOINT,
+    body: {
       model,
       reasoning: { effort: "medium" },
       tools: [{ type: "web_search_preview" }],
       input: buildLookupPrompt(expression)
-    })
-  });
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(`OpenAI Responses API ${response.status}: ${body}`);
-  }
-
-  const payload = await response.json();
-  const rawText = extractOutputText(payload);
-  return {
-    parsed: extractJson(rawText),
-    rawText,
-    reason: rawText ? null : "No output_text returned"
+    }
   };
 }
 
-function extractOutputText(payload) {
+export function extractOutputText(payload) {
   if (!payload || typeof payload !== "object" || !Array.isArray(payload.output)) {
     return "";
   }
@@ -590,7 +497,7 @@ function extractOutputText(payload) {
   return "";
 }
 
-function extractJson(text) {
+export function extractJson(text) {
   if (!text) return null;
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) return null;
@@ -601,7 +508,24 @@ function extractJson(text) {
   }
 }
 
-function mergeExpression(existing, enriched) {
+export function parseBatchOutputEntry(entry) {
+  const expressionId = parseBatchCustomId(entry?.custom_id);
+  const statusCode = entry?.response?.status_code ?? null;
+  const body = entry?.response?.body ?? null;
+  const rawText = extractOutputText(body);
+
+  return {
+    customId: entry?.custom_id ?? null,
+    expressionId,
+    statusCode,
+    body,
+    rawText,
+    parsed: extractJson(rawText),
+    error: entry?.error ?? null
+  };
+}
+
+export function mergeExpression(existing, enriched) {
   const resolved = enriched ?? {};
   const abv = normalizeNumber(resolved.abv) ?? existing.abv;
 
@@ -635,7 +559,7 @@ function mergeExpression(existing, enriched) {
   return next;
 }
 
-function diffExpression(previous, next) {
+export function diffExpression(previous, next) {
   const changed = [];
   for (const key of [
     "name",
@@ -680,7 +604,7 @@ function normalizeMockStore(store) {
   };
 }
 
-async function loadSource() {
+export async function loadSource() {
   const url = process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -754,7 +678,7 @@ async function loadSource() {
   };
 }
 
-function selectExpressions(expressions, profiles, mode) {
+export function selectExpressions(expressions, profiles, mode) {
   const profileByExpressionId = new Map(profiles.map((profile) => [profile.expressionId, profile]));
 
   if (mode === "all") {
@@ -812,115 +736,28 @@ async function persistToSupabase(supabase, expression, profile) {
   }
 }
 
-async function main() {
-  const options = parseArgs(process.argv.slice(2));
-  const source = await loadSource();
-  const selected = selectExpressions(source.expressions, source.profiles, options.mode).slice(0, options.limit);
-
-  console.log(
-    `[cleanup-expressions] source=${source.kind} mode=${options.mode} dryRun=${options.dryRun} matched=${selected.length}`
-  );
-
-  if (selected.length === 0) {
-    console.log("[cleanup-expressions] Nothing to do.");
+export async function persistExpressionProfilePair(source, expression, profile) {
+  if (source.kind === "supabase") {
+    await persistToSupabase(source.supabase, expression, profile);
     return;
   }
 
-  const profileByExpressionId = new Map(source.profiles.map((profile) => [profile.expressionId, profile]));
-  const mockExpressionById =
-    source.kind === "mock"
-      ? new Map(source.store.expressions.map((expression, index) => [expression.id, index]))
-      : null;
-  const mockProfileByExpressionId =
-    source.kind === "mock"
-      ? new Map(source.store.expressionFlavorProfiles.map((profile, index) => [profile.expressionId, index]))
-      : null;
-
-  let changedExpressions = 0;
-  let upsertedProfiles = 0;
-  let aiEnriched = 0;
-  let fallbackOnly = 0;
-  let failures = 0;
-
-  for (const [index, expression] of selected.entries()) {
-    const label = `[${index + 1}/${selected.length}] ${expression.name}`;
-    try {
-      console.log(`${label} - resolving`);
-      const enrichment = await callOpenAiForExpression(expression, options.model).catch((error) => ({
-        parsed: null,
-        rawText: null,
-        reason: error instanceof Error ? error.message : String(error)
-      }));
-      const nextExpression = mergeExpression(expression, enrichment.parsed);
-      const changedFields = diffExpression(expression, nextExpression);
-      const profile = classifyFlavorProfile(nextExpression, profileByExpressionId.get(expression.id));
-
-      if (enrichment.parsed) {
-        aiEnriched += 1;
-      } else {
-        fallbackOnly += 1;
-      }
-
-      if (changedFields.length > 0) {
-        changedExpressions += 1;
-      }
-
-      console.log(
-        `${label} - ${changedFields.length > 0 ? `changed ${changedFields.join(", ")}` : "expression unchanged"}; ` +
-          `tags=${nextExpression.tags.length}; tastingNotes=${nextExpression.tastingNotes.length}; ` +
-          `confidence=${profile.confidence}` +
-          (enrichment.reason ? `; fallback=${enrichment.reason}` : "")
-      );
-
-      if (options.dryRun) {
-        upsertedProfiles += 1;
-        continue;
-      }
-
-      if (source.kind === "supabase") {
-        await persistToSupabase(source.supabase, nextExpression, profile);
-      } else {
-        const expressionIndex = mockExpressionById.get(expression.id);
-        if (expressionIndex === undefined) {
-          throw new Error(`Expression ${expression.id} not found in mock store during persist.`);
-        }
-        source.store.expressions[expressionIndex] = nextExpression;
-
-        const profileIndex = mockProfileByExpressionId.get(expression.id);
-        if (profileIndex === undefined) {
-          source.store.expressionFlavorProfiles.push(profile);
-          mockProfileByExpressionId.set(expression.id, source.store.expressionFlavorProfiles.length - 1);
-        } else {
-          source.store.expressionFlavorProfiles[profileIndex] = profile;
-        }
-      }
-
-      upsertedProfiles += 1;
-    } catch (error) {
-      failures += 1;
-      console.error(`${label} - failed:`, error instanceof Error ? error.message : error);
-    }
+  const expressionIndex = source.store.expressions.findIndex((entry) => entry.id === expression.id);
+  if (expressionIndex < 0) {
+    throw new Error(`Expression ${expression.id} not found in mock store during persist.`);
   }
 
-  if (!options.dryRun && source.kind === "mock") {
-    await writeFile(storePath, JSON.stringify(source.store, null, 2), "utf8");
-  }
+  source.store.expressions[expressionIndex] = expression;
 
-  console.log("");
-  console.log("[cleanup-expressions] Summary");
-  console.log(`  processed: ${selected.length}`);
-  console.log(`  expressions changed: ${changedExpressions}`);
-  console.log(`  flavor profiles upserted: ${upsertedProfiles}`);
-  console.log(`  AI-enriched: ${aiEnriched}`);
-  console.log(`  fallback-only: ${fallbackOnly}`);
-  console.log(`  failures: ${failures}`);
-
-  if (failures > 0) {
-    process.exitCode = 1;
+  const profileIndex = source.store.expressionFlavorProfiles.findIndex((entry) => entry.expressionId === expression.id);
+  if (profileIndex < 0) {
+    source.store.expressionFlavorProfiles.push(profile);
+  } else {
+    source.store.expressionFlavorProfiles[profileIndex] = profile;
   }
 }
 
-main().catch((error) => {
-  console.error("[cleanup-expressions] Fatal error:", error instanceof Error ? error.message : error);
-  process.exit(1);
-});
+export async function flushSource(source) {
+  if (source.kind !== "mock") return;
+  await writeFile(storePath, JSON.stringify(source.store, null, 2), "utf8");
+}

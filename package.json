@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
-    "cleanup:expressions": "node --env-file=.env.local scripts/cleanup-expressions.mjs --mode all"
+    "cleanup:expressions": "node --env-file=.env.local scripts/cleanup-expressions.mjs --mode all",
+    "cleanup:expressions:prepare": "node --env-file=.env.local scripts/prepare-cleanup-batch.mjs --mode all",
+    "cleanup:expressions:batch": "node --env-file=.env.local scripts/run-cleanup-batch.mjs",
+    "cleanup:expressions:apply": "node --env-file=.env.local scripts/apply-cleanup-batch-results.mjs",
+    "flavor-profiles:reclassify": "node --env-file=.env.local scripts/reclassify-flavor-profiles.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.51",

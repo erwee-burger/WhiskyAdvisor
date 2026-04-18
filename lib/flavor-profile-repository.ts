@@ -79,10 +79,21 @@ function applyMetadataPriors(expression: Expression, pillars: Record<FlavorPilla
   }
 }
 
+function toAbsolutePillarScore(rawScore: number) {
+  if (rawScore <= 0) return 0;
+  if (rawScore === 1) return 2;
+  if (rawScore === 2) return 4;
+  if (rawScore === 3) return 5;
+  if (rawScore === 4) return 6;
+  if (rawScore === 5) return 7;
+  if (rawScore === 6) return 8;
+  if (rawScore === 7) return 9;
+  return 10;
+}
+
 function normalizePillars(pillars: Record<FlavorPillar, number>) {
-  const max = Math.max(1, ...Object.values(pillars));
   return Object.fromEntries(
-    PILLARS.map((pillar) => [pillar, Math.min(10, Math.round((pillars[pillar] / max) * 10))])
+    PILLARS.map((pillar) => [pillar, toAbsolutePillarScore(pillars[pillar])])
   ) as Record<FlavorPillar, number>;
 }
 
@@ -125,8 +136,8 @@ export function classifyExpressionFlavor(expression: Expression): Omit<Expressio
       topNotes.length > 0
         ? `Weighted from ${evidenceCount} tasting notes and bounded structural traits.`
         : "Built from structural metadata only, so confidence is reduced.",
-    scoringVersion: "v1",
-    modelVersion: "deterministic-v1",
+    scoringVersion: "v2",
+    modelVersion: "deterministic-v2",
     generatedAt: now,
     staleAt: undefined
   };

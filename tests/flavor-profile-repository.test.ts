@@ -38,4 +38,32 @@ describe("classifyExpressionFlavor", () => {
 
     expect(profile.explanation).toBe("Weighted from 8 tasting notes and bounded structural traits.");
   });
+
+  it("does not force the strongest pillar to 10 for moderate evidence", () => {
+    const profile = classifyExpressionFlavor(buildExpression());
+    const maxPillar = Math.max(...Object.values(profile.pillars));
+
+    expect(maxPillar).toBeLessThan(10);
+    expect(profile.pillars.smoky).toBeLessThan(10);
+  });
+
+  it("still allows 10 for genuinely extreme evidence", () => {
+    const profile = classifyExpressionFlavor(
+      buildExpression({
+        tags: ["single-malt", "heavily-peated", "cask-strength"],
+        tastingNotes: [
+          "peat smoke",
+          "campfire smoke",
+          "sooty smoke",
+          "charred ash",
+          "iodine and tar",
+          "barbecue embers",
+          "maritime peat reek",
+          "smoked kippers"
+        ]
+      })
+    );
+
+    expect(profile.pillars.smoky).toBe(10);
+  });
 });
