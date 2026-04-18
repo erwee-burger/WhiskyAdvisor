@@ -10,4 +10,5 @@ npm-debug.log*
 dev-server*.log
 mockups/assets/pngimg-page.html
 .worktrees
+.playwright-mcp
 BACKLOG.md
