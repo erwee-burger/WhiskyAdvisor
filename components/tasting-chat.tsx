@@ -4,6 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { UIMessage } from "ai";
 import { useEffect, useRef, useState } from "react";
+import { z } from "zod";
 
 import { ChatMessageContent } from "@/components/chat-message-content";
 
@@ -13,6 +14,17 @@ const DEFAULT_CHIPS = [
   "Plan a peaty session",
   "What pairs well for a dinner tasting?"
 ];
+
+const bottleSuggestionsSchema = z.object({
+  bottleSuggestions: z.array(z.object({
+    id: z.string(),
+    name: z.string()
+  }))
+});
+
+const suggestionsChipsSchema = z.object({
+  suggestions: z.array(z.string())
+});
 
 export interface BottleSuggestion {
   id: string;
@@ -26,20 +38,22 @@ export function extractBottleSuggestions(content: string): {
   const match = content.match(/\{"bottleSuggestions":\s*\[[\s\S]*?\]\}/);
   if (!match) return { text: content, bottles: [] };
   try {
-    const parsed = JSON.parse(match[0]) as { bottleSuggestions: BottleSuggestion[] };
+    const parsed = JSON.parse(match[0]);
+    const validated = bottleSuggestionsSchema.parse(parsed);
     const text = content.replace(match[0], "").trim();
-    return { text, bottles: parsed.bottleSuggestions };
+    return { text, bottles: validated.bottleSuggestions };
   } catch {
     return { text: content, bottles: [] };
   }
 }
 
 function extractChips(content: string): string[] {
-  const match = content.match(/\{"suggestions":\s*\[([^\]]*)\]\}/);
+  const match = content.match(/\{"suggestions":\s*\[[\s\S]*?\]\}/);
   if (!match) return [];
   try {
-    const parsed = JSON.parse(match[0]) as { suggestions: string[] };
-    return parsed.suggestions;
+    const parsed = JSON.parse(match[0]);
+    const validated = suggestionsChipsSchema.parse(parsed);
+    return validated.suggestions;
   } catch {
     return [];
   }
@@ -48,8 +62,14 @@ function extractChips(content: string): string[] {
 function stripJsonBlocks(content: string): string {
   return content
     .replace(/\{"bottleSuggestions":\s*\[[\s\S]*?\]\}/, "")
-    .replace(/\{"suggestions":\s*\[[^\]]*\]\}/, "")
+    .replace(/\{"suggestions":\s*\[[\s\S]*?\]\}/, "")
     .trim();
+}
+
+function getTextContent(part: unknown): string {
+  return part && typeof part === 'object' && 'text' in part
+    ? (part as { text: string }).text
+    : '';
 }
 
 interface TastingChatProps {
@@ -92,7 +112,7 @@ export function TastingChat({ onApply }: TastingChatProps) {
     if (!last) return;
     const textPart = last.parts.find((p) => p.type === "text");
     if (!textPart || !("text" in textPart)) return;
-    const text = (textPart as { text: string }).text;
+    const text = getTextContent(textPart);
     const newChips = extractChips(text);
     if (newChips.length) setChips(newChips);
   }, [messages]);
@@ -161,7 +181,7 @@ export function TastingChat({ onApply }: TastingChatProps) {
 
           {displayMessages.map((message) => {
             const textPart = message.parts.find((p) => p.type === "text");
-            const raw = textPart && "text" in textPart ? (textPart as { text: string }).text : "";
+            const raw = getTextContent(textPart);
             const { text: cleanText, bottles } = extractBottleSuggestions(raw);
             const displayText = stripJsonBlocks(cleanText);
 
