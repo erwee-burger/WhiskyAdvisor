@@ -17,6 +17,12 @@ function countBy<T extends string>(values: T[]) {
   }, {});
 }
 
+function compactDefined(values: Array<string | null | undefined>) {
+  return values
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter((value): value is string => value.length > 0);
+}
+
 function toSortedCounts<T extends string>(
   values: T[],
   mapEntry: (name: string, count: number) => { [key: string]: string | number }
@@ -105,9 +111,12 @@ export function buildCollectionAnalytics(items: CollectionViewItem[]): Collectio
     .filter(({ item }) => typeof item.purchasePrice === "number")
     .map(({ item }) => convertToZar(item.purchasePrice ?? 0, item.purchaseCurrency ?? "ZAR"));
   const paidTotal = round(pricedOwnedValues.reduce((sumValue, value) => sumValue + value, 0), 2);
+  const knownRegions = compactDefined(ownedItems.map(({ expression }) => expression.country));
+  const knownDistilleries = compactDefined(ownedItems.map(({ expression }) => expression.distilleryName));
+  const knownBottlers = compactDefined(ownedItems.map(({ expression }) => expression.bottlerName));
 
   const regionSplit = toSortedCounts(
-    ownedItems.map(({ expression }) => expression.country ?? "Unknown").filter(Boolean) as string[],
+    knownRegions,
     (region, count) => ({ region, count })
   ) as Array<{ region: string; count: number }>;
 
@@ -117,12 +126,12 @@ export function buildCollectionAnalytics(items: CollectionViewItem[]): Collectio
   ) as Array<{ tag: string; count: number; peatLevel?: string }>;
 
   const topDistilleries = toSortedCounts(
-    ownedItems.map(({ expression }) => expression.distilleryName ?? "Unknown").filter(Boolean) as string[],
+    knownDistilleries,
     (name, count) => ({ name, count })
   ).slice(0, 5) as Array<{ name: string; count: number }>;
 
   const topBottlers = toSortedCounts(
-    ownedItems.map(({ expression }) => expression.bottlerName ?? "Unknown").filter(Boolean) as string[],
+    knownBottlers,
     (name, count) => ({ name, count })
   ).slice(0, 5) as Array<{ name: string; count: number }>;
 
@@ -177,8 +186,8 @@ export function buildCollectionAnalytics(items: CollectionViewItem[]): Collectio
 
   const independentCount = ownedItems.filter(({ expression }) => isIndependentBottler(expression.tags)).length;
   const officialCount = Math.max(0, ownedItems.length - independentCount);
-  const topRegionShare = percentage(regionSplit[0]?.count ?? 0, ownedItems.length);
-  const topDistilleryShare = percentage(topDistilleries[0]?.count ?? 0, ownedItems.length);
+  const topRegionShare = percentage(regionSplit[0]?.count ?? 0, knownRegions.length);
+  const topDistilleryShare = percentage(topDistilleries[0]?.count ?? 0, knownDistilleries.length);
   const averageRating =
     ratedOwnedItems.length > 0
       ? round(ratedOwnedItems.reduce((total, { item }) => total + (item.rating ?? 0), 0) / ratedOwnedItems.length, 2)
@@ -186,7 +195,7 @@ export function buildCollectionAnalytics(items: CollectionViewItem[]): Collectio
   const favoriteRate =
     ratedOwnedItems.length > 0 ? percentage(favoriteOwnedItems.length, ratedOwnedItems.length) : 0;
   const topRatedRegions = toSortedCounts(
-    highlyRatedOwnedItems.map(({ expression }) => expression.country ?? "Unknown"),
+    compactDefined(highlyRatedOwnedItems.map(({ expression }) => expression.country)),
     (region, count) => ({ region, count })
   ).slice(0, 3) as Array<{ region: string; count: number }>;
   const topRatedCaskStyles = toSortedCounts(

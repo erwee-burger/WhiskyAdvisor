@@ -216,4 +216,37 @@ describe("buildCollectionAnalytics", () => {
     expect(analytics.tasteIdentity.topNotes).toEqual([]);
     expect(analytics.blindSpots.some((entry) => entry.title.includes("Flavor coverage"))).toBe(true);
   });
+
+  it("excludes missing region, distillery, and bottler values from split and concentration rollups", () => {
+    const items = [
+      buildItem({
+        expression: {
+          country: "Scotland",
+          distilleryName: "Distillery A",
+          bottlerName: "Bottler A"
+        }
+      }),
+      buildItem({
+        item: { id: "item_2", expressionId: "expr_2" },
+        expression: {
+          id: "expr_2",
+          name: "Bottle Without Metadata",
+          country: undefined,
+          distilleryName: undefined,
+          bottlerName: undefined,
+          tags: ["single-malt"],
+          tastingNotes: []
+        },
+        flavorProfile: undefined
+      })
+    ];
+
+    const analytics = buildCollectionAnalytics(items);
+
+    expect(analytics.regionSplit).toEqual([{ region: "Scotland", count: 1 }]);
+    expect(analytics.topDistilleries).toEqual([{ name: "Distillery A", count: 1 }]);
+    expect(analytics.topBottlers).toEqual([{ name: "Bottler A", count: 1 }]);
+    expect(analytics.collectionShape.topRegionShare).toBe(100);
+    expect(analytics.collectionShape.topDistilleryShare).toBe(100);
+  });
 });
