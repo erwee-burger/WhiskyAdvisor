@@ -1094,6 +1094,12 @@ export function BottleRecordEditor({
           <div className="detail-fields-grid">
             {identityFields.map(renderFieldRow)}
           </div>
+          <div className="detail-subsection-divider">
+            <span>Collection</span>
+          </div>
+          <div className="detail-fields-grid">
+            {collectionFields.map(renderFieldRow)}
+          </div>
         </div>
 
         <div className="panel stack">
@@ -1172,19 +1178,7 @@ export function BottleRecordEditor({
         )}
       </section>
 
-      <section className="panel stack">
-        <div className="section-title">
-          <div>
-            <h2>Collection</h2>
-            <p>Your bottle-specific tracking fields stay editable in the same top surface.</p>
-          </div>
-        </div>
-        <div className="detail-fields-grid">
-          {collectionFields.map(renderFieldRow)}
-        </div>
-      </section>
-
-      {notice ? <div className={`status-note status-note-${notice.tone}`}>{notice.text}</div> : null}
+{notice ? <div className={`status-note status-note-${notice.tone}`}>{notice.text}</div> : null}
     </form>
   );
 }

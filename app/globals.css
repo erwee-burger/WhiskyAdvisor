@@ -1092,6 +1092,24 @@ td {
   grid-column: 1 / -1;
 }
 
+.detail-subsection-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(248, 238, 223, 0.46);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.detail-subsection-divider::before,
+.detail-subsection-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 225, 190, 0.1);
+}
+
 .detail-field-head {
   display: flex;
   align-items: flex-start;
