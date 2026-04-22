@@ -1,6 +1,8 @@
 import { SOURCE_LABELS } from "@/lib/news-sources";
 import type { BudgetFit, NewsAffinity, NewsFeedItem } from "@/lib/types";
 
+export type WishlistState = "none" | "loading" | "wishlisted" | "owned";
+
 interface Props {
   item: NewsFeedItem;
   showBudget: boolean;
@@ -9,6 +11,8 @@ interface Props {
   signalLabel: string;
   saveAmount?: number;
   visitState?: "new_to_you" | "seen";
+  wishlistState?: WishlistState;
+  onAddToWishlist?: () => void;
 }
 
 const BUDGET_LABELS: Record<BudgetFit, string> = {
@@ -28,7 +32,7 @@ function palateFitLabel(affinity: NewsAffinity): string {
   return "Palate fit: outside lane";
 }
 
-export function NewsItem({ item, showBudget, affinity, reasonTags, signalLabel, saveAmount, visitState }: Props) {
+export function NewsItem({ item, showBudget, affinity, reasonTags, signalLabel, saveAmount, visitState, wishlistState, onAddToWishlist }: Props) {
   const badgeClass = `news-card-badge news-card-badge-${item.budgetFit.replace("_", "-")}`;
   const visitBadgeClass = visitState === "new_to_you"
     ? "news-card-badge news-card-badge-fresh"
@@ -44,55 +48,96 @@ export function NewsItem({ item, showBudget, affinity, reasonTags, signalLabel, 
         : item.whyItMatters;
 
   return (
-    <a
-      href={item.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={cardClassName}
-      data-kind={item.kind}
+    <div className={cardClassName} data-kind={item.kind}>
+      <a
+        href={item.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="news-card-link"
+      >
+        <div className="news-card-top">
+          <span className="news-card-retailer">{SOURCE_LABELS[item.source] || item.source}</span>
+          <div className="news-card-badges">
+            {visitState && <span className={visitBadgeClass}>{visitLabel}</span>}
+            {showBudget && <span className={badgeClass}>{BUDGET_LABELS[item.budgetFit]}</span>}
+          </div>
+        </div>
+
+        {item.imageUrl ? (
+          <div className="news-card-media">
+            <img src={item.imageUrl} alt={item.name} loading="lazy" />
+          </div>
+        ) : null}
+
+        <div className="news-card-signals">
+          <span className={`news-card-signal ${item.kind === "special" ? "news-card-signal-deal" : "news-card-signal-release"}`}>
+            {signalLabel}
+          </span>
+          {affinity ? <span className={fitClassName}>{palateFitLabel(affinity)}</span> : null}
+        </div>
+
+        <div className="news-card-name">{item.name}</div>
+
+        <div className="news-card-price-row">
+          <span className="news-card-price">{formatPrice(item.price)}</span>
+          {item.originalPrice && <span className="news-card-original">{formatPrice(item.originalPrice)}</span>}
+          {item.discountPct ? <span className="news-card-discount">-{item.discountPct}%</span> : null}
+        </div>
+
+        {highlightCopy ? <div className="news-card-highlight">{highlightCopy}</div> : null}
+
+        {reasonTags.length > 0 ? (
+          <div className="news-card-tags">
+            {reasonTags.map((tag) => (
+              <span key={tag} className="news-card-tag">{tag}</span>
+            ))}
+          </div>
+        ) : null}
+
+        {item.kind === "special" && item.whyItMatters ? (
+          <div className="news-card-reason">{item.whyItMatters}</div>
+        ) : null}
+      </a>
+
+      {onAddToWishlist !== undefined && (
+        <div className="news-card-footer">
+          <WishlistButton state={wishlistState ?? "none"} itemId={item.id} onAdd={onAddToWishlist} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WishlistButton({ state, itemId, onAdd }: { state: WishlistState; itemId: string; onAdd: () => void }) {
+  if (state === "wishlisted") {
+    return (
+      <a href="/collection?status=wishlist" className="news-card-wishlist-btn news-card-wishlist-btn--done">
+        On wishlist
+      </a>
+    );
+  }
+
+  if (state === "owned") {
+    return (
+      <a href="/collection" className="news-card-wishlist-btn news-card-wishlist-btn--owned">
+        In collection
+      </a>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className={`news-card-wishlist-btn${state === "loading" ? " news-card-wishlist-btn--loading" : ""}`}
+      disabled={state === "loading"}
+      onClick={onAdd}
+      aria-label={`Add ${itemId} to wishlist`}
     >
-      <div className="news-card-top">
-        <span className="news-card-retailer">{SOURCE_LABELS[item.source] || item.source}</span>
-        <div className="news-card-badges">
-          {visitState && <span className={visitBadgeClass}>{visitLabel}</span>}
-          {showBudget && <span className={badgeClass}>{BUDGET_LABELS[item.budgetFit]}</span>}
-        </div>
-      </div>
-
-      {item.imageUrl ? (
-        <div className="news-card-media">
-          <img src={item.imageUrl} alt={item.name} loading="lazy" />
-        </div>
-      ) : null}
-
-      <div className="news-card-signals">
-        <span className={`news-card-signal ${item.kind === "special" ? "news-card-signal-deal" : "news-card-signal-release"}`}>
-          {signalLabel}
-        </span>
-        {affinity ? <span className={fitClassName}>{palateFitLabel(affinity)}</span> : null}
-      </div>
-
-      <div className="news-card-name">{item.name}</div>
-
-      <div className="news-card-price-row">
-        <span className="news-card-price">{formatPrice(item.price)}</span>
-        {item.originalPrice && <span className="news-card-original">{formatPrice(item.originalPrice)}</span>}
-        {item.discountPct ? <span className="news-card-discount">-{item.discountPct}%</span> : null}
-      </div>
-
-      {highlightCopy ? <div className="news-card-highlight">{highlightCopy}</div> : null}
-
-      {reasonTags.length > 0 ? (
-        <div className="news-card-tags">
-          {reasonTags.map((tag) => (
-            <span key={tag} className="news-card-tag">{tag}</span>
-          ))}
-        </div>
-      ) : null}
-
-      {item.kind === "special" && item.whyItMatters ? (
-        <div className="news-card-reason">{item.whyItMatters}</div>
-      ) : null}
-    </a>
+      {state === "loading" ? (
+        <><span className="button-spinner" />Adding…</>
+      ) : (
+        "+ Wishlist"
+      )}
+    </button>
   );
 }

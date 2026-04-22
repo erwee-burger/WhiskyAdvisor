@@ -4,7 +4,7 @@ import { getLatestSuccessfulSnapshot } from "@/lib/news-store";
 import { getNewsPreferences } from "@/lib/news-preferences-store";
 import { getNewsSeenKeys } from "@/lib/news-visit-store";
 import { getSessionMode } from "@/lib/auth";
-import { getPalateProfile } from "@/lib/repository";
+import { getCollectionView, getPalateProfile } from "@/lib/repository";
 import type { NewsFeedItem, NewsSummaryCard, PalateProfile } from "@/lib/types";
 
 export default async function NewsPage() {
@@ -12,15 +12,24 @@ export default async function NewsPage() {
     getNewsPreferences(),
     getSessionMode()
   ]);
-  const [snapshot, initialSeenItemKeys, initialProfile] = await Promise.all([
+  const [snapshot, initialSeenItemKeys, initialProfile, collection] = await Promise.all([
     getLatestSuccessfulSnapshot(preferences).catch(() => null),
     sessionMode === "owner"
       ? getNewsSeenKeys().catch(() => null)
       : Promise.resolve(null),
     sessionMode === "owner"
       ? getPalateProfile().catch(() => null)
-      : Promise.resolve<PalateProfile | null>(null)
+      : Promise.resolve<PalateProfile | null>(null),
+    sessionMode === "owner"
+      ? getCollectionView().catch(() => [])
+      : Promise.resolve([])
   ]);
+
+  const initialWishlistedNames: Record<string, "wishlisted" | "owned"> = {};
+  for (const { item, expression } of collection) {
+    initialWishlistedNames[expression.name.toLowerCase().trim()] =
+      item.status === "wishlist" ? "wishlisted" : "owned";
+  }
 
   const specials:     NewsFeedItem[]    = snapshot?.specials     ?? [];
   const newArrivals:  NewsFeedItem[]    = snapshot?.newArrivals  ?? [];
@@ -46,6 +55,7 @@ export default async function NewsPage() {
         initialSeenItemKeys={initialSeenItemKeys}
         initialProfile={initialProfile}
         isOwner={sessionMode === "owner"}
+        initialWishlistedNames={initialWishlistedNames}
       />
     </div>
   );
