@@ -1,0 +1,399 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   design-improvements.css
+   Import AFTER globals.css in app/layout.tsx:
+     import "@/app/design-improvements.css";
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+/* ── 1. Dual typeface tokens ─────────────────────────────────────────────── */
+
+:root {
+  --font-display: "Cormorant Garamond", "Palatino Linotype", Georgia, serif;
+  --font-ui: "Inter", system-ui, sans-serif;
+}
+
+/* Apply UI font everywhere small text lives */
+.eyebrow,
+.stat-label,
+.stat-trend,
+.meta-line,
+.pill,
+.filter-field-label,
+.filter-toggle,
+.filter-chip,
+.collection-view-toggle-btn,
+.shelf-lighting-btn,
+.menu-copy,
+.menu-link,
+.top-nav-desktop-link,
+.field label,
+.checkbox-label,
+.muted,
+.section-title p,
+.analytics-metric-label,
+.analytics-highlight-label,
+.detail-field-label,
+.detail-field-subcopy,
+.detail-suggestion-label,
+.advisor-score-label,
+.advisor-card-rationale,
+.recent-session-summary-copy p,
+.tasting-notes-markdown p,
+.tasting-notes-markdown li,
+.global-search-result-name,
+.global-search-badge,
+.global-search-fill,
+table th,
+table td,
+.button,
+.button-subtle,
+.button-danger {
+  font-family: var(--font-ui);
+}
+
+/* Keep display font on headings and large numerics */
+h1, h2, h3, h4,
+.top-nav-brand,
+.brand,
+.stat-value,
+.analytics-metric-value,
+.hero h1,
+.hero h2 {
+  font-family: var(--font-display);
+}
+
+
+/* ── 2. Desktop inline nav ───────────────────────────────────────────────── */
+
+.top-nav-desktop-links {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .top-nav-desktop-links {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+    padding: 0 12px;
+  }
+}
+
+.top-nav-desktop-link {
+  padding: 9px 13px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+  border: 1px solid transparent;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+  white-space: nowrap;
+}
+
+.top-nav-desktop-link:hover {
+  background: rgba(212, 157, 69, 0.08);
+  color: var(--text);
+}
+
+.top-nav-desktop-link-active {
+  background: linear-gradient(180deg, rgba(212, 157, 69, 0.2), rgba(86, 33, 27, 0.44));
+  border-color: rgba(231, 191, 116, 0.22);
+  color: var(--text);
+}
+
+
+/* ── 3. StatCard — sparkline + trend ─────────────────────────────────────── */
+
+.stat-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.stat-sparkline {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.stat-sparkline-bar {
+  width: 4px;
+  border-radius: 2px 2px 0 0;
+  background: rgba(212, 157, 69, 0.28);
+  min-height: 4px;
+}
+
+.stat-sparkline-bar-hi {
+  background: rgba(212, 157, 69, 0.88);
+}
+
+.stat-trend {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.stat-trend-up     { color: #5cb87a; }
+.stat-trend-down   { color: #c47a6a; }
+.stat-trend-neutral { color: var(--muted); }
+
+
+/* ── 4. AdvisorCard — score bar + rationale ──────────────────────────────── */
+
+.advisor-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.advisor-card-copy {
+  display: grid;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+}
+
+.advisor-card-copy h3 {
+  margin: 0;
+}
+
+.advisor-score-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.advisor-score-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.advisor-score-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(212, 157, 69, 0.55), rgba(212, 157, 69, 0.95));
+  transition: width 400ms ease;
+}
+
+.advisor-score-label {
+  font-size: 0.74rem;
+  color: var(--accent);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.advisor-card-rationale {
+  margin: 0 0 12px;
+  font-size: 0.88rem;
+  font-style: italic;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+
+/* ── 5. Pill colour semantics ────────────────────────────────────────────── */
+
+/* Flavour / tasting notes — warm amber (default, unchanged) */
+.pill-flavour {
+  background: rgba(201, 138, 53, 0.09);
+  color: rgba(248, 238, 223, 0.82);
+}
+
+/* Region / provenance — cool slate-blue */
+.pill-region {
+  background: rgba(90, 120, 180, 0.12);
+  color: rgba(180, 200, 235, 0.88);
+  border: 1px solid rgba(90, 120, 180, 0.2);
+}
+
+/* Status: open */
+.pill-status-open {
+  background: rgba(78, 140, 90, 0.14);
+  color: rgba(160, 220, 172, 0.92);
+  border: 1px solid rgba(92, 184, 122, 0.22);
+}
+
+/* Status: sealed */
+.pill-status-sealed {
+  background: rgba(212, 157, 69, 0.1);
+  color: rgba(248, 230, 190, 0.84);
+  border: 1px solid rgba(212, 157, 69, 0.18);
+}
+
+/* Status: finished */
+.pill-status-finished {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(213, 198, 173, 0.54);
+  border: 1px solid rgba(255, 225, 190, 0.1);
+}
+
+/* Limited release */
+.pill-limited {
+  background: rgba(90, 29, 38, 0.28);
+  color: rgba(230, 160, 140, 0.9);
+  border: 1px solid rgba(198, 90, 52, 0.22);
+}
+
+/* Independent bottler */
+.pill-indie {
+  background: rgba(80, 65, 120, 0.18);
+  color: rgba(190, 180, 225, 0.9);
+  border: 1px solid rgba(120, 105, 170, 0.22);
+}
+
+
+/* ── 6. Lighting mode — shelf-room overrides ─────────────────────────────── */
+
+/* Default is bar-glow — no override needed, globals.css handles it */
+
+.shelf-room-candlelight {
+  background:
+    linear-gradient(180deg, rgba(40, 20, 8, 0.98), rgba(22, 10, 4, 0.99)),
+    linear-gradient(180deg, rgba(201, 138, 53, 0.06), transparent);
+}
+
+.shelf-room-candlelight .shelf-rail {
+  background:
+    linear-gradient(180deg, rgba(240, 195, 100, 0.65), rgba(180, 110, 30, 0.2)),
+    linear-gradient(90deg, rgba(255, 240, 200, 0.3), transparent 20%, transparent 80%, rgba(255, 240, 200, 0.3));
+  box-shadow:
+    0 0 14px rgba(240, 170, 50, 0.18),
+    0 10px 18px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 245, 210, 0.5);
+}
+
+.shelf-room-candlelight .bottle-glow {
+  background: radial-gradient(circle, rgba(240, 160, 40, 0.22), transparent 72%);
+}
+
+.shelf-room-daylight {
+  background:
+    linear-gradient(180deg, rgba(28, 32, 42, 0.98), rgba(20, 24, 34, 0.99)),
+    linear-gradient(180deg, rgba(140, 160, 200, 0.04), transparent);
+}
+
+.shelf-room-daylight .shelf-rail {
+  background:
+    linear-gradient(180deg, rgba(180, 205, 230, 0.65), rgba(130, 160, 190, 0.2)),
+    linear-gradient(90deg, rgba(220, 235, 255, 0.35), transparent 20%, transparent 80%, rgba(220, 235, 255, 0.35));
+  box-shadow:
+    0 0 10px rgba(180, 210, 250, 0.1),
+    0 8px 16px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(240, 248, 255, 0.5);
+}
+
+.shelf-room-daylight .bottle-glow {
+  background: radial-gradient(circle, rgba(200, 215, 235, 0.12), transparent 72%);
+}
+
+/* Lighting toggle control */
+.shelf-lighting-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(8, 5, 4, 0.82);
+  border: 1px solid var(--line);
+}
+
+.shelf-lighting-btn {
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+  font-family: var(--font-ui);
+  white-space: nowrap;
+}
+
+.shelf-lighting-btn:hover {
+  color: var(--text);
+}
+
+.shelf-lighting-btn-active {
+  background: linear-gradient(180deg, rgba(212, 157, 69, 0.26), rgba(86, 33, 27, 0.48));
+  color: rgba(248, 238, 223, 0.98);
+  box-shadow: 0 6px 18px rgba(212, 157, 69, 0.12);
+}
+
+
+/* ── 7. Toast notification system ────────────────────────────────────────── */
+
+.toast-region {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  max-width: min(360px, calc(100vw - 40px));
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-radius: 14px;
+  background: rgba(14, 18, 28, 0.96);
+  border: 1px solid rgba(255, 225, 190, 0.14);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.44);
+  color: var(--text);
+  font-size: 0.88rem;
+  font-family: var(--font-ui);
+  line-height: 1.4;
+  pointer-events: auto;
+  backdrop-filter: blur(16px);
+  animation: toast-in 200ms ease forwards;
+}
+
+.toast-success { border-color: rgba(92, 184, 122, 0.28); }
+.toast-error   { border-color: rgba(198, 90, 52, 0.28); }
+.toast-info    { border-color: rgba(212, 157, 69, 0.24); }
+
+.toast-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.toast-dot-success { background: #5cb87a; }
+.toast-dot-error   { background: #c47a6a; }
+.toast-dot-info    { background: var(--accent); }
+
+.toast-close {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  transition: color 0.15s;
+  font-family: var(--font-ui);
+}
+
+.toast-close:hover { color: var(--text); }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
