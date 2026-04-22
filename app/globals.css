@@ -3149,7 +3149,7 @@ td {
 }
 
 .news-pill:focus-visible,
-.news-card:focus-visible,
+.news-card-link:focus-visible,
 .intel-card:focus-visible {
   outline: 2px solid rgba(212, 157, 69, 0.45);
   outline-offset: 2px;
@@ -3281,7 +3281,6 @@ td {
 .news-card {
   position: relative;
   overflow: hidden;
-  padding: 20px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--line);
   background:
@@ -3289,11 +3288,24 @@ td {
     rgba(255, 252, 248, 0.03);
   display: flex;
   flex-direction: column;
-  gap: 12px;
   transition: transform 160ms, background 160ms, border-color 160ms;
-  cursor: pointer;
+}
+
+.news-card-link {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
   text-decoration: none;
   color: inherit;
+  flex: 1;
+  cursor: pointer;
+}
+
+.news-card:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 252, 248, 0.05);
+  border-color: rgba(231, 191, 116, 0.28);
 }
 
 .news-card--fresh {
@@ -3302,12 +3314,6 @@ td {
     linear-gradient(180deg, rgba(212, 157, 69, 0.12), rgba(255, 252, 248, 0.03)),
     rgba(255, 252, 248, 0.03);
   box-shadow: 0 0 0 1px rgba(212, 157, 69, 0.12);
-}
-
-.news-card:hover {
-  transform: translateY(-2px);
-  background: rgba(255, 252, 248, 0.05);
-  border-color: rgba(231, 191, 116, 0.28);
 }
 
 .news-card-top {
@@ -3513,6 +3519,67 @@ td {
   border-top: 1px solid var(--line);
   padding-top: 10px;
   margin-top: 2px;
+}
+
+.news-card-footer {
+  padding: 0 20px 16px;
+}
+
+.news-card-wishlist-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 252, 248, 0.14);
+  background: rgba(255, 252, 248, 0.05);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 160ms, border-color 160ms, color 160ms;
+}
+
+.news-card-wishlist-btn:hover {
+  background: rgba(255, 252, 248, 0.1);
+  border-color: rgba(255, 252, 248, 0.22);
+  color: var(--text);
+}
+
+.news-card-wishlist-btn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.news-card-wishlist-btn--loading {
+  color: var(--muted);
+}
+
+.news-card-wishlist-btn--done {
+  background: rgba(74, 180, 94, 0.1);
+  border-color: rgba(74, 180, 94, 0.25);
+  color: #6dbf7e;
+}
+
+.news-card-wishlist-btn--done:hover {
+  background: rgba(74, 180, 94, 0.16);
+  border-color: rgba(74, 180, 94, 0.35);
+  color: #7fce8f;
+}
+
+.news-card-wishlist-btn--owned {
+  background: rgba(212, 157, 69, 0.1);
+  border-color: rgba(212, 157, 69, 0.25);
+  color: var(--accent);
+}
+
+.news-card-wishlist-btn--owned:hover {
+  background: rgba(212, 157, 69, 0.16);
+  border-color: rgba(212, 157, 69, 0.35);
 }
 
 .news-empty {

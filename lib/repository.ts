@@ -1304,3 +1304,60 @@ export async function getDraftById(draftId: string) {
   const store = await readStore();
   return store.drafts.find((entry) => entry.id === draftId) ?? null;
 }
+
+export async function addToWishlistFromNews(payload: {
+  name: string;
+  price: number;
+  source: string;
+  imageUrl?: string;
+}): Promise<{ status: "added" | "already_wishlisted" | "already_owned"; itemId: string }> {
+  const store = await readStore();
+  const nameLower = payload.name.toLowerCase().trim();
+
+  const existingExpression = store.expressions.find(
+    (entry) => entry.name.toLowerCase().trim() === nameLower
+  );
+
+  if (existingExpression) {
+    const existingItem = store.collectionItems.find(
+      (entry) => entry.expressionId === existingExpression.id
+    );
+    if (existingItem) {
+      return {
+        status: existingItem.status === "wishlist" ? "already_wishlisted" : "already_owned",
+        itemId: existingItem.id
+      };
+    }
+  }
+
+  const now = new Date().toISOString();
+  const expressionId = existingExpression?.id ?? createId("expr");
+
+  if (!existingExpression) {
+    store.expressions.unshift({
+      id: expressionId,
+      name: payload.name,
+      imageUrl: payload.imageUrl,
+      tags: [],
+      tastingNotes: []
+    });
+  }
+
+  const itemId = createId("item");
+  const collectionItem: CollectionItem = {
+    id: itemId,
+    expressionId,
+    status: "wishlist",
+    fillState: "sealed",
+    purchasePrice: payload.price,
+    purchaseCurrency: "ZAR",
+    purchaseSource: payload.source,
+    createdAt: now,
+    updatedAt: now
+  };
+
+  store.collectionItems.unshift(collectionItem);
+  await writeStore(store);
+
+  return { status: "added", itemId };
+}

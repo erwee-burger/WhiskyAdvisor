@@ -16,7 +16,7 @@ import type {
   NewsUiFilters,
   PalateProfile
 } from "@/lib/types";
-import { NewsItem } from "./news-item";
+import { NewsItem, type WishlistState } from "./news-item";
 import { NewsPreferencesPanel } from "./news-preferences-panel";
 import { NewsSummaryCards } from "./news-summary-cards";
 
@@ -30,6 +30,7 @@ interface NewsFeedProps {
   initialSeenItemKeys: string[] | null;
   initialProfile: PalateProfile | null;
   isOwner: boolean;
+  initialWishlistedNames: Record<string, "wishlisted" | "owned">;
 }
 
 const BUDGET_FILTER_LABELS: Record<NewsBudgetFilter, string> = {
@@ -125,7 +126,8 @@ export function NewsFeed({
   initialPreferences,
   initialSeenItemKeys,
   initialProfile,
-  isOwner
+  isOwner,
+  initialWishlistedNames
 }: NewsFeedProps) {
   const initialVisitStateRef = useRef(
     isOwner
@@ -146,6 +148,15 @@ export function NewsFeed({
   const [hasVisitBaseline, setHasVisitBaseline] = useState(initialVisitStateRef.current.hadBaseline);
   const [knownSeenItemKeys, setKnownSeenItemKeys] = useState(initialVisitStateRef.current.seenKeys);
   const [unseenItemKeys, setUnseenItemKeys] = useState(initialVisitStateRef.current.unseenKeys);
+  const [wishlistStates, setWishlistStates] = useState<Map<string, "wishlisted" | "owned">>(() => {
+    const map = new Map<string, "wishlisted" | "owned">();
+    for (const item of [...initialSpecials, ...initialNewArrivals]) {
+      const match = initialWishlistedNames[item.name.toLowerCase().trim()];
+      if (match) map.set(item.id, match);
+    }
+    return map;
+  });
+  const [wishlistLoading, setWishlistLoading] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isOwner) return;
@@ -209,6 +220,37 @@ export function NewsFeed({
       console.error("Failed to save preferences:", error);
     }
   };
+
+  const handleAddToWishlist = async (item: NewsFeedItem) => {
+    setWishlistLoading((prev) => new Set([...prev, item.id]));
+    try {
+      const res = await fetch("/api/wishlist/from-news", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: item.name, price: item.price, source: item.source, imageUrl: item.imageUrl })
+      });
+      if (!res.ok) return;
+      const data: { status: "added" | "already_wishlisted" | "already_owned" } = await res.json();
+      setWishlistStates((prev) => {
+        const next = new Map(prev);
+        next.set(item.id, data.status === "already_owned" ? "owned" : "wishlisted");
+        return next;
+      });
+    } catch (error) {
+      console.error("Failed to add to wishlist:", error);
+    } finally {
+      setWishlistLoading((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  };
+
+  function getWishlistState(item: NewsFeedItem): WishlistState {
+    if (wishlistLoading.has(item.id)) return "loading";
+    return wishlistStates.get(item.id) ?? "none";
+  }
 
   const showVisitState = isOwner && hasVisitBaseline;
   const newToYouCount = unseenItemKeys.length;
@@ -426,6 +468,8 @@ export function NewsFeed({
                   signalLabel={browseItem.signalLabel}
                   saveAmount={browseItem.saveAmount}
                   visitState={browseItem.visitState}
+                  wishlistState={isOwner ? getWishlistState(browseItem.item) : undefined}
+                  onAddToWishlist={isOwner ? () => { void handleAddToWishlist(browseItem.item); } : undefined}
                 />
               ))}
             </div>
@@ -457,6 +501,8 @@ export function NewsFeed({
                   signalLabel={browseItem.signalLabel}
                   saveAmount={browseItem.saveAmount}
                   visitState={browseItem.visitState}
+                  wishlistState={isOwner ? getWishlistState(browseItem.item) : undefined}
+                  onAddToWishlist={isOwner ? () => { void handleAddToWishlist(browseItem.item); } : undefined}
                 />
               ))}
             </div>
