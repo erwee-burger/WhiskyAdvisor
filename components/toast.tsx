@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -66,7 +65,7 @@ export function useToast() {
   const ctx = useContext(ToastContext);
   if (!ctx) {
     // Graceful no-op outside provider
-    return { showToast: (_msg: string, _variant?: ToastVariant) => undefined };
+    return { showToast: () => undefined };
   }
   return ctx;
 }
