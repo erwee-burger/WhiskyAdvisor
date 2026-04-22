@@ -11,9 +11,14 @@ type NavItem = {
   label: string;
 };
 
+// Shown inline on desktop (≥900px). Remaining items stay in the hamburger.
+const DESKTOP_PRIMARY: string[] = ["/", "/collection", "/analytics", "/advisor", "/tastings"];
+
 export function TopNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+
+  const desktopItems = items.filter((i) => DESKTOP_PRIMARY.includes(i.href));
 
   return (
     <header className="top-nav">
@@ -24,6 +29,20 @@ export function TopNav({ items }: { items: NavItem[] }) {
             Whisky Advisor
           </PendingLink>
         </div>
+
+        {/* ── Inline nav (desktop only) ── */}
+        <nav className="top-nav-desktop-links" aria-label="Primary navigation">
+          {desktopItems.map((item) => (
+            <PendingLink
+              key={item.href}
+              href={item.href}
+              className={`top-nav-desktop-link${pathname === item.href ? " top-nav-desktop-link-active" : ""}`}
+              onClick={() => setIsOpen(false)}
+            >
+              {item.label}
+            </PendingLink>
+          ))}
+        </nav>
 
         <div className="top-nav-menu-wrap">
           <GlobalSearch />

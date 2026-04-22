@@ -11,6 +11,13 @@ import type { CollectionFilters } from "@/lib/collection-filters";
 import type { CollectionViewItem } from "@/lib/types";
 
 type CollectionViewMode = "grid" | "list";
+type LightingMode = "bar-glow" | "candlelight" | "daylight";
+
+const LIGHTING_OPTIONS: { value: LightingMode; label: string }[] = [
+  { value: "bar-glow", label: "Bar Glow" },
+  { value: "candlelight", label: "Candlelight" },
+  { value: "daylight", label: "Daylight" },
+];
 
 function uniq(arr: (string | undefined | null)[]): string[] {
   return [...new Set(arr.filter((v): v is string => typeof v === "string" && v.length > 0))].sort();
@@ -29,6 +36,17 @@ export function CollectionBrowser({ collection }: { collection: CollectionViewIt
     searchParams.get("view") === "list" ? "list" : "grid"
   );
   const [filterOpen, setFilterOpen] = useState(false);
+  const [lighting, setLighting] = useState<LightingMode>(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("collection-lighting") as LightingMode) ?? "bar-glow";
+    }
+    return "bar-glow";
+  });
+
+  function updateLighting(mode: LightingMode) {
+    setLighting(mode);
+    localStorage.setItem("collection-lighting", mode);
+  }
 
   useEffect(() => {
     setViewMode(searchParams.get("view") === "list" ? "list" : "grid");
@@ -147,7 +165,7 @@ export function CollectionBrowser({ collection }: { collection: CollectionViewIt
   }, [visible]);
 
   return (
-    <section className="shelf-room">
+    <section className={`shelf-room shelf-room-${lighting}`}>
       <div className="shelf-toolbar">
         <div className="field shelf-search">
           <label htmlFor="collection-search">Search by bottle, distillery, or tag</label>
@@ -414,11 +432,17 @@ export function CollectionBrowser({ collection }: { collection: CollectionViewIt
 
       <div className="shelf-caption">
         <p>{visible.length} bottles in view right now.</p>
-        <div className="pill-row">
-          <span className="pill">
-            {viewMode === "grid" ? "Hover a bottle for quick details" : "Scan more bottle details at a glance"}
-          </span>
-          <span className="pill">Search matches flavor tags too</span>
+        <div className="shelf-lighting-toggle" role="group" aria-label="Shelf lighting">
+          {LIGHTING_OPTIONS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              className={`shelf-lighting-btn${lighting === value ? " shelf-lighting-btn-active" : ""}`}
+              onClick={() => updateLighting(value)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 

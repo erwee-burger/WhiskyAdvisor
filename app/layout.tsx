@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 
 import "@/app/globals.css";
+import "@/app/design-improvements.css";
 import { NavigationFeedbackProvider } from "@/components/navigation-feedback";
+import { ToastProvider } from "@/components/toast";
 import { TopNav } from "@/components/top-nav";
 import { assertProductionEnv } from "@/lib/env";
 import { getSessionMode } from "@/lib/auth";
@@ -36,10 +38,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang="en">
       <body>
         <NavigationFeedbackProvider>
-          <div className="app-shell">
-            <TopNav items={navItems} />
-            <main className="main-content">{children}</main>
-          </div>
+          <ToastProvider>
+            <div className="app-shell">
+              <TopNav items={navItems} />
+              <main className="main-content">{children}</main>
+            </div>
+          </ToastProvider>
         </NavigationFeedbackProvider>
       </body>
     </html>
