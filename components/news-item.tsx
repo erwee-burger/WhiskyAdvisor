@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { SOURCE_LABELS } from "@/lib/news-sources";
 import type { BudgetFit, NewsAffinity, NewsFeedItem } from "@/lib/types";
 
@@ -111,17 +113,17 @@ export function NewsItem({ item, showBudget, affinity, reasonTags, signalLabel, 
 function WishlistButton({ state, itemId, onAdd }: { state: WishlistState; itemId: string; onAdd: () => void }) {
   if (state === "wishlisted") {
     return (
-      <a href="/collection?status=wishlist" className="news-card-wishlist-btn news-card-wishlist-btn--done">
+      <Link href="/collection?status=wishlist" className="news-card-wishlist-btn news-card-wishlist-btn--done">
         On wishlist
-      </a>
+      </Link>
     );
   }
 
   if (state === "owned") {
     return (
-      <a href="/collection" className="news-card-wishlist-btn news-card-wishlist-btn--owned">
+      <Link href="/collection" className="news-card-wishlist-btn news-card-wishlist-btn--owned">
         In collection
-      </a>
+      </Link>
     );
   }
 
