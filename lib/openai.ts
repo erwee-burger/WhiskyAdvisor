@@ -37,6 +37,10 @@ function getChatText(payload: unknown): string {
   return typeof msg?.content === "string" ? msg.content : "";
 }
 
+function isReasoningModel(model: string) {
+  return /^o\d/i.test(model);
+}
+
 async function responsesApi(prompt: string, imageBase64?: string, mimeType?: string) {
   const { OPENAI_API_KEY, OPENAI_MODEL } = getServerEnv();
   const model = process.env.OPENAI_ENRICHMENT_MODEL || OPENAI_MODEL;
@@ -47,15 +51,19 @@ async function responsesApi(prompt: string, imageBase64?: string, mimeType?: str
     inputContent.push({ type: "input_image", image_url: `data:${mimeType};base64,${imageBase64}` });
   }
 
+  const body: Record<string, unknown> = {
+    model,
+    tools: [{ type: "web_search_preview" }],
+    input: [{ role: "user", content: inputContent }]
+  };
+  if (isReasoningModel(model)) {
+    body.reasoning = { effort: "medium" };
+  }
+
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      reasoning: { effort: "medium" },
-      tools: [{ type: "web_search_preview" }],
-      input: [{ role: "user", content: inputContent }]
-    })
+    body: JSON.stringify(body)
   });
 
   if (!response.ok) {
