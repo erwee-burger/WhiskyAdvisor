@@ -75,8 +75,9 @@ const CASK_DETAIL_PATTERNS: Array<{ tag: string; patterns: string[] }> = [
   { tag: "puncheon", patterns: ["puncheon"] }
 ];
 
-function normalizeToken(value: string) {
-  return value
+function normalizeToken(value: unknown): string {
+  if (value == null || typeof value === "object") return "";
+  return String(value)
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
