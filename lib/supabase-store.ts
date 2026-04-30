@@ -307,215 +307,188 @@ export async function writeStoreToSupabase(store: WhiskyStore) {
   const supabase = getSupabaseClient() as SupabaseClientLike | null;
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const expressionsUpsert = await supabase.from("expressions").upsert(
-    store.expressions.map((expression) => ({
-      id: expression.id,
-      name: expression.name,
-      distillery_name: expression.distilleryName ?? null,
-      bottler_name: expression.bottlerName ?? null,
-      brand: expression.brand ?? null,
-      country: expression.country ?? null,
-      abv: expression.abv ?? null,
-      age_statement: expression.ageStatement ?? null,
-      barcode: expression.barcode ?? null,
-      description: expression.description ?? null,
-      image_url: expression.imageUrl ?? null,
-      tasting_notes: expression.tastingNotes,
-      tags: expression.tags
-    })),
-    { onConflict: "id" }
-  );
-  if (expressionsUpsert.error) throw expressionsUpsert.error;
+  function throwIfError(results: Array<{ error: unknown }>) {
+    for (const res of results) {
+      if (res.error) throw res.error;
+    }
+  }
 
-  const itemsUpsert = await supabase.from("collection_items").upsert(
-    store.collectionItems.map((item) => ({
-      id: item.id,
-      expression_id: item.expressionId,
-      status: item.status,
-      fill_state: item.fillState,
-      purchase_price: item.purchasePrice ?? null,
-      purchase_currency: item.purchaseCurrency,
-      purchase_date: item.purchaseDate ?? null,
-      purchase_source: item.purchaseSource ?? null,
-      personal_notes: item.personalNotes ?? null,
-      rating: item.rating ?? null,
-      is_favorite: item.isFavorite ?? false,
-      created_at: item.createdAt,
-      updated_at: item.updatedAt
-    })),
-    { onConflict: "id" }
-  );
-  if (itemsUpsert.error) throw itemsUpsert.error;
+  // Wave 1: tables with no FK dependencies on other store tables
+  const wave1 = await Promise.all([
+    supabase.from("expressions").upsert(
+      store.expressions.map((expression) => ({
+        id: expression.id,
+        name: expression.name,
+        distillery_name: expression.distilleryName ?? null,
+        bottler_name: expression.bottlerName ?? null,
+        brand: expression.brand ?? null,
+        country: expression.country ?? null,
+        abv: expression.abv ?? null,
+        age_statement: expression.ageStatement ?? null,
+        barcode: expression.barcode ?? null,
+        description: expression.description ?? null,
+        image_url: expression.imageUrl ?? null,
+        tasting_notes: expression.tastingNotes,
+        tags: expression.tags
+      })),
+      { onConflict: "id" }
+    ),
+    supabase.from("intake_drafts").upsert(
+      store.drafts.map((draft) => ({
+        id: draft.id,
+        collection_item_id: draft.collectionItemId,
+        source: draft.source,
+        barcode: draft.barcode ?? null,
+        raw_ai_response: draft.rawAiResponse ?? {},
+        expression: draft.expression ?? { name: "Unknown", tags: [], tastingNotes: [] },
+        collection: draft.collection ?? {}
+      })),
+      { onConflict: "id" }
+    ),
+    supabase.from("tasting_people").upsert(
+      (store.tastingPeople ?? []).map((person) => ({
+        id: person.id,
+        name: person.name,
+        relationship_type: person.relationshipType,
+        preference_tags: person.preferenceTags,
+        notes: person.notes ?? null,
+        created_at: person.createdAt,
+        updated_at: person.updatedAt
+      })),
+      { onConflict: "id" }
+    ),
+    supabase.from("tasting_groups").upsert(
+      (store.tastingGroups ?? []).map((group) => ({
+        id: group.id,
+        name: group.name,
+        notes: group.notes ?? null,
+        created_at: group.createdAt,
+        updated_at: group.updatedAt
+      })),
+      { onConflict: "id" }
+    ),
+    supabase.from("tasting_places").upsert(
+      (store.tastingPlaces ?? []).map((place) => ({
+        id: place.id,
+        name: place.name,
+        notes: place.notes ?? null,
+        created_at: place.createdAt,
+        updated_at: place.updatedAt
+      })),
+      { onConflict: "id" }
+    ),
+  ]);
+  throwIfError(wave1);
 
-  const imagesUpsert = await supabase.from("item_images").upsert(
-    store.itemImages.map((img) => ({
-      id: img.id,
-      collection_item_id: img.collectionItemId,
-      kind: img.kind,
-      url: img.url,
-      label: img.label ?? null
-    })),
-    { onConflict: "id" }
-  );
-  if (imagesUpsert.error) throw imagesUpsert.error;
-
-  const draftsUpsert = await supabase.from("intake_drafts").upsert(
-    store.drafts.map((draft) => ({
-      id: draft.id,
-      collection_item_id: draft.collectionItemId,
-      source: draft.source,
-      barcode: draft.barcode ?? null,
-      raw_ai_response: draft.rawAiResponse ?? {},
-      expression: draft.expression ?? { name: "Unknown", tags: [], tastingNotes: [] },
-      collection: draft.collection ?? {}
-    })),
-    { onConflict: "id" }
-  );
-  if (draftsUpsert.error) throw draftsUpsert.error;
-
-  const tastingPeopleUpsert = await supabase.from("tasting_people").upsert(
-    (store.tastingPeople ?? []).map((person) => ({
-      id: person.id,
-      name: person.name,
-      relationship_type: person.relationshipType,
-      preference_tags: person.preferenceTags,
-      notes: person.notes ?? null,
-      created_at: person.createdAt,
-      updated_at: person.updatedAt
-    })),
-    { onConflict: "id" }
-  );
-  if (tastingPeopleUpsert.error) throw tastingPeopleUpsert.error;
-
-  const tastingGroupsUpsert = await supabase.from("tasting_groups").upsert(
-    (store.tastingGroups ?? []).map((group) => ({
-      id: group.id,
-      name: group.name,
-      notes: group.notes ?? null,
-      created_at: group.createdAt,
-      updated_at: group.updatedAt
-    })),
-    { onConflict: "id" }
-  );
-  if (tastingGroupsUpsert.error) throw tastingGroupsUpsert.error;
-
+  // Wave 2: tables that depend on wave 1
   const groupMemberRows = buildGroupMemberRows(store);
-  const tastingGroupMembersUpsert = await supabase.from("tasting_group_members").upsert(
-    groupMemberRows,
-    { onConflict: "id" }
-  );
-  if (tastingGroupMembersUpsert.error) throw tastingGroupMembersUpsert.error;
+  const wave2 = await Promise.all([
+    supabase.from("collection_items").upsert(
+      store.collectionItems.map((item) => ({
+        id: item.id,
+        expression_id: item.expressionId,
+        status: item.status,
+        fill_state: item.fillState,
+        purchase_price: item.purchasePrice ?? null,
+        purchase_currency: item.purchaseCurrency,
+        purchase_date: item.purchaseDate ?? null,
+        purchase_source: item.purchaseSource ?? null,
+        personal_notes: item.personalNotes ?? null,
+        rating: item.rating ?? null,
+        is_favorite: item.isFavorite ?? false,
+        created_at: item.createdAt,
+        updated_at: item.updatedAt
+      })),
+      { onConflict: "id" }
+    ),
+    supabase.from("expression_flavor_profiles").upsert(
+      store.expressionFlavorProfiles.map((profile) => ({
+        id: profile.id,
+        expression_id: profile.expressionId,
+        pillars: profile.pillars,
+        top_notes: profile.topNotes,
+        confidence: profile.confidence,
+        evidence_count: profile.evidenceCount,
+        explanation: profile.explanation,
+        scoring_version: profile.scoringVersion,
+        model_version: profile.modelVersion,
+        generated_at: profile.generatedAt,
+        stale_at: profile.staleAt ?? null,
+        created_at: profile.createdAt,
+        updated_at: profile.updatedAt
+      })),
+      { onConflict: "id" }
+    ),
+    supabase.from("tasting_group_members").upsert(groupMemberRows, { onConflict: "id" }),
+    supabase.from("tasting_sessions").upsert(
+      (store.tastingSessions ?? []).map((session) => ({
+        id: session.id,
+        title: session.title ?? null,
+        occasion_type: session.occasionType,
+        session_date: session.sessionDate,
+        place_id: session.placeId ?? null,
+        group_id: session.groupId ?? null,
+        notes: session.notes ?? null,
+        created_at: session.createdAt,
+        updated_at: session.updatedAt
+      })),
+      { onConflict: "id" }
+    ),
+  ]);
+  throwIfError(wave2);
 
-  const tastingPlacesUpsert = await supabase.from("tasting_places").upsert(
-    (store.tastingPlaces ?? []).map((place) => ({
-      id: place.id,
-      name: place.name,
-      notes: place.notes ?? null,
-      created_at: place.createdAt,
-      updated_at: place.updatedAt
-    })),
-    { onConflict: "id" }
-  );
-  if (tastingPlacesUpsert.error) throw tastingPlacesUpsert.error;
+  // Wave 3: tables that depend on wave 2
+  const wave3 = await Promise.all([
+    supabase.from("item_images").upsert(
+      store.itemImages.map((img) => ({
+        id: img.id,
+        collection_item_id: img.collectionItemId,
+        kind: img.kind,
+        url: img.url,
+        label: img.label ?? null
+      })),
+      { onConflict: "id" }
+    ),
+    supabase.from("tasting_session_attendees").upsert(
+      (store.tastingSessionAttendees ?? []).map((attendee) => ({
+        id: attendee.id,
+        session_id: attendee.sessionId,
+        person_id: attendee.personId
+      })),
+      { onConflict: "id" }
+    ),
+    supabase.from("tasting_session_bottles").upsert(
+      (store.tastingSessionBottles ?? []).map((bottle) => ({
+        id: bottle.id,
+        session_id: bottle.sessionId,
+        collection_item_id: bottle.collectionItemId
+      })),
+      { onConflict: "id" }
+    ),
+  ]);
+  throwIfError(wave3);
 
-  const tastingSessionsUpsert = await supabase.from("tasting_sessions").upsert(
-    (store.tastingSessions ?? []).map((session) => ({
-      id: session.id,
-      title: session.title ?? null,
-      occasion_type: session.occasionType,
-      session_date: session.sessionDate,
-      place_id: session.placeId ?? null,
-      group_id: session.groupId ?? null,
-      notes: session.notes ?? null,
-      created_at: session.createdAt,
-      updated_at: session.updatedAt
-    })),
-    { onConflict: "id" }
-  );
-  if (tastingSessionsUpsert.error) throw tastingSessionsUpsert.error;
+  // Delete wave 1: leaf tables (no dependents)
+  await Promise.all([
+    deleteRowsNotInIds(supabase, "tasting_session_bottles", (store.tastingSessionBottles ?? []).map((e) => e.id)),
+    deleteRowsNotInIds(supabase, "tasting_session_attendees", (store.tastingSessionAttendees ?? []).map((e) => e.id)),
+    deleteRowsNotInIds(supabase, "tasting_group_members", groupMemberRows.map((e) => e.id)),
+    deleteRowsNotInIds(supabase, "item_images", store.itemImages.map((e) => e.id)),
+    deleteRowsNotInIds(supabase, "expression_flavor_profiles", store.expressionFlavorProfiles.map((e) => e.id)),
+    deleteRowsNotInIds(supabase, "intake_drafts", store.drafts.map((e) => e.id)),
+  ]);
 
-  const tastingSessionAttendeesUpsert = await supabase.from("tasting_session_attendees").upsert(
-    (store.tastingSessionAttendees ?? []).map((attendee) => ({
-      id: attendee.id,
-      session_id: attendee.sessionId,
-      person_id: attendee.personId
-    })),
-    { onConflict: "id" }
-  );
-  if (tastingSessionAttendeesUpsert.error) throw tastingSessionAttendeesUpsert.error;
+  // Delete wave 2: mid-level tables
+  await Promise.all([
+    deleteRowsNotInIds(supabase, "tasting_sessions", (store.tastingSessions ?? []).map((e) => e.id)),
+    deleteRowsNotInIds(supabase, "tasting_people", (store.tastingPeople ?? []).map((e) => e.id)),
+    deleteRowsNotInIds(supabase, "tasting_groups", (store.tastingGroups ?? []).map((e) => e.id)),
+    deleteRowsNotInIds(supabase, "tasting_places", (store.tastingPlaces ?? []).map((e) => e.id)),
+    deleteRowsNotInIds(supabase, "collection_items", store.collectionItems.map((e) => e.id)),
+  ]);
 
-  const tastingSessionBottlesUpsert = await supabase.from("tasting_session_bottles").upsert(
-    (store.tastingSessionBottles ?? []).map((bottle) => ({
-      id: bottle.id,
-      session_id: bottle.sessionId,
-      collection_item_id: bottle.collectionItemId
-    })),
-    { onConflict: "id" }
-  );
-  if (tastingSessionBottlesUpsert.error) throw tastingSessionBottlesUpsert.error;
-
-  const expressionFlavorProfilesUpsert = await supabase.from("expression_flavor_profiles").upsert(
-    store.expressionFlavorProfiles.map((profile) => ({
-      id: profile.id,
-      expression_id: profile.expressionId,
-      pillars: profile.pillars,
-      top_notes: profile.topNotes,
-      confidence: profile.confidence,
-      evidence_count: profile.evidenceCount,
-      explanation: profile.explanation,
-      scoring_version: profile.scoringVersion,
-      model_version: profile.modelVersion,
-      generated_at: profile.generatedAt,
-      stale_at: profile.staleAt ?? null,
-      created_at: profile.createdAt,
-      updated_at: profile.updatedAt
-    })),
-    { onConflict: "id" }
-  );
-  if (expressionFlavorProfilesUpsert.error) throw expressionFlavorProfilesUpsert.error;
-
-  await deleteRowsNotInIds(
-    supabase,
-    "tasting_session_bottles",
-    (store.tastingSessionBottles ?? []).map((entry) => entry.id)
-  );
-  await deleteRowsNotInIds(
-    supabase,
-    "tasting_session_attendees",
-    (store.tastingSessionAttendees ?? []).map((entry) => entry.id)
-  );
-  await deleteRowsNotInIds(
-    supabase,
-    "tasting_sessions",
-    (store.tastingSessions ?? []).map((entry) => entry.id)
-  );
-  await deleteRowsNotInIds(supabase, "tasting_group_members", groupMemberRows.map((entry) => entry.id));
-  await deleteRowsNotInIds(
-    supabase,
-    "tasting_places",
-    (store.tastingPlaces ?? []).map((entry) => entry.id)
-  );
-  await deleteRowsNotInIds(
-    supabase,
-    "tasting_groups",
-    (store.tastingGroups ?? []).map((entry) => entry.id)
-  );
-  await deleteRowsNotInIds(
-    supabase,
-    "tasting_people",
-    (store.tastingPeople ?? []).map((entry) => entry.id)
-  );
-  await deleteRowsNotInIds(supabase, "intake_drafts", store.drafts.map((draft) => draft.id));
-  await deleteRowsNotInIds(supabase, "item_images", store.itemImages.map((img) => img.id));
-  await deleteRowsNotInIds(
-    supabase,
-    "expression_flavor_profiles",
-    store.expressionFlavorProfiles.map((profile) => profile.id)
-  );
-  await deleteRowsNotInIds(
-    supabase,
-    "collection_items",
-    store.collectionItems.map((item) => item.id)
-  );
-  await deleteRowsNotInIds(supabase, "expressions", store.expressions.map((expression) => expression.id));
+  // Delete wave 3: root tables
+  await Promise.all([
+    deleteRowsNotInIds(supabase, "expressions", store.expressions.map((e) => e.id)),
+  ]);
 }
