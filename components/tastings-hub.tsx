@@ -11,7 +11,6 @@ import { useRouter } from "next/navigation";
 import { getBottleDisplayImage } from "@/lib/bottle-image";
 import type { Briefing } from "@/lib/types";
 import { formatBriefingAsMarkdown } from "@/lib/briefing-formatter";
-import { formatTagLabel } from "@/lib/tags";
 import type {
   CollectionViewItem,
   RelationshipType,
@@ -184,19 +183,6 @@ function getBottleSubline(entry: CollectionViewItem) {
     .join(" / ");
 }
 
-function getBottleFactLine(entry: CollectionViewItem) {
-  return [
-    typeof entry.expression.abv === "number" ? `${entry.expression.abv}% ABV` : null,
-    typeof entry.expression.ageStatement === "number" ? `${entry.expression.ageStatement}yo` : null,
-    entry.expression.country
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}
-
-function getBottleHighlightTags(entry: CollectionViewItem) {
-  return [...new Set(entry.expression.tags.map((tag) => formatTagLabel(tag)))].slice(0, 2);
-}
 
 function SparkleIcon() {
   return (
