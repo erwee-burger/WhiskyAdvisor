@@ -1326,12 +1326,13 @@ textarea {
 .fcp-scroll-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  margin: 0 -4px;
+  padding: 0 4px;
 }
 
 .fcp-grid {
   display: grid;
   gap: 0;
-  min-width: 320px;
 }
 
 .fcp-corner {
@@ -1343,6 +1344,8 @@ textarea {
   gap: 6px;
   padding: 0 8px 16px;
   border-bottom: 1px solid rgba(255, 225, 190, 0.1);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .fcp-bottle-image-wrap {
@@ -1363,18 +1366,22 @@ textarea {
 .fcp-bottle-meta {
   display: grid;
   gap: 2px;
+  min-width: 0;
 }
 
 .fcp-bottle-name {
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   line-height: 1.35;
   color: var(--text);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .fcp-bottle-subline {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: rgba(248, 238, 223, 0.54);
+  overflow-wrap: break-word;
 }
 
 .fcp-note-chips {
@@ -1407,8 +1414,9 @@ textarea {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 8px;
+  padding: 8px;
   border-bottom: 1px solid rgba(255, 225, 190, 0.05);
+  min-width: 0;
 }
 
 .fcp-bar-track {

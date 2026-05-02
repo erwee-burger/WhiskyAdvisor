@@ -93,7 +93,7 @@ export function FlavorComparisonGrid({ bottles }: { bottles: CollectionViewItem[
     <div className="fcp-scroll-wrap">
       <div
         className="fcp-grid"
-        style={{ gridTemplateColumns: `72px repeat(${cols}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `72px repeat(${cols}, 160px)` }}
       >
         {cells}
       </div>
