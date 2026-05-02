@@ -255,6 +255,59 @@ export function TastingChat({ availableBottles, onApply }: TastingChatProps) {
           ))}
         </div>
 
+        <div className="tasting-chat__tags">
+          <div className="tasting-chat__tags-header">
+            <strong>Tagged bottles ({taggedBottleIds.length})</strong>
+            {taggedBottleIds.length > 0 ? (
+              <button className="button-subtle" onClick={() => setTaggedBottleIds([])} type="button">Clear</button>
+            ) : null}
+          </div>
+          <input
+            className="bottle-chat__input tasting-chat__tag-search"
+            onChange={(event) => setTagQuery(event.target.value)}
+            placeholder="Search by bottle name..."
+            value={tagQuery}
+          />
+          {taggedBottleIds.length > 0 ? (
+            <div className="tasting-chat__tag-list tasting-chat__tag-list--selected">
+              {taggedBottleIds.map((itemId) => {
+                const bottle = availableBottles.find((entry) => entry.id === itemId);
+                return (
+                  <button
+                    aria-label={`Remove ${bottle?.name ?? itemId} from tagged bottles`}
+                    className="bottle-chat__chip tasting-chat__chip-active"
+                    key={itemId}
+                    onClick={() => toggleTaggedBottle(itemId)}
+                    type="button"
+                  >
+                    {bottle?.name ?? itemId} ×
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="tasting-chat__hint">Tag one or more bottles to focus the advisor.</p>
+          )}
+          <div className="tasting-chat__tag-list tasting-chat__tag-list--results">
+            {filteredTagResults.map((entry) => (
+              <button
+                aria-pressed={taggedBottleIds.includes(entry.id)}
+                className={`bottle-chat__chip${taggedBottleIds.includes(entry.id) ? " tasting-chat__chip-active" : ""}`}
+                key={entry.id}
+                onClick={() => toggleTaggedBottle(entry.id)}
+                type="button"
+              >
+                {taggedBottleIds.includes(entry.id) ? "✓ " : ""}{entry.name}
+              </button>
+            ))}
+          </div>
+          {taggedBottleIds.length > 0 ? (
+            <button className="button tasting-chat__apply" onClick={() => onApply(taggedBottleIds)} type="button">
+              Apply tagged bottles ({taggedBottleIds.length})
+            </button>
+          ) : null}
+        </div>
+
         <form className="bottle-chat__input-row" onSubmit={handleSubmit}>
           <input
             ref={inputRef}
@@ -274,49 +327,6 @@ export function TastingChat({ availableBottles, onApply }: TastingChatProps) {
             Send
           </button>
         </form>
-        <div className="tasting-chat__tags">
-          <div className="tasting-chat__tags-header">
-            <strong>Tagged bottles</strong>
-            {taggedBottleIds.length > 0 ? (
-              <button className="button-subtle" onClick={() => setTaggedBottleIds([])} type="button">Clear</button>
-            ) : null}
-          </div>
-          <input
-            className="bottle-chat__input"
-            onChange={(event) => setTagQuery(event.target.value)}
-            placeholder="Find and tag bottles..."
-            value={tagQuery}
-          />
-          {taggedBottleIds.length > 0 ? (
-            <div className="tasting-chat__tag-list">
-              {taggedBottleIds.map((itemId) => {
-                const bottle = availableBottles.find((entry) => entry.id === itemId);
-                return (
-                  <button className="bottle-chat__chip" key={itemId} onClick={() => toggleTaggedBottle(itemId)} type="button">
-                    {bottle?.name ?? itemId} ×
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-          <div className="tasting-chat__tag-list">
-            {filteredTagResults.map((entry) => (
-              <button
-                className="bottle-chat__chip"
-                key={entry.id}
-                onClick={() => toggleTaggedBottle(entry.id)}
-                type="button"
-              >
-                {taggedBottleIds.includes(entry.id) ? "✓ " : ""}{entry.name}
-              </button>
-            ))}
-          </div>
-          {taggedBottleIds.length > 0 ? (
-            <button className="button tasting-chat__apply" onClick={() => onApply(taggedBottleIds)} type="button">
-              Apply tagged bottles ({taggedBottleIds.length})
-            </button>
-          ) : null}
-        </div>
       </div>
     </>
   );

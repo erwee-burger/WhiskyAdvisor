@@ -4566,10 +4566,11 @@ td {
 
 .tasting-chat__tags {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  margin-top: 8px;
-  padding-top: 10px;
+  margin: 4px 12px 0;
+  padding-top: 12px;
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .tasting-chat__tags-header {
@@ -4581,5 +4582,33 @@ td {
 .tasting-chat__tag-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
+}
+
+.tasting-chat__tag-list--selected {
+  max-height: 76px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.tasting-chat__tag-list--results {
+  max-height: 120px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.tasting-chat__tag-search {
+  width: 100%;
+}
+
+.tasting-chat__chip-active {
+  background: rgba(212, 157, 69, 0.18);
+  border-color: rgba(212, 157, 69, 0.62);
+  color: var(--text, #f3e9d8);
+}
+
+.tasting-chat__hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: rgba(243, 233, 216, 0.62);
 }
