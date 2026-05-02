@@ -841,6 +841,10 @@ export function TastingsHub({
       </section>
 
       <TastingChat
+        availableBottles={availableBottles.map((entry) => ({
+          id: entry.item.id,
+          name: toBottleOptionLabel(entry)
+        }))}
         onApply={(bottleItemIds) => {
           setSessionForm((current) => ({ ...current, bottleItemIds }));
           openSectionAndScroll("log-session", setSessionOpen);

@@ -4563,3 +4563,23 @@ td {
   margin-top: 10px;
   font-size: 0.85rem;
 }
+
+.tasting-chat__tags {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 8px;
+  padding-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.tasting-chat__tags-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tasting-chat__tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

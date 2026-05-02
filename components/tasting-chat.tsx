@@ -73,13 +73,16 @@ function getTextContent(part: unknown): string {
 }
 
 interface TastingChatProps {
+  availableBottles: BottleSuggestion[];
   onApply: (bottleIds: string[]) => void;
 }
 
-export function TastingChat({ onApply }: TastingChatProps) {
+export function TastingChat({ availableBottles, onApply }: TastingChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [chips, setChips] = useState<string[]>(DEFAULT_CHIPS);
   const [input, setInput] = useState("");
+  const [tagQuery, setTagQuery] = useState("");
+  const [taggedBottleIds, setTaggedBottleIds] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -118,15 +121,38 @@ export function TastingChat({ onApply }: TastingChatProps) {
   }, [messages]);
 
   function handleChip(chip: string) {
-    sendMessage({ parts: [{ type: "text", text: chip }] });
+    sendMessage({
+      parts: [{ type: "text", text: chip }],
+      metadata: { taggedBottleIds }
+    });
   }
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!input.trim()) return;
-    sendMessage({ parts: [{ type: "text", text: input }] });
+    sendMessage({
+      parts: [{ type: "text", text: input }],
+      metadata: { taggedBottleIds }
+    });
     setInput("");
   }
+
+  function toggleTaggedBottle(itemId: string) {
+    setTaggedBottleIds((current) =>
+      current.includes(itemId)
+        ? current.filter((entry) => entry !== itemId)
+        : [...current, itemId]
+    );
+  }
+
+  const normalizedTagQuery = tagQuery.trim().toLowerCase();
+  const filteredTagResults = availableBottles
+    .filter((entry) =>
+      normalizedTagQuery.length === 0
+        ? true
+        : entry.name.toLowerCase().includes(normalizedTagQuery)
+    )
+    .slice(0, normalizedTagQuery ? 8 : 6);
 
   const displayMessages = messages.filter((m) => {
     const t = m.parts.find((p) => p.type === "text");
@@ -248,6 +274,49 @@ export function TastingChat({ onApply }: TastingChatProps) {
             Send
           </button>
         </form>
+        <div className="tasting-chat__tags">
+          <div className="tasting-chat__tags-header">
+            <strong>Tagged bottles</strong>
+            {taggedBottleIds.length > 0 ? (
+              <button className="button-subtle" onClick={() => setTaggedBottleIds([])} type="button">Clear</button>
+            ) : null}
+          </div>
+          <input
+            className="bottle-chat__input"
+            onChange={(event) => setTagQuery(event.target.value)}
+            placeholder="Find and tag bottles..."
+            value={tagQuery}
+          />
+          {taggedBottleIds.length > 0 ? (
+            <div className="tasting-chat__tag-list">
+              {taggedBottleIds.map((itemId) => {
+                const bottle = availableBottles.find((entry) => entry.id === itemId);
+                return (
+                  <button className="bottle-chat__chip" key={itemId} onClick={() => toggleTaggedBottle(itemId)} type="button">
+                    {bottle?.name ?? itemId} ×
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+          <div className="tasting-chat__tag-list">
+            {filteredTagResults.map((entry) => (
+              <button
+                className="bottle-chat__chip"
+                key={entry.id}
+                onClick={() => toggleTaggedBottle(entry.id)}
+                type="button"
+              >
+                {taggedBottleIds.includes(entry.id) ? "✓ " : ""}{entry.name}
+              </button>
+            ))}
+          </div>
+          {taggedBottleIds.length > 0 ? (
+            <button className="button tasting-chat__apply" onClick={() => onApply(taggedBottleIds)} type="button">
+              Apply tagged bottles ({taggedBottleIds.length})
+            </button>
+          ) : null}
+        </div>
       </div>
     </>
   );
