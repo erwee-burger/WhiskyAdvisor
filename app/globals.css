@@ -4563,3 +4563,86 @@ td {
   margin-top: 10px;
   font-size: 0.85rem;
 }
+
+.tasting-chat__tags {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 4px 12px 0;
+  padding-top: 12px;
+  display: grid;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.tasting-chat__tags-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tasting-chat__collapse {
+  border: none;
+  background: transparent;
+  color: var(--text, #f3e9d8);
+  font-size: 0.96rem;
+  font-weight: 600;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tasting-chat__tags-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.tasting-chat__tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tasting-chat__tag-list--selected {
+  max-height: 76px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.tasting-chat__tag-list--results {
+  max-height: 96px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.tasting-chat__tag-search {
+  width: 100%;
+}
+
+.tasting-chat__chip-active {
+  background: rgba(212, 157, 69, 0.18);
+  border-color: rgba(212, 157, 69, 0.62);
+  color: var(--text, #f3e9d8);
+}
+
+.tasting-chat__hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: rgba(243, 233, 216, 0.62);
+}
+
+@media (max-width: 640px) {
+  .tasting-chat__tags {
+    margin: 2px 10px 0;
+    gap: 8px;
+  }
+
+  .tasting-chat__tag-list--selected {
+    max-height: 64px;
+  }
+
+  .tasting-chat__tag-list--results {
+    max-height: 74px;
+  }
+}

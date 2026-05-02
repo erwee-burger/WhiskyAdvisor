@@ -38,6 +38,31 @@ export async function POST(req: Request) {
       ]);
 
       const { collection, profile } = dashboard;
+      const latestUserMessageWithTags = [...uiMessages]
+        .reverse()
+        .find((message) =>
+          typeof message === "object" &&
+          message &&
+          (message as Record<string, unknown>).role !== "assistant" &&
+          "metadata" in (message as Record<string, unknown>)
+        ) as Record<string, unknown> | undefined;
+
+      const latestMetadata = latestUserMessageWithTags?.metadata;
+      const taggedBottleIds = Array.isArray(
+        latestMetadata && typeof latestMetadata === "object"
+          ? (latestMetadata as Record<string, unknown>).taggedBottleIds
+          : undefined
+      )
+        ? [...new Set((latestMetadata as Record<string, unknown>).taggedBottleIds as unknown[])]
+          .filter((id): id is string => typeof id === "string")
+        : [];
+      const taggedBottleLines = taggedBottleIds
+        .map((id) => collection.find((item) => item.item.id === id))
+        .filter((item): item is (typeof collection)[number] => Boolean(item))
+        .map((item) => `- [id:${item.item.id}] ${item.expression.name}`);
+      const taggedBottlesBlock = taggedBottleLines.length > 0
+        ? `TAGGED BOTTLES (user-selected focus):\n${taggedBottleLines.join("\n")}`
+        : "TAGGED BOTTLES: none";
 
       const systemPrompt = `You are a tasting session advisor for a private whisky collection.
 
@@ -49,7 +74,10 @@ ${buildTastingBottleContext(collection)}
 
 ${buildRecentTastingSessionsBlock(recentSessions)}
 
+${taggedBottlesBlock}
+
 RULES:
+- If TAGGED BOTTLES are provided and the user asks about tagged bottles, prioritize those bottles in recommendations and pairing guidance.
 - Only suggest bottles from the AVAILABLE BOTTLES list above using their exact [id:...] identifiers.
 - When suggesting bottles for a session, format each bottle as:
   ### Bottle Name
