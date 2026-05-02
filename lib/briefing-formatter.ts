@@ -1,13 +1,5 @@
-export interface Briefing {
-  tastingOrder: Array<{ bottleName: string; reason: string }>;
-  bottleProfiles: Array<{
-    bottleName: string;
-    keyNotes: string[];
-    watchFor: string;
-    background: string;
-  }>;
-  tips: string[];
-}
+import type { Briefing } from "@/lib/types";
+export type { Briefing } from "@/lib/types";
 
 type ParsedBottleDescriptor = {
   name: string;

@@ -9,9 +9,8 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { getBottleDisplayImage } from "@/lib/bottle-image";
-import type { Briefing } from "@/lib/briefing-formatter";
+import type { Briefing } from "@/lib/types";
 import { formatBriefingAsMarkdown } from "@/lib/briefing-formatter";
-import { formatTagLabel } from "@/lib/tags";
 import type {
   CollectionViewItem,
   RelationshipType,
@@ -20,6 +19,8 @@ import type {
   TastingPlace,
   TastingSessionView
 } from "@/lib/types";
+import { FlavorComparisonGrid } from "@/components/flavor-comparison-grid";
+import { SessionBriefing } from "@/components/session-briefing";
 import { formatDate, readResponseMessage } from "@/lib/utils";
 import { TastingChat } from "@/components/tasting-chat";
 
@@ -48,6 +49,7 @@ type SessionForm = {
   groupId: string;
   placeId: string;
   notes: string;
+  briefingData?: Briefing;
 };
 
 type PersonForm = {
@@ -181,18 +183,21 @@ function getBottleSubline(entry: CollectionViewItem) {
     .join(" / ");
 }
 
-function getBottleFactLine(entry: CollectionViewItem) {
-  return [
-    typeof entry.expression.abv === "number" ? `${entry.expression.abv}% ABV` : null,
-    typeof entry.expression.ageStatement === "number" ? `${entry.expression.ageStatement}yo` : null,
-    entry.expression.country
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}
-
-function getBottleHighlightTags(entry: CollectionViewItem) {
-  return [...new Set(entry.expression.tags.map((tag) => formatTagLabel(tag)))].slice(0, 2);
+function sortBottlesByTastingOrder(
+  bottles: CollectionViewItem[],
+  tastingOrder?: Array<{ bottleName: string; reason: string }>
+) {
+  if (!tastingOrder || tastingOrder.length === 0) return bottles;
+  return [...bottles].sort((a, b) => {
+    const normalize = (s: string) => s.toLowerCase().trim();
+    const aName = normalize(a.expression.name);
+    const bName = normalize(b.expression.name);
+    const aIdx = tastingOrder.findIndex((e) => normalize(e.bottleName).includes(aName) || aName.includes(normalize(e.bottleName)));
+    const bIdx = tastingOrder.findIndex((e) => normalize(e.bottleName).includes(bName) || bName.includes(normalize(e.bottleName)));
+    const aPos = aIdx === -1 ? bottles.length : aIdx;
+    const bPos = bIdx === -1 ? bottles.length : bIdx;
+    return aPos - bPos;
+  });
 }
 
 function SparkleIcon() {
@@ -305,12 +310,15 @@ export function TastingsHub({
     }
 
     for (const sessionView of recentSessions) {
+      const isEditingThisSession = editingSessionId === sessionView.session.id;
       for (const bottle of sessionView.bottles) {
         if (!optionsById.has(bottle.item.id)) {
           optionsById.set(bottle.item.id, {
             itemId: bottle.item.id,
             label: toBottleOptionLabel(bottle),
-            available: availableBottleIds.has(bottle.item.id)
+            // Bottles already in the session being edited stay available — they
+            // were shareable when the session was created, even if finished since.
+            available: isEditingThisSession || availableBottleIds.has(bottle.item.id)
           });
         }
 
@@ -335,7 +343,7 @@ export function TastingsHub({
       sessionBottleOptionsById: optionsById,
       sessionBottleEntriesById: entriesById
     };
-  }, [availableBottles, availableBottleIds, recentSessions, sessionForm.bottleItemIds]);
+  }, [availableBottles, availableBottleIds, recentSessions, sessionForm.bottleItemIds, editingSessionId]);
 
   const filteredBottleResults = useMemo(() => {
     const normalized = sessionBottleQuery.trim().toLowerCase();
@@ -388,6 +396,7 @@ export function TastingsHub({
       const selected = current.bottleItemIds.includes(itemId);
       return {
         ...current,
+        briefingData: undefined,
         bottleItemIds: selected
           ? current.bottleItemIds.filter((entry) => entry !== itemId)
           : [...current.bottleItemIds, itemId]
@@ -438,7 +447,8 @@ export function TastingsHub({
       setSessionForm((current) => ({
         ...current,
         title: current.title || data.suggestedName,
-        notes: formatBriefingAsMarkdown(data.briefing)
+        notes: formatBriefingAsMarkdown(data.briefing),
+        briefingData: data.briefing
       }));
 
       setNotice({ tone: "success", text: "Briefing generated. Review and edit before saving." });
@@ -544,7 +554,8 @@ export function TastingsHub({
       attendeePersonIds: sessionView.attendees.map((entry) => entry.id),
       groupId: sessionView.group?.id ?? "",
       placeId: sessionView.place?.id ?? "",
-      notes: sessionView.session.notes ?? ""
+      notes: sessionView.session.notes ?? "",
+      briefingData: sessionView.session.briefingData
     });
     setNotice({
       tone: "info",
@@ -1379,42 +1390,16 @@ export function TastingsHub({
                       </div>
 
                       <section className="recent-session-detail-block">
-                        <h4>Bottles</h4>
-                        <div className="recent-session-bottle-grid">
-                          {sessionView.bottles.map((entry) => (
-                            <article className="recent-session-bottle-card" key={entry.item.id}>
-                              <div className="recent-session-bottle-image">
-                                <Image
-                                  alt={`${entry.expression.name} bottle`}
-                                  className="recent-session-bottle-cutout"
-                                  height={96}
-                                  src={getBottleImage(entry)}
-                                  unoptimized
-                                  width={58}
-                                />
-                              </div>
-                              <div className="recent-session-bottle-copy">
-                                <strong className="recent-session-bottle-name">{entry.expression.name}</strong>
-                                <p className="recent-session-bottle-subline">{getBottleSubline(entry) || "Bottle from your collection"}</p>
-                                {getBottleFactLine(entry) ? (
-                                  <p className="recent-session-bottle-facts">{getBottleFactLine(entry)}</p>
-                                ) : null}
-                                <div className="pill-row recent-session-bottle-pill-row">
-                                  <span className="pill">{entry.item.fillState}</span>
-                                  <span className="pill">{entry.item.status}</span>
-                                  {getBottleHighlightTags(entry).map((tag) => (
-                                    <span className="pill recent-session-bottle-tag" key={`${entry.item.id}-${tag}`}>
-                                      {tag}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            </article>
-                          ))}
-                        </div>
+                        <h4>Lineup</h4>
+                        <FlavorComparisonGrid bottles={sortBottlesByTastingOrder(sessionView.bottles, sessionView.session.briefingData?.tastingOrder)} />
                       </section>
 
-                      {sessionView.session.notes ? (
+                      {sessionView.session.briefingData ? (
+                        <section className="recent-session-detail-block">
+                          <h4>Briefing</h4>
+                          <SessionBriefing briefing={sessionView.session.briefingData} />
+                        </section>
+                      ) : sessionView.session.notes ? (
                         <section className="recent-session-detail-block">
                           <h4>Notes</h4>
                           <div className="recent-session-notes-scroll">

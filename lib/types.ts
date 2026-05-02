@@ -107,6 +107,17 @@ export interface TastingPlace {
   updatedAt: string;
 }
 
+export interface Briefing {
+  tastingOrder: Array<{ bottleName: string; reason: string }>;
+  bottleProfiles: Array<{
+    bottleName: string;
+    keyNotes: string[];
+    watchFor: string;
+    background: string;
+  }>;
+  tips: string[];
+}
+
 export interface TastingSession {
   id: string;
   title?: string;
@@ -115,6 +126,7 @@ export interface TastingSession {
   placeId?: string;
   groupId?: string;
   notes?: string;
+  briefingData?: Briefing;
   createdAt: string;
   updatedAt: string;
 }

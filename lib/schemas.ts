@@ -174,6 +174,26 @@ export const tastingPlaceSchema = z
   })
   .strip();
 
+const briefingOrderEntrySchema = z.object({
+  bottleName: z.string(),
+  reason: z.string()
+});
+
+const briefingBottleProfileSchema = z.object({
+  bottleName: z.string(),
+  keyNotes: z.array(z.string()),
+  watchFor: z.string(),
+  background: z.string()
+});
+
+const briefingDataSchema = z
+  .object({
+    tastingOrder: z.array(briefingOrderEntrySchema).default([]),
+    bottleProfiles: z.array(briefingBottleProfileSchema).default([]),
+    tips: z.array(z.string()).default([])
+  })
+  .optional();
+
 export const tastingSessionSchema = z
   .object({
     title: optionalTextField,
@@ -182,6 +202,7 @@ export const tastingSessionSchema = z
     placeId: optionalTextField,
     groupId: optionalTextField,
     notes: optionalTextField,
+    briefingData: briefingDataSchema,
     attendeePersonIds: idListField.default([]),
     bottleItemIds: idListField
   })

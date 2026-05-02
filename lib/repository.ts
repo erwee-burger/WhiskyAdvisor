@@ -23,6 +23,7 @@ import type {
   OccasionType,
   RelationshipType,
   TastingGroup,
+  Briefing,
   TastingPerson,
   TastingPlace,
   TastingSession,
@@ -78,6 +79,7 @@ type TastingSessionPayload = {
   placeId?: string;
   groupId?: string;
   notes?: string;
+  briefingData?: Briefing;
   attendeePersonIds: string[];
   bottleItemIds: string[];
 };
@@ -868,6 +870,7 @@ export async function createTastingSession(payload: TastingSessionPayload) {
     placeId: payload.placeId,
     groupId: payload.groupId,
     notes: payload.notes,
+    briefingData: payload.briefingData,
     createdAt: now,
     updatedAt: now
   };
@@ -895,7 +898,18 @@ export async function updateTastingSession(sessionId: string, payload: TastingSe
     payload.attendeePersonIds,
     payload.groupId
   );
-  ensureShareableBottleIds(collection, payload.bottleItemIds);
+
+  // Only validate bottles that are newly added — existing session bottles were
+  // shareable when the session was created and don't need re-validation.
+  const existingBottleIds = new Set(
+    (store.tastingSessionBottles ?? [])
+      .filter((e) => e.sessionId === sessionId)
+      .map((e) => e.collectionItemId)
+  );
+  const newBottleIds = payload.bottleItemIds.filter((id) => !existingBottleIds.has(id));
+  if (newBottleIds.length > 0) {
+    ensureShareableBottleIds(collection, newBottleIds);
+  }
 
   store.tastingSessions[sessionIndex] = {
     ...store.tastingSessions[sessionIndex],
@@ -905,6 +919,7 @@ export async function updateTastingSession(sessionId: string, payload: TastingSe
     placeId: payload.placeId,
     groupId: payload.groupId,
     notes: payload.notes,
+    briefingData: payload.briefingData,
     updatedAt: new Date().toISOString()
   };
 
