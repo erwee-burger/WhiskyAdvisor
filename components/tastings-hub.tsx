@@ -310,12 +310,15 @@ export function TastingsHub({
     }
 
     for (const sessionView of recentSessions) {
+      const isEditingThisSession = editingSessionId === sessionView.session.id;
       for (const bottle of sessionView.bottles) {
         if (!optionsById.has(bottle.item.id)) {
           optionsById.set(bottle.item.id, {
             itemId: bottle.item.id,
             label: toBottleOptionLabel(bottle),
-            available: availableBottleIds.has(bottle.item.id)
+            // Bottles already in the session being edited stay available — they
+            // were shareable when the session was created, even if finished since.
+            available: isEditingThisSession || availableBottleIds.has(bottle.item.id)
           });
         }
 
@@ -340,7 +343,7 @@ export function TastingsHub({
       sessionBottleOptionsById: optionsById,
       sessionBottleEntriesById: entriesById
     };
-  }, [availableBottles, availableBottleIds, recentSessions, sessionForm.bottleItemIds]);
+  }, [availableBottles, availableBottleIds, recentSessions, sessionForm.bottleItemIds, editingSessionId]);
 
   const filteredBottleResults = useMemo(() => {
     const normalized = sessionBottleQuery.trim().toLowerCase();
@@ -393,6 +396,7 @@ export function TastingsHub({
       const selected = current.bottleItemIds.includes(itemId);
       return {
         ...current,
+        briefingData: undefined,
         bottleItemIds: selected
           ? current.bottleItemIds.filter((entry) => entry !== itemId)
           : [...current.bottleItemIds, itemId]

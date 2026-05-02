@@ -898,7 +898,18 @@ export async function updateTastingSession(sessionId: string, payload: TastingSe
     payload.attendeePersonIds,
     payload.groupId
   );
-  ensureShareableBottleIds(collection, payload.bottleItemIds);
+
+  // Only validate bottles that are newly added — existing session bottles were
+  // shareable when the session was created and don't need re-validation.
+  const existingBottleIds = new Set(
+    (store.tastingSessionBottles ?? [])
+      .filter((e) => e.sessionId === sessionId)
+      .map((e) => e.collectionItemId)
+  );
+  const newBottleIds = payload.bottleItemIds.filter((id) => !existingBottleIds.has(id));
+  if (newBottleIds.length > 0) {
+    ensureShareableBottleIds(collection, newBottleIds);
+  }
 
   store.tastingSessions[sessionIndex] = {
     ...store.tastingSessions[sessionIndex],
