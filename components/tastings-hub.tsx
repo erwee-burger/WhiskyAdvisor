@@ -183,6 +183,22 @@ function getBottleSubline(entry: CollectionViewItem) {
     .join(" / ");
 }
 
+function sortBottlesByTastingOrder(
+  bottles: CollectionViewItem[],
+  tastingOrder?: Array<{ bottleName: string; reason: string }>
+) {
+  if (!tastingOrder || tastingOrder.length === 0) return bottles;
+  return [...bottles].sort((a, b) => {
+    const normalize = (s: string) => s.toLowerCase().trim();
+    const aName = normalize(a.expression.name);
+    const bName = normalize(b.expression.name);
+    const aIdx = tastingOrder.findIndex((e) => normalize(e.bottleName).includes(aName) || aName.includes(normalize(e.bottleName)));
+    const bIdx = tastingOrder.findIndex((e) => normalize(e.bottleName).includes(bName) || bName.includes(normalize(e.bottleName)));
+    const aPos = aIdx === -1 ? bottles.length : aIdx;
+    const bPos = bIdx === -1 ? bottles.length : bIdx;
+    return aPos - bPos;
+  });
+}
 
 function SparkleIcon() {
   return (
@@ -1371,7 +1387,7 @@ export function TastingsHub({
 
                       <section className="recent-session-detail-block">
                         <h4>Lineup</h4>
-                        <FlavorComparisonGrid bottles={sessionView.bottles} />
+                        <FlavorComparisonGrid bottles={sortBottlesByTastingOrder(sessionView.bottles, sessionView.session.briefingData?.tastingOrder)} />
                       </section>
 
                       {sessionView.session.briefingData ? (
