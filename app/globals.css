@@ -4577,6 +4577,25 @@ td {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+}
+
+.tasting-chat__collapse {
+  border: none;
+  background: transparent;
+  color: var(--text, #f3e9d8);
+  font-size: 0.96rem;
+  font-weight: 600;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tasting-chat__tags-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .tasting-chat__tag-list {
@@ -4592,7 +4611,7 @@ td {
 }
 
 .tasting-chat__tag-list--results {
-  max-height: 120px;
+  max-height: 96px;
   overflow-y: auto;
   padding-right: 2px;
 }
@@ -4611,4 +4630,19 @@ td {
   margin: 0;
   font-size: 0.82rem;
   color: rgba(243, 233, 216, 0.62);
+}
+
+@media (max-width: 640px) {
+  .tasting-chat__tags {
+    margin: 2px 10px 0;
+    gap: 8px;
+  }
+
+  .tasting-chat__tag-list--selected {
+    max-height: 64px;
+  }
+
+  .tasting-chat__tag-list--results {
+    max-height: 74px;
+  }
 }
