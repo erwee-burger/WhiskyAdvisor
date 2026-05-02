@@ -8,6 +8,7 @@ import {
   writeStoreToSupabase
 } from "@/lib/supabase-store";
 import type {
+  Briefing,
   CollectionItem,
   Expression,
   IntakeDraft,
@@ -194,6 +195,10 @@ function normalizeStore(store: WhiskyStore): WhiskyStore {
         placeId: typeof entry.placeId === "string" ? entry.placeId : undefined,
         groupId: typeof entry.groupId === "string" ? entry.groupId : undefined,
         notes: typeof entry.notes === "string" ? entry.notes : undefined,
+        briefingData:
+          entry.briefingData && typeof entry.briefingData === "object" && !Array.isArray(entry.briefingData)
+            ? (entry.briefingData as Briefing)
+            : undefined,
         createdAt: typeof entry.createdAt === "string" ? entry.createdAt : fallbackTimestamp,
         updatedAt: typeof entry.updatedAt === "string" ? entry.updatedAt : fallbackTimestamp
       }))

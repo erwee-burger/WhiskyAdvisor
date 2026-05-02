@@ -432,7 +432,9 @@ export async function writeStoreToSupabase(store: WhiskyStore) {
         place_id: session.placeId ?? null,
         group_id: session.groupId ?? null,
         notes: session.notes ?? null,
-        briefing_data: session.briefingData ?? null,
+        // Only include briefing_data when present — omitting it avoids a
+        // PostgREST error if the migration adding the column hasn't been run yet.
+        ...(session.briefingData !== undefined && { briefing_data: session.briefingData }),
         created_at: session.createdAt,
         updated_at: session.updatedAt
       })),
