@@ -9,7 +9,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { getBottleDisplayImage } from "@/lib/bottle-image";
-import type { Briefing } from "@/lib/briefing-formatter";
+import type { Briefing } from "@/lib/types";
 import { formatBriefingAsMarkdown } from "@/lib/briefing-formatter";
 import { formatTagLabel } from "@/lib/tags";
 import type {
@@ -20,6 +20,8 @@ import type {
   TastingPlace,
   TastingSessionView
 } from "@/lib/types";
+import { FlavorComparisonGrid } from "@/components/flavor-comparison-grid";
+import { SessionBriefing } from "@/components/session-briefing";
 import { formatDate, readResponseMessage } from "@/lib/utils";
 import { TastingChat } from "@/components/tasting-chat";
 
@@ -48,6 +50,7 @@ type SessionForm = {
   groupId: string;
   placeId: string;
   notes: string;
+  briefingData?: Briefing;
 };
 
 type PersonForm = {
@@ -438,7 +441,8 @@ export function TastingsHub({
       setSessionForm((current) => ({
         ...current,
         title: current.title || data.suggestedName,
-        notes: formatBriefingAsMarkdown(data.briefing)
+        notes: formatBriefingAsMarkdown(data.briefing),
+        briefingData: data.briefing
       }));
 
       setNotice({ tone: "success", text: "Briefing generated. Review and edit before saving." });
@@ -544,7 +548,8 @@ export function TastingsHub({
       attendeePersonIds: sessionView.attendees.map((entry) => entry.id),
       groupId: sessionView.group?.id ?? "",
       placeId: sessionView.place?.id ?? "",
-      notes: sessionView.session.notes ?? ""
+      notes: sessionView.session.notes ?? "",
+      briefingData: sessionView.session.briefingData
     });
     setNotice({
       tone: "info",
@@ -1379,42 +1384,16 @@ export function TastingsHub({
                       </div>
 
                       <section className="recent-session-detail-block">
-                        <h4>Bottles</h4>
-                        <div className="recent-session-bottle-grid">
-                          {sessionView.bottles.map((entry) => (
-                            <article className="recent-session-bottle-card" key={entry.item.id}>
-                              <div className="recent-session-bottle-image">
-                                <Image
-                                  alt={`${entry.expression.name} bottle`}
-                                  className="recent-session-bottle-cutout"
-                                  height={96}
-                                  src={getBottleImage(entry)}
-                                  unoptimized
-                                  width={58}
-                                />
-                              </div>
-                              <div className="recent-session-bottle-copy">
-                                <strong className="recent-session-bottle-name">{entry.expression.name}</strong>
-                                <p className="recent-session-bottle-subline">{getBottleSubline(entry) || "Bottle from your collection"}</p>
-                                {getBottleFactLine(entry) ? (
-                                  <p className="recent-session-bottle-facts">{getBottleFactLine(entry)}</p>
-                                ) : null}
-                                <div className="pill-row recent-session-bottle-pill-row">
-                                  <span className="pill">{entry.item.fillState}</span>
-                                  <span className="pill">{entry.item.status}</span>
-                                  {getBottleHighlightTags(entry).map((tag) => (
-                                    <span className="pill recent-session-bottle-tag" key={`${entry.item.id}-${tag}`}>
-                                      {tag}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            </article>
-                          ))}
-                        </div>
+                        <h4>Lineup</h4>
+                        <FlavorComparisonGrid bottles={sessionView.bottles} />
                       </section>
 
-                      {sessionView.session.notes ? (
+                      {sessionView.session.briefingData ? (
+                        <section className="recent-session-detail-block">
+                          <h4>Briefing</h4>
+                          <SessionBriefing briefing={sessionView.session.briefingData} />
+                        </section>
+                      ) : sessionView.session.notes ? (
                         <section className="recent-session-detail-block">
                           <h4>Notes</h4>
                           <div className="recent-session-notes-scroll">

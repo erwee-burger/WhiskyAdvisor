@@ -1,7 +1,7 @@
 // lib/supabase-store.ts
 import { createClient } from "@supabase/supabase-js";
 
-import type { WhiskyStore } from "@/lib/types";
+import type { Briefing, WhiskyStore } from "@/lib/types";
 
 type SupabaseRow = Record<string, unknown>;
 type SupabaseResponse = { data: unknown[] | null; error: Error | null };
@@ -257,6 +257,9 @@ export async function readStoreFromSupabase(): Promise<WhiskyStore> {
       placeId: typeof row.place_id === "string" ? row.place_id : undefined,
       groupId: typeof row.group_id === "string" ? row.group_id : undefined,
       notes: typeof row.notes === "string" ? row.notes : undefined,
+      briefingData: row.briefing_data && typeof row.briefing_data === "object" && !Array.isArray(row.briefing_data)
+        ? (row.briefing_data as Briefing)
+        : undefined,
       createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
       updatedAt: typeof row.updated_at === "string" ? row.updated_at : new Date().toISOString()
     })),
@@ -429,6 +432,7 @@ export async function writeStoreToSupabase(store: WhiskyStore) {
         place_id: session.placeId ?? null,
         group_id: session.groupId ?? null,
         notes: session.notes ?? null,
+        briefing_data: session.briefingData ?? null,
         created_at: session.createdAt,
         updated_at: session.updatedAt
       })),

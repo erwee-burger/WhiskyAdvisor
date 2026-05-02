@@ -23,6 +23,7 @@ import type {
   OccasionType,
   RelationshipType,
   TastingGroup,
+  Briefing,
   TastingPerson,
   TastingPlace,
   TastingSession,
@@ -78,6 +79,7 @@ type TastingSessionPayload = {
   placeId?: string;
   groupId?: string;
   notes?: string;
+  briefingData?: Briefing;
   attendeePersonIds: string[];
   bottleItemIds: string[];
 };
@@ -868,6 +870,7 @@ export async function createTastingSession(payload: TastingSessionPayload) {
     placeId: payload.placeId,
     groupId: payload.groupId,
     notes: payload.notes,
+    briefingData: payload.briefingData,
     createdAt: now,
     updatedAt: now
   };
@@ -905,6 +908,7 @@ export async function updateTastingSession(sessionId: string, payload: TastingSe
     placeId: payload.placeId,
     groupId: payload.groupId,
     notes: payload.notes,
+    briefingData: payload.briefingData,
     updatedAt: new Date().toISOString()
   };
 
