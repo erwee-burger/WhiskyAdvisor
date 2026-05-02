@@ -1,3 +1,4 @@
+import type { Briefing } from "@/lib/types";
 export type { Briefing } from "@/lib/types";
 
 type ParsedBottleDescriptor = {
