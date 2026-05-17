@@ -17,9 +17,9 @@ export default async function CollectionPage({
     <div className="page">
       <section className="hero collection-hero">
         <p className="eyebrow">Collection</p>
-        <h1>Walk the shelf like you are choosing your next pour.</h1>
+        <h1>Step into a proper whisky shelf and choose your next pour.</h1>
         <p>
-          Dark wood, back-bar glow, and bottle-first browsing. Search by distillery, region, release
+          A cabinet-inspired shelf with warm wood grain, brass rails, and bottle-first browsing. Search by distillery, region, release
           series, or your flavor tags while you switch between the shelf view and a denser bottle list.
         </p>
       </section>

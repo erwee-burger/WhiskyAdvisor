@@ -2153,10 +2153,12 @@ td {
   padding: 28px;
   border-radius: var(--radius-xl);
   background:
-    linear-gradient(180deg, rgba(25, 17, 13, 0.97), rgba(15, 10, 8, 0.98)),
-    linear-gradient(180deg, rgba(201, 138, 53, 0.04), transparent);
-  border: 1px solid rgba(255, 225, 190, 0.08);
+    linear-gradient(180deg, rgba(13, 9, 7, 0.86), rgba(9, 6, 5, 0.92)),
+    url("/collection-shelf-backdrop.svg") center/cover no-repeat;
+  border: 1px solid rgba(255, 225, 190, 0.14);
   box-shadow: var(--shadow);
+  overflow: hidden;
+  isolation: isolate;
 }
 
 .shelf-room::before {
@@ -2165,7 +2167,17 @@ td {
   inset: 0;
   border-radius: inherit;
   background:
-    linear-gradient(180deg, transparent 0 24%, rgba(127, 78, 40, 0.26) 24% 26%, transparent 26% 54%, rgba(127, 78, 40, 0.26) 54% 56%, transparent 56% 84%, rgba(127, 78, 40, 0.26) 84% 86%, transparent 86% 100%);
+    radial-gradient(circle at 50% 8%, rgba(250, 189, 107, 0.18), transparent 32%),
+    linear-gradient(180deg, transparent 0 24%, rgba(152, 95, 49, 0.33) 24% 26.1%, transparent 26.1% 54%, rgba(152, 95, 49, 0.32) 54% 56.2%, transparent 56.2% 84%, rgba(152, 95, 49, 0.3) 84% 86.2%, transparent 86.2% 100%);
+  pointer-events: none;
+}
+
+.shelf-room::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(255, 235, 204, 0.06), inset 0 -90px 130px rgba(0, 0, 0, 0.52);
   pointer-events: none;
 }
 
@@ -2548,8 +2560,9 @@ td {
   padding: 8px 8px 2px;
   border-radius: 18px;
   background:
-    linear-gradient(180deg, rgba(63, 23, 31, 0.18), rgba(16, 21, 31, 0.3));
-  border: 1px solid rgba(231, 191, 116, 0.1);
+    linear-gradient(180deg, rgba(91, 50, 28, 0.3), rgba(23, 14, 10, 0.42));
+  border: 1px solid rgba(231, 191, 116, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 223, 179, 0.14), 0 16px 26px rgba(0, 0, 0, 0.28);
 }
 
 .shelf-rail {
