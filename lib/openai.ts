@@ -210,6 +210,92 @@ function buildExpression(
   };
 }
 
+export type ScanResult = {
+  name: string;
+  distillery?: string;
+  price?: string;
+  tastingNotes: string[];
+  verdict: string;
+  rating?: string;
+  palateMatch?: string;
+};
+
+type ScanPayload = {
+  name?: unknown;
+  distillery?: unknown;
+  price?: unknown;
+  tastingNotes?: unknown;
+  verdict?: unknown;
+  rating?: unknown;
+  palateMatch?: unknown;
+};
+
+type PalateSummary = {
+  favoredFlavorTags: string[];
+  favoredRegions: string[];
+  favoredCaskStyles: string[];
+  favoredPeatTag: string | null;
+};
+
+function buildScanPrompt(palate: PalateSummary | null): string {
+  const palateCtx = palate
+    ? `User palate — favored flavors: ${palate.favoredFlavorTags.slice(0, 8).join(", ") || "unknown"}; regions: ${palate.favoredRegions.slice(0, 5).join(", ") || "unknown"}; cask styles: ${palate.favoredCaskStyles.slice(0, 5).join(", ") || "unknown"}; peat preference: ${palate.favoredPeatTag || "unknown"}`
+    : null;
+
+  return [
+    "You are a quick whisky lookup assistant. The user is in a store and needs fast info.",
+    "Identify the whisky bottle in the image. Use web search for current retail pricing and brief expert reviews.",
+    "Return ONLY a single compact JSON object. No markdown. No explanations.",
+    "",
+    "Fields:",
+    "  name (string) - full bottle name as on label",
+    "  distillery (string|null) - producing distillery",
+    "  price (string|null) - current retail price, prefer ZAR, include USD reference if known, e.g. '~R1,200 / $65'",
+    "  tastingNotes (string[]) - exactly 4-5 very short descriptors, e.g. ['honey', 'dried fruit', 'gentle smoke', 'oak spice']",
+    "  verdict (string) - max 2 sentences from expert consensus. Be direct and useful.",
+    "  rating (string|null) - critic score if available, e.g. '92/100 (Whisky Advocate)'",
+    palateCtx
+      ? `  palateMatch (string) - one short phrase assessing fit against the user's palate: ${palateCtx}`
+      : "  palateMatch (string|null) - null (no palate data available)",
+    "",
+    'Output format: {"name":"","distillery":null,"price":null,"tastingNotes":[],"verdict":"","rating":null,"palateMatch":null}'
+  ].join("\n");
+}
+
+export async function quickScanBottle(
+  imageBase64: string,
+  mimeType: string,
+  palate: PalateSummary | null
+): Promise<ScanResult | null> {
+  const { OPENAI_API_KEY } = getServerEnv();
+  if (!OPENAI_API_KEY) return null;
+
+  const prompt = buildScanPrompt(palate);
+  let text = "";
+
+  try {
+    const payload = await responsesApi(prompt, imageBase64, mimeType);
+    text = getResponsesText(payload);
+  } catch {
+    const { OPENAI_MODEL } = getServerEnv();
+    const payload = await chatCompletions(OPENAI_MODEL, prompt, imageBase64, mimeType);
+    text = getChatText(payload);
+  }
+
+  const parsed = extractJson<ScanPayload>(text);
+  if (!parsed) return null;
+
+  return {
+    name: normalizeText(parsed.name) ?? "Unknown whisky",
+    distillery: normalizeText(parsed.distillery),
+    price: normalizeText(parsed.price),
+    tastingNotes: normalizeTastingNotes(parsed.tastingNotes).slice(0, 5),
+    verdict: normalizeText(parsed.verdict) ?? "",
+    rating: normalizeText(parsed.rating),
+    palateMatch: normalizeText(parsed.palateMatch)
+  };
+}
+
 export async function analyzeBottleImage(
   fileName: string,
   imageBase64?: string,

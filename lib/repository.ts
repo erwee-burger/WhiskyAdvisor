@@ -1205,6 +1205,41 @@ export async function updateItem(itemId: string, payload: BottleRecordPayload) {
   return { item: store.collectionItems[itemIndex], flavorRefreshNeeded };
 }
 
+export async function quickAddItem(payload: {
+  name: string;
+  distilleryName?: string;
+  tastingNotes?: string[];
+  description?: string;
+  status: "owned" | "wishlist";
+}): Promise<{ itemId: string }> {
+  const store = await readStore();
+  const expressionId = createId("expr");
+  const itemId = createId("item");
+  const now = new Date().toISOString();
+
+  store.expressions.unshift({
+    id: expressionId,
+    name: payload.name,
+    distilleryName: payload.distilleryName,
+    tags: [],
+    tastingNotes: payload.tastingNotes ?? [],
+    description: payload.description
+  });
+
+  store.collectionItems.unshift({
+    id: itemId,
+    expressionId,
+    status: payload.status,
+    fillState: "sealed",
+    purchaseCurrency: "ZAR",
+    createdAt: now,
+    updatedAt: now
+  });
+
+  await writeStore(store);
+  return { itemId };
+}
+
 export async function deleteItem(itemId: string) {
   const store = await readStore();
   const item = store.collectionItems.find((entry) => entry.id === itemId);
