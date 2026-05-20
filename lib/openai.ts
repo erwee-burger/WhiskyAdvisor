@@ -296,6 +296,132 @@ export async function quickScanBottle(
   };
 }
 
+export type ScanCandidate = {
+  name: string;
+  distillery?: string;
+  hint?: string;
+};
+
+export type TextScanResponse =
+  | { type: "result"; data: ScanResult }
+  | { type: "ambiguous"; question: string; candidates: ScanCandidate[] }
+  | { type: "not_found"; message: string };
+
+type TextScanPayload = {
+  type?: unknown;
+  data?: unknown;
+  question?: unknown;
+  candidates?: unknown;
+  message?: unknown;
+};
+
+type CandidatePayload = {
+  name?: unknown;
+  distillery?: unknown;
+  hint?: unknown;
+};
+
+function buildTextScanPrompt(query: string, palate: PalateSummary | null): string {
+  const palateCtx = palate
+    ? `User palate — favored flavors: ${palate.favoredFlavorTags.slice(0, 8).join(", ") || "unknown"}; regions: ${palate.favoredRegions.slice(0, 5).join(", ") || "unknown"}; cask styles: ${palate.favoredCaskStyles.slice(0, 5).join(", ") || "unknown"}; peat preference: ${palate.favoredPeatTag || "unknown"}`
+    : null;
+
+  const resultFields = [
+    "  name (string) - full bottle name",
+    "  distillery (string|null)",
+    "  price (string|null) - current retail price, prefer ZAR then USD, e.g. '~R1,200 / $65'",
+    "  tastingNotes (string[]) - 4-5 very short descriptors",
+    "  verdict (string) - max 2 sentences from expert consensus",
+    "  rating (string|null) - e.g. '92/100 (Whisky Advocate)'",
+    palateCtx
+      ? `  palateMatch (string) - one short phrase assessing fit against: ${palateCtx}`
+      : "  palateMatch (string|null) - null"
+  ].join("\n");
+
+  return [
+    `You are a whisky lookup assistant. The user typed: "${query}"`,
+    "Use web search to find this whisky.",
+    "Return ONLY a single compact JSON object. No markdown. No explanations.",
+    "",
+    "Decision logic:",
+    "1. If you can identify a SPECIFIC product with high confidence (80%+):",
+    `   Return: {"type":"result","data":{${resultFields.replace(/\n/g, " ")}}}`,
+    "",
+    "2. If the query matches MULTIPLE distinct products:",
+    '   Return: {"type":"ambiguous","question":"Which expression did you mean?","candidates":[{"name":"...","distillery":"...","hint":"..."},...]}',
+    "   List 2-4 real candidates. The hint should be the shortest distinguishing detail (e.g. 'Brandy Cask, 46%' or 'Cape Ruby, 2022 release').",
+    "",
+    "3. If the whisky cannot be found at all:",
+    '   Return: {"type":"not_found","message":"Short helpful message telling the user what to try instead."}'
+  ].join("\n");
+}
+
+export async function textScanBottle(
+  query: string,
+  palate: PalateSummary | null
+): Promise<TextScanResponse> {
+  const { OPENAI_API_KEY } = getServerEnv();
+  if (!OPENAI_API_KEY) return { type: "not_found", message: "AI lookup is not configured." };
+
+  const prompt = buildTextScanPrompt(query, palate);
+  let text = "";
+
+  try {
+    const payload = await responsesApi(prompt);
+    text = getResponsesText(payload);
+  } catch {
+    try {
+      const payload = await chatCompletions("gpt-4o-search-preview", prompt);
+      text = getChatText(payload);
+    } catch {
+      return { type: "not_found", message: "Search failed. Please try again." };
+    }
+  }
+
+  const parsed = extractJson<TextScanPayload>(text);
+  if (!parsed || typeof parsed.type !== "string") {
+    return { type: "not_found", message: "Could not parse the response. Try a more specific name." };
+  }
+
+  if (parsed.type === "result" && parsed.data && typeof parsed.data === "object") {
+    const d = parsed.data as ScanPayload;
+    return {
+      type: "result",
+      data: {
+        name: normalizeText(d.name) ?? query,
+        distillery: normalizeText(d.distillery),
+        price: normalizeText(d.price),
+        tastingNotes: normalizeTastingNotes(d.tastingNotes).slice(0, 5),
+        verdict: normalizeText(d.verdict) ?? "",
+        rating: normalizeText(d.rating),
+        palateMatch: normalizeText(d.palateMatch)
+      }
+    };
+  }
+
+  if (parsed.type === "ambiguous" && Array.isArray(parsed.candidates)) {
+    const candidates = (parsed.candidates as CandidatePayload[])
+      .slice(0, 4)
+      .map((c) => ({
+        name: normalizeText(c.name) ?? "",
+        distillery: normalizeText(c.distillery),
+        hint: normalizeText(c.hint)
+      }))
+      .filter((c) => c.name);
+
+    return {
+      type: "ambiguous",
+      question: typeof parsed.question === "string" ? parsed.question : "Which expression did you mean?",
+      candidates
+    };
+  }
+
+  return {
+    type: "not_found",
+    message: typeof parsed.message === "string" ? parsed.message : "No results found. Try a more specific name."
+  };
+}
+
 export async function analyzeBottleImage(
   fileName: string,
   imageBase64?: string,
