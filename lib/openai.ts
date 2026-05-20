@@ -307,14 +307,6 @@ export type TextScanResponse =
   | { type: "ambiguous"; question: string; candidates: ScanCandidate[] }
   | { type: "not_found"; message: string };
 
-type TextScanPayload = {
-  type?: unknown;
-  data?: unknown;
-  question?: unknown;
-  candidates?: unknown;
-  message?: unknown;
-};
-
 type CandidatePayload = {
   name?: unknown;
   distillery?: unknown;
