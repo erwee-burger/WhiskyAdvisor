@@ -313,16 +313,16 @@ type CandidatePayload = {
   hint?: unknown;
 };
 
-// Phase 1: fast disambiguation using training knowledge only (no web search)
+// Phase 1: disambiguation via web search — returns candidates or a resolved name only (no full details)
 function buildDisambigPrompt(query: string): string {
   return [
-    `You are a whisky catalog assistant. The user typed: "${query}"`,
-    "Using your knowledge of whisky expressions, decide:",
-    "Return ONLY a compact JSON object. No markdown.",
+    `The user is looking for a whisky and typed: "${query}"`,
+    "Use web search to find what whisky expressions match this query.",
+    "Return ONLY a compact JSON object. No markdown. No explanations.",
     "",
-    '1. Unique match: {"type":"resolved","name":"Full Exact Expression Name","distillery":"Distillery"}',
-    '2. Ambiguous (multiple real expressions match): {"type":"ambiguous","candidates":[{"name":"...","distillery":"...","hint":"shortest distinguishing detail e.g. Brandy Cask or 2022 Release"},...]} — 2-4 candidates max',
-    '3. Not found: {"type":"not_found","message":"Brief helpful tip"}'
+    '1. If this clearly identifies ONE specific expression: {"type":"resolved","name":"Full Exact Expression Name","distillery":"Distillery Name"}',
+    '2. If multiple distinct expressions match: {"type":"ambiguous","candidates":[{"name":"Full Name","distillery":"Distillery","hint":"shortest distinguishing detail e.g. Brandy Cask 46% or Cape Ruby 2022"},...]} — 2-4 real candidates only',
+    '3. If nothing found: {"type":"not_found","message":"Brief helpful tip for the user"}'
   ].join("\n");
 }
 
@@ -367,14 +367,19 @@ export async function textScanBottle(
   const { OPENAI_API_KEY, OPENAI_MODEL } = getServerEnv();
   if (!OPENAI_API_KEY) return { type: "not_found", message: "AI lookup is not configured." };
 
-  // Phase 1: fast disambiguation — no web search, uses training knowledge only
+  // Phase 1: disambiguation via web search — compact response (no full details yet)
   const disambigPrompt = buildDisambigPrompt(query);
   let disambigText = "";
   try {
-    const payload = await chatCompletions("gpt-4o", disambigPrompt);
-    disambigText = getChatText(payload);
+    const payload = await responsesApi(disambigPrompt);
+    disambigText = getResponsesText(payload);
   } catch {
-    return { type: "not_found", message: "Lookup failed. Please try again." };
+    try {
+      const payload = await chatCompletions("gpt-4o-search-preview", disambigPrompt);
+      disambigText = getChatText(payload);
+    } catch {
+      return { type: "not_found", message: "Lookup failed. Please try again." };
+    }
   }
 
   const disambig = extractJson<DisambigPayload>(disambigText);
