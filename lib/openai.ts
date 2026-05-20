@@ -321,86 +321,78 @@ type CandidatePayload = {
   hint?: unknown;
 };
 
-function buildTextScanPrompt(query: string, palate: PalateSummary | null): string {
+// Phase 1: fast disambiguation using training knowledge only (no web search)
+function buildDisambigPrompt(query: string): string {
+  return [
+    `You are a whisky catalog assistant. The user typed: "${query}"`,
+    "Using your knowledge of whisky expressions, decide:",
+    "Return ONLY a compact JSON object. No markdown.",
+    "",
+    '1. Unique match: {"type":"resolved","name":"Full Exact Expression Name","distillery":"Distillery"}',
+    '2. Ambiguous (multiple real expressions match): {"type":"ambiguous","candidates":[{"name":"...","distillery":"...","hint":"shortest distinguishing detail e.g. Brandy Cask or 2022 Release"},...]} — 2-4 candidates max',
+    '3. Not found: {"type":"not_found","message":"Brief helpful tip"}'
+  ].join("\n");
+}
+
+// Phase 2: full details via web search for a confirmed specific bottle
+function buildDetailPrompt(name: string, palate: PalateSummary | null): string {
   const palateCtx = palate
     ? `User palate — favored flavors: ${palate.favoredFlavorTags.slice(0, 8).join(", ") || "unknown"}; regions: ${palate.favoredRegions.slice(0, 5).join(", ") || "unknown"}; cask styles: ${palate.favoredCaskStyles.slice(0, 5).join(", ") || "unknown"}; peat preference: ${palate.favoredPeatTag || "unknown"}`
     : null;
 
-  const resultFields = [
+  return [
+    `Look up this specific whisky: "${name}"`,
+    "Use web search for current retail pricing and recent expert reviews.",
+    "Return ONLY a compact JSON object. No markdown.",
+    "",
+    "Fields:",
     "  name (string) - full bottle name",
     "  distillery (string|null)",
-    "  price (string|null) - current retail price, prefer ZAR then USD, e.g. '~R1,200 / $65'",
-    "  tastingNotes (string[]) - 4-5 very short descriptors",
+    "  price (string|null) - prefer ZAR, include USD reference e.g. '~R1,200 / $65'",
+    "  tastingNotes (string[]) - 4-5 short descriptors",
     "  verdict (string) - max 2 sentences from expert consensus",
     "  rating (string|null) - e.g. '92/100 (Whisky Advocate)'",
     palateCtx
       ? `  palateMatch (string) - one short phrase assessing fit against: ${palateCtx}`
-      : "  palateMatch (string|null) - null"
-  ].join("\n");
-
-  return [
-    `You are a whisky lookup assistant. The user typed: "${query}"`,
-    "Use web search to find this whisky.",
-    "Return ONLY a single compact JSON object. No markdown. No explanations.",
+      : "  palateMatch (string|null) - null",
     "",
-    "Decision logic:",
-    "1. If you can identify a SPECIFIC product with high confidence (80%+):",
-    `   Return: {"type":"result","data":{${resultFields.replace(/\n/g, " ")}}}`,
-    "",
-    "2. If the query matches MULTIPLE distinct products:",
-    '   Return: {"type":"ambiguous","question":"Which expression did you mean?","candidates":[{"name":"...","distillery":"...","hint":"..."},...]}',
-    "   List 2-4 real candidates. The hint should be the shortest distinguishing detail (e.g. 'Brandy Cask, 46%' or 'Cape Ruby, 2022 release').",
-    "",
-    "3. If the whisky cannot be found at all:",
-    '   Return: {"type":"not_found","message":"Short helpful message telling the user what to try instead."}'
+    'Output: {"name":"","distillery":null,"price":null,"tastingNotes":[],"verdict":"","rating":null,"palateMatch":null}'
   ].join("\n");
 }
+
+type DisambigPayload = {
+  type?: unknown;
+  name?: unknown;
+  distillery?: unknown;
+  candidates?: unknown;
+  message?: unknown;
+};
 
 export async function textScanBottle(
   query: string,
   palate: PalateSummary | null
 ): Promise<TextScanResponse> {
-  const { OPENAI_API_KEY } = getServerEnv();
+  const { OPENAI_API_KEY, OPENAI_MODEL } = getServerEnv();
   if (!OPENAI_API_KEY) return { type: "not_found", message: "AI lookup is not configured." };
 
-  const prompt = buildTextScanPrompt(query, palate);
-  let text = "";
-
+  // Phase 1: fast disambiguation — no web search, uses training knowledge only
+  const disambigPrompt = buildDisambigPrompt(query);
+  let disambigText = "";
   try {
-    const payload = await responsesApi(prompt);
-    text = getResponsesText(payload);
+    const payload = await chatCompletions("gpt-4o", disambigPrompt);
+    disambigText = getChatText(payload);
   } catch {
-    try {
-      const payload = await chatCompletions("gpt-4o-search-preview", prompt);
-      text = getChatText(payload);
-    } catch {
-      return { type: "not_found", message: "Search failed. Please try again." };
-    }
+    return { type: "not_found", message: "Lookup failed. Please try again." };
   }
 
-  const parsed = extractJson<TextScanPayload>(text);
-  if (!parsed || typeof parsed.type !== "string") {
-    return { type: "not_found", message: "Could not parse the response. Try a more specific name." };
+  const disambig = extractJson<DisambigPayload>(disambigText);
+  if (!disambig || typeof disambig.type !== "string") {
+    return { type: "not_found", message: "Could not parse response. Try a more specific name." };
   }
 
-  if (parsed.type === "result" && parsed.data && typeof parsed.data === "object") {
-    const d = parsed.data as ScanPayload;
-    return {
-      type: "result",
-      data: {
-        name: normalizeText(d.name) ?? query,
-        distillery: normalizeText(d.distillery),
-        price: normalizeText(d.price),
-        tastingNotes: normalizeTastingNotes(d.tastingNotes).slice(0, 5),
-        verdict: normalizeText(d.verdict) ?? "",
-        rating: normalizeText(d.rating),
-        palateMatch: normalizeText(d.palateMatch)
-      }
-    };
-  }
-
-  if (parsed.type === "ambiguous" && Array.isArray(parsed.candidates)) {
-    const candidates = (parsed.candidates as CandidatePayload[])
+  // Ambiguous or not found — return immediately without web search
+  if (disambig.type === "ambiguous" && Array.isArray(disambig.candidates)) {
+    const candidates = (disambig.candidates as CandidatePayload[])
       .slice(0, 4)
       .map((c) => ({
         name: normalizeText(c.name) ?? "",
@@ -408,17 +400,55 @@ export async function textScanBottle(
         hint: normalizeText(c.hint)
       }))
       .filter((c) => c.name);
-
     return {
       type: "ambiguous",
-      question: typeof parsed.question === "string" ? parsed.question : "Which expression did you mean?",
+      question: "Which expression did you mean?",
       candidates
     };
   }
 
+  if (disambig.type === "not_found") {
+    return {
+      type: "not_found",
+      message: typeof disambig.message === "string" ? disambig.message : "No results found. Try a more specific name."
+    };
+  }
+
+  if (disambig.type !== "resolved") {
+    return { type: "not_found", message: "No results found. Try a more specific name." };
+  }
+
+  // Phase 2: confirmed specific bottle — fetch full details with web search
+  const resolvedName = normalizeText(disambig.name) ?? query;
+  const detailPrompt = buildDetailPrompt(resolvedName, palate);
+  let detailText = "";
+
+  try {
+    const payload = await responsesApi(detailPrompt);
+    detailText = getResponsesText(payload);
+  } catch {
+    try {
+      const payload = await chatCompletions(OPENAI_MODEL, detailPrompt);
+      detailText = getChatText(payload);
+    } catch {
+      return { type: "not_found", message: "Detail lookup failed. Please try again." };
+    }
+  }
+
+  const detail = extractJson<ScanPayload>(detailText);
+  if (!detail) return { type: "not_found", message: "Could not retrieve details. Try again." };
+
   return {
-    type: "not_found",
-    message: typeof parsed.message === "string" ? parsed.message : "No results found. Try a more specific name."
+    type: "result",
+    data: {
+      name: normalizeText(detail.name) ?? resolvedName,
+      distillery: normalizeText(detail.distillery),
+      price: normalizeText(detail.price),
+      tastingNotes: normalizeTastingNotes(detail.tastingNotes).slice(0, 5),
+      verdict: normalizeText(detail.verdict) ?? "",
+      rating: normalizeText(detail.rating),
+      palateMatch: normalizeText(detail.palateMatch)
+    }
   };
 }
 
