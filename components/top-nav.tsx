@@ -12,7 +12,7 @@ type NavItem = {
 };
 
 // Shown inline on desktop (≥900px). Remaining items stay in the hamburger.
-const DESKTOP_PRIMARY: string[] = ["/", "/collection", "/analytics", "/advisor", "/tastings"];
+const DESKTOP_PRIMARY: string[] = ["/", "/collection", "/analytics", "/advisor", "/scan"];
 
 export function TopNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();

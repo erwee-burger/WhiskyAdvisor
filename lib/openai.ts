@@ -210,6 +210,245 @@ function buildExpression(
   };
 }
 
+export type ScanResult = {
+  name: string;
+  distillery?: string;
+  price?: string;
+  tastingNotes: string[];
+  verdict: string;
+  rating?: string;
+  palateMatch?: string;
+};
+
+type ScanPayload = {
+  name?: unknown;
+  distillery?: unknown;
+  price?: unknown;
+  tastingNotes?: unknown;
+  verdict?: unknown;
+  rating?: unknown;
+  palateMatch?: unknown;
+};
+
+type PalateSummary = {
+  favoredFlavorTags: string[];
+  favoredRegions: string[];
+  favoredCaskStyles: string[];
+  favoredPeatTag: string | null;
+};
+
+function buildScanPrompt(palate: PalateSummary | null): string {
+  const palateCtx = palate
+    ? `User palate — favored flavors: ${palate.favoredFlavorTags.slice(0, 8).join(", ") || "unknown"}; regions: ${palate.favoredRegions.slice(0, 5).join(", ") || "unknown"}; cask styles: ${palate.favoredCaskStyles.slice(0, 5).join(", ") || "unknown"}; peat preference: ${palate.favoredPeatTag || "unknown"}`
+    : null;
+
+  return [
+    "You are a quick whisky lookup assistant. The user is in a store and needs fast info.",
+    "Identify the whisky bottle in the image. Use web search for current retail pricing and brief expert reviews.",
+    "Return ONLY a single compact JSON object. No markdown. No explanations.",
+    "",
+    "Fields:",
+    "  name (string) - full bottle name as on label",
+    "  distillery (string|null) - producing distillery",
+    "  price (string|null) - current retail price, prefer ZAR, include USD reference if known, e.g. '~R1,200 / $65'",
+    "  tastingNotes (string[]) - exactly 4-5 very short descriptors, e.g. ['honey', 'dried fruit', 'gentle smoke', 'oak spice']",
+    "  verdict (string) - max 2 sentences from expert consensus. Be direct and useful.",
+    "  rating (string|null) - critic score if available, e.g. '92/100 (Whisky Advocate)'",
+    palateCtx
+      ? `  palateMatch (string) - one short phrase assessing fit against the user's palate: ${palateCtx}`
+      : "  palateMatch (string|null) - null (no palate data available)",
+    "",
+    'Output format: {"name":"","distillery":null,"price":null,"tastingNotes":[],"verdict":"","rating":null,"palateMatch":null}'
+  ].join("\n");
+}
+
+export async function quickScanBottle(
+  imageBase64: string,
+  mimeType: string,
+  palate: PalateSummary | null
+): Promise<ScanResult | null> {
+  const { OPENAI_API_KEY } = getServerEnv();
+  if (!OPENAI_API_KEY) return null;
+
+  const prompt = buildScanPrompt(palate);
+  let text = "";
+
+  try {
+    const payload = await responsesApi(prompt, imageBase64, mimeType);
+    text = getResponsesText(payload);
+  } catch {
+    const { OPENAI_MODEL } = getServerEnv();
+    const payload = await chatCompletions(OPENAI_MODEL, prompt, imageBase64, mimeType);
+    text = getChatText(payload);
+  }
+
+  const parsed = extractJson<ScanPayload>(text);
+  if (!parsed) return null;
+
+  return {
+    name: normalizeText(parsed.name) ?? "Unknown whisky",
+    distillery: normalizeText(parsed.distillery),
+    price: normalizeText(parsed.price),
+    tastingNotes: normalizeTastingNotes(parsed.tastingNotes).slice(0, 5),
+    verdict: normalizeText(parsed.verdict) ?? "",
+    rating: normalizeText(parsed.rating),
+    palateMatch: normalizeText(parsed.palateMatch)
+  };
+}
+
+export type ScanCandidate = {
+  name: string;
+  distillery?: string;
+  hint?: string;
+};
+
+export type TextScanResponse =
+  | { type: "result"; data: ScanResult }
+  | { type: "ambiguous"; question: string; candidates: ScanCandidate[] }
+  | { type: "not_found"; message: string };
+
+type CandidatePayload = {
+  name?: unknown;
+  distillery?: unknown;
+  hint?: unknown;
+};
+
+// Phase 1: disambiguation via web search — returns candidates or a resolved name only (no full details)
+function buildDisambigPrompt(query: string): string {
+  return [
+    `The user is looking for a whisky and typed: "${query}"`,
+    "Use web search to find what whisky expressions match this query.",
+    "Return ONLY a compact JSON object. No markdown. No explanations.",
+    "",
+    '1. If this clearly identifies ONE specific expression: {"type":"resolved","name":"Full Exact Expression Name","distillery":"Distillery Name"}',
+    '2. If multiple distinct expressions match: {"type":"ambiguous","candidates":[{"name":"Full Name","distillery":"Distillery","hint":"shortest distinguishing detail e.g. Brandy Cask 46% or Cape Ruby 2022"},...]} — 2-4 real candidates only',
+    '3. If nothing found: {"type":"not_found","message":"Brief helpful tip for the user"}'
+  ].join("\n");
+}
+
+// Phase 2: full details via web search for a confirmed specific bottle
+function buildDetailPrompt(name: string, palate: PalateSummary | null): string {
+  const palateCtx = palate
+    ? `User palate — favored flavors: ${palate.favoredFlavorTags.slice(0, 8).join(", ") || "unknown"}; regions: ${palate.favoredRegions.slice(0, 5).join(", ") || "unknown"}; cask styles: ${palate.favoredCaskStyles.slice(0, 5).join(", ") || "unknown"}; peat preference: ${palate.favoredPeatTag || "unknown"}`
+    : null;
+
+  return [
+    `Look up this specific whisky: "${name}"`,
+    "Use web search for current retail pricing and recent expert reviews.",
+    "Return ONLY a compact JSON object. No markdown.",
+    "",
+    "Fields:",
+    "  name (string) - full bottle name",
+    "  distillery (string|null)",
+    "  price (string|null) - prefer ZAR, include USD reference e.g. '~R1,200 / $65'",
+    "  tastingNotes (string[]) - 4-5 short descriptors",
+    "  verdict (string) - max 2 sentences from expert consensus",
+    "  rating (string|null) - e.g. '92/100 (Whisky Advocate)'",
+    palateCtx
+      ? `  palateMatch (string) - one short phrase assessing fit against: ${palateCtx}`
+      : "  palateMatch (string|null) - null",
+    "",
+    'Output: {"name":"","distillery":null,"price":null,"tastingNotes":[],"verdict":"","rating":null,"palateMatch":null}'
+  ].join("\n");
+}
+
+type DisambigPayload = {
+  type?: unknown;
+  name?: unknown;
+  distillery?: unknown;
+  candidates?: unknown;
+  message?: unknown;
+};
+
+export async function textScanBottle(
+  query: string,
+  palate: PalateSummary | null
+): Promise<TextScanResponse> {
+  const { OPENAI_API_KEY, OPENAI_MODEL } = getServerEnv();
+  if (!OPENAI_API_KEY) return { type: "not_found", message: "AI lookup is not configured." };
+
+  // Phase 1: disambiguation via web search — compact response (no full details yet)
+  const disambigPrompt = buildDisambigPrompt(query);
+  let disambigText = "";
+  try {
+    const payload = await responsesApi(disambigPrompt);
+    disambigText = getResponsesText(payload);
+  } catch {
+    try {
+      const payload = await chatCompletions(OPENAI_MODEL, disambigPrompt);
+      disambigText = getChatText(payload);
+    } catch {
+      return { type: "not_found", message: "Lookup failed. Please try again." };
+    }
+  }
+
+  const disambig = extractJson<DisambigPayload>(disambigText);
+  if (!disambig || typeof disambig.type !== "string") {
+    return { type: "not_found", message: "Could not parse response. Try a more specific name." };
+  }
+
+  // Ambiguous or not found — return immediately without web search
+  if (disambig.type === "ambiguous" && Array.isArray(disambig.candidates)) {
+    const candidates = (disambig.candidates as CandidatePayload[])
+      .slice(0, 4)
+      .map((c) => ({
+        name: normalizeText(c.name) ?? "",
+        distillery: normalizeText(c.distillery),
+        hint: normalizeText(c.hint)
+      }))
+      .filter((c) => c.name);
+    return {
+      type: "ambiguous",
+      question: "Which expression did you mean?",
+      candidates
+    };
+  }
+
+  if (disambig.type === "not_found") {
+    return {
+      type: "not_found",
+      message: typeof disambig.message === "string" ? disambig.message : "No results found. Try a more specific name."
+    };
+  }
+
+  if (disambig.type !== "resolved") {
+    return { type: "not_found", message: "No results found. Try a more specific name." };
+  }
+
+  // Phase 2: confirmed specific bottle — fetch full details with web search
+  const resolvedName = normalizeText(disambig.name) ?? query;
+  const detailPrompt = buildDetailPrompt(resolvedName, palate);
+  let detailText = "";
+
+  try {
+    const payload = await responsesApi(detailPrompt);
+    detailText = getResponsesText(payload);
+  } catch {
+    try {
+      const payload = await chatCompletions(OPENAI_MODEL, detailPrompt);
+      detailText = getChatText(payload);
+    } catch {
+      return { type: "not_found", message: "Detail lookup failed. Please try again." };
+    }
+  }
+
+  const detail = extractJson<ScanPayload>(detailText);
+  if (!detail) return { type: "not_found", message: "Could not retrieve details. Try again." };
+
+  return {
+    type: "result",
+    data: {
+      name: normalizeText(detail.name) ?? resolvedName,
+      distillery: normalizeText(detail.distillery),
+      price: normalizeText(detail.price),
+      tastingNotes: normalizeTastingNotes(detail.tastingNotes).slice(0, 5),
+      verdict: normalizeText(detail.verdict) ?? "",
+      rating: normalizeText(detail.rating),
+      palateMatch: normalizeText(detail.palateMatch)
+    }
+  };
+}
+
 export async function analyzeBottleImage(
   fileName: string,
   imageBase64?: string,
@@ -218,7 +457,7 @@ export async function analyzeBottleImage(
   expression: Partial<Expression> & Pick<Expression, "name">;
   rawAiResponse: { enrichmentText: string };
 } | null> {
-  const { OPENAI_API_KEY } = getServerEnv();
+  const { OPENAI_API_KEY, OPENAI_MODEL } = getServerEnv();
 
   if (!OPENAI_API_KEY) {
     return null;
@@ -232,8 +471,8 @@ export async function analyzeBottleImage(
       text = getResponsesText(payload);
       console.log("[intake] text-only: responses-api succeeded");
     } catch (err) {
-      console.error("[intake] text-only: responses-api failed, falling back to search-preview:", err);
-      const payload = await chatCompletions("gpt-4o-search-preview", prompt);
+      console.error("[intake] text-only: responses-api failed, falling back:", err);
+      const payload = await chatCompletions(OPENAI_MODEL, prompt);
       text = getChatText(payload);
     }
     const parsed = extractJson<BottlePayload>(text);

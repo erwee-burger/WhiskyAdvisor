@@ -32,6 +32,7 @@
 │   ├── add/                # Bottle intake (photo / barcode)
 │   ├── analytics/          # Collection statistics
 │   ├── tastings/           # Tasting sessions hub
+│   ├── scan/               # Camera / text quick-scan
 │   ├── unlock/             # Access gate
 │   └── api/                # REST API routes (see API Routes section)
 ├── components/             # React UI components (see Components section)
@@ -124,6 +125,10 @@ ComparisonColumn        single whisky for comparison
 ComparisonRow           attribute row (label, left value, right value)
 ComparisonResult        side-by-side result with summary and palate fit
 
+ScanResult              quick-scan output: name, distillery, price, tastingNotes, verdict, rating, palateMatch
+ScanCandidate           disambiguation option: name, distillery, hint
+TextScanResponse        union: {type:"result",data:ScanResult} | {type:"ambiguous",candidates[]} | {type:"not_found",message}
+
 NewsFeedItem            deal (source, kind, price, relevance_score, budget_fit, why_it_matters)
 NewsSummaryCard         curated highlight (best_value | worth_stretching | most_interesting)
 NewsAffinity            match scoring (0–100, band, reasons)
@@ -157,6 +162,7 @@ All page data flows through this module. Key functions:
 | `createQuickBottleShare(payload)` | log single bottle share |
 | `getPalateProfile()` | user's taste signature |
 | `getAdvisorSocialContext()` | people/groups/places |
+| `quickAddItem(payload)` | create expression + collection item directly (no draft) — used by scan quick-add |
 
 ### `supabase-store.ts` — PostgreSQL adapter
 - `readStoreFromSupabase()` — fetch all tables in parallel
@@ -229,6 +235,8 @@ Approved retailer domains: whiskybrother, bottegawhiskey, mothercityliquor, whis
 
 ### OpenAI integration (`openai.ts`)
 - `analyzeBottleImage()` — Vision API for photo intake → returns expression JSON
+- `quickScanBottle(base64, mime, palate)` — vision + web search in one call → `ScanResult` (used by `/api/scan`)
+- `textScanBottle(query, palate)` — two-phase text scan: web-search disambiguation first, then full detail fetch → `TextScanResponse`
 - `responsesApi()` — Responses API with `web_search_preview`
 - `chatCompletions()` — raw Chat Completions wrapper
 - `isReasoningModel()` — o-series detection
@@ -275,6 +283,12 @@ Approved retailer domains: whiskybrother, bottegawhiskey, mothercityliquor, whis
 | POST | `/api/items/intake-barcode` | Barcode lookup → IntakeDraft |
 | POST | `/api/items/upload-image` | Image upload |
 
+### Scan
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/scan` | Identify whisky from image (`imageBase64`) or text (`query`); returns `ScanResult`, disambiguation candidates, or not-found |
+| POST | `/api/scan/add` | Quick-add identified bottle to collection or wishlist without a draft review step |
+
 ### Collection / Comparison / Analytics
 | Method | Path | Description |
 |---|---|---|
@@ -320,6 +334,9 @@ Approved retailer domains: whiskybrother, bottegawhiskey, mothercityliquor, whis
 - `collection-card.tsx` — grid card display
 - `collection-list-view.tsx` — density list display
 - `global-search.tsx` — quick search bar
+
+### Scan
+- `whisky-scanner.tsx` — camera capture (getUserMedia, rear-camera preferred) or file upload; calls `/api/scan`; renders result card (price, tasting notes, verdict, palate match) or disambiguation candidate list; quick-add buttons call `/api/scan/add`
 
 ### Bottle Management
 - `add-bottle-form.tsx` — photo/barcode intake form
@@ -447,6 +464,40 @@ GET /api/news
          │
          ▼
 news-feed.tsx renders with filters (budget, palate fit, freshness, retailer)
+```
+
+### Quick Scan (Camera / Text)
+
+```
+User opens /scan page
+         │
+         ├─ Camera tab: getUserMedia (rear camera) → capture frame → base64 JPEG
+         └─ Text tab:   user types bottle name
+         │
+         ▼
+POST /api/scan  { imageBase64 } or { query }
+         │
+         ├─ Image path:
+         │    openai.quickScanBottle(base64, mime, palate)
+         │    └─ responsesApi (vision + web_search_preview) → ScanResult JSON
+         │
+         └─ Text path (two-phase):
+              Phase 1 — openai: responsesApi (disambiguation only, web search)
+                └─ ambiguous?  → return candidates immediately
+                └─ resolved?   → confirmed expression name
+              Phase 2 (if resolved) — openai: responsesApi (full details, web search)
+                └─ ScanResult JSON
+         │
+         ▼
+whisky-scanner.tsx renders result card
+  name, distillery, price, tasting note pills, verdict, rating, palate match
+         │
+         ├─ "Add to Collection" / "Add to Wishlist"
+         │    POST /api/scan/add  { name, distilleryName, tastingNotes, status }
+         │    repository.quickAddItem()  →  expression + collection_item created
+         │    redirect to /collection/[itemId]
+         │
+         └─ "Scan another" → reset camera
 ```
 
 ### Flavor Profile Lifecycle
