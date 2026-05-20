@@ -375,7 +375,7 @@ export async function textScanBottle(
     disambigText = getResponsesText(payload);
   } catch {
     try {
-      const payload = await chatCompletions("gpt-4o-search-preview", disambigPrompt);
+      const payload = await chatCompletions(OPENAI_MODEL, disambigPrompt);
       disambigText = getChatText(payload);
     } catch {
       return { type: "not_found", message: "Lookup failed. Please try again." };
@@ -457,7 +457,7 @@ export async function analyzeBottleImage(
   expression: Partial<Expression> & Pick<Expression, "name">;
   rawAiResponse: { enrichmentText: string };
 } | null> {
-  const { OPENAI_API_KEY } = getServerEnv();
+  const { OPENAI_API_KEY, OPENAI_MODEL } = getServerEnv();
 
   if (!OPENAI_API_KEY) {
     return null;
@@ -471,8 +471,8 @@ export async function analyzeBottleImage(
       text = getResponsesText(payload);
       console.log("[intake] text-only: responses-api succeeded");
     } catch (err) {
-      console.error("[intake] text-only: responses-api failed, falling back to search-preview:", err);
-      const payload = await chatCompletions("gpt-4o-search-preview", prompt);
+      console.error("[intake] text-only: responses-api failed, falling back:", err);
+      const payload = await chatCompletions(OPENAI_MODEL, prompt);
       text = getChatText(payload);
     }
     const parsed = extractJson<BottlePayload>(text);

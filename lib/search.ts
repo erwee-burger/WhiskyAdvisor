@@ -33,15 +33,15 @@ export async function webSearch(query: string): Promise<string> {
       }
     }
   } catch {
-    // fall through to gpt-4o-search-preview
+    // fall through to Chat Completions fallback
   }
 
-  // Fall back to gpt-4o-search-preview on Chat Completions (search built into the model)
+  // Fall back to Chat Completions using the configured model
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "gpt-4o-search-preview", messages: [{ role: "user", content: query }] })
+      body: JSON.stringify({ model: OPENAI_MODEL, messages: [{ role: "user", content: query }] })
     });
     if (!response.ok) return "";
     const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
