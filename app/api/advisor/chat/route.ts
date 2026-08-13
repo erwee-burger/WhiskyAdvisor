@@ -28,7 +28,18 @@ export const runtime = "nodejs";
 // Longer, multi-bottle advisor answers (tasting lists, comparisons, web-search
 // turns) can take well past Vercel's default function duration and get killed
 // mid-stream, which shows up client-side as the advisor never responding.
-export const maxDuration = 120;
+// Requires this function to actually be allowed 180s by the hosting plan —
+// on Vercel that means Pro (Hobby hard-caps function duration well below this).
+export const maxDuration = 180;
+
+// Search-tool budget: the model can call searchWeb many times in one turn
+// (e.g. paging through a retailer list), so this is a shared deadline across
+// ALL of that turn's search calls, not a per-call timeout. Once it's spent,
+// further calls return instantly so the model moves on to composing its
+// answer with whatever it already gathered, well before maxDuration kills
+// the whole request. Leaves ~50s of the 180s budget for the model to write
+// and stream the final answer.
+const SEARCH_BUDGET_MS = 130_000;
 
 export async function POST(req: Request) {
   const url = new URL(req.url);
@@ -50,6 +61,7 @@ export async function POST(req: Request) {
 }
 
 async function handleAdvisorChat(req: Request, enableSearch: boolean) {
+  const searchDeadlineAt = Date.now() + SEARCH_BUDGET_MS;
   const body = (await req.json()) as { messages: UIMessage[]; bottleId?: string };
   const uiMessages = body.messages || [];
   const bottleId = body.bottleId ?? null;
@@ -183,14 +195,14 @@ RULES:
     ? {
         searchWeb: tool({
           description:
-            "Search the internet for whisky information - distillery history, tasting notes, production methods, industry news, bottles not in the collection, current pricing, new releases, awards, comparisons, and similar topics.",
+            "Search the internet for whisky information - distillery history, tasting notes, production methods, industry news, bottles not in the collection, current pricing, new releases, awards, comparisons, and similar topics. Can be called multiple times in a row - e.g. to revisit a retailer page for more bottles, or look up several candidates one at a time.",
           inputSchema: z.object({
             query: z.string().describe(
-              "Search query. Be specific - include the distillery or bottle name when relevant."
+              "Search query. Be specific - include the distillery or bottle name when relevant. Pass a URL directly to look up that specific page."
             )
           }),
           execute: async ({ query }: { query: string }): Promise<string> => {
-            const results = await webSearch(query);
+            const results = await webSearch(query, searchDeadlineAt);
             return results || "No results found for that query.";
           }
         })
@@ -202,7 +214,12 @@ RULES:
     system: systemPrompt,
     messages,
     tools,
-    ...(tools ? { stopWhen: stepCountIs(3) } : {})
+    // Was capped at 3 steps total, which cut off tasks that need several
+    // rounds of searching (e.g. paging through a retailer list and then
+    // looking up individual bottles). SEARCH_BUDGET_MS is the real backstop
+    // now, so raising this is safe - extra steps past the budget just
+    // resolve instantly instead of costing more wall-clock time.
+    ...(tools ? { stopWhen: stepCountIs(12) } : {})
   });
 
   return createUIMessageStreamResponse({
