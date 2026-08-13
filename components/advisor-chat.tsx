@@ -50,7 +50,7 @@ export function AdvisorChat() {
     enableSearchRef.current = next;
   }
 
-  const { messages, sendMessage, status } = useChat({ transport });
+  const { messages, sendMessage, status, error, regenerate } = useChat({ transport });
 
   const isLoading = status === "streaming" || status === "submitted";
 
@@ -115,6 +115,17 @@ export function AdvisorChat() {
             <p className="advisor-chat__thinking">
               {enableSearch ? "searching & thinking..." : "thinking..."}
             </p>
+          </div>
+        )}
+
+        {!isLoading && error && (
+          <div className="advisor-chat__message advisor-chat__message--assistant">
+            <p className="advisor-chat__error">
+              The advisor couldn&apos;t finish that response ({error.message || "something went wrong"}).
+            </p>
+            <button type="button" className="advisor-chat__chip" onClick={() => regenerate()}>
+              Try again
+            </button>
           </div>
         )}
 
