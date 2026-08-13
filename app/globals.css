@@ -4043,6 +4043,11 @@ td {
   font-style: italic;
 }
 
+.advisor-chat__error {
+  color: #f3b6a8;
+  margin: 0 0 0.6rem;
+}
+
 .advisor-chat__chips {
   display: flex;
   flex-wrap: wrap;

@@ -25,11 +25,31 @@ import { getAdvisorSocialContext, getDashboardData, getItemById } from "@/lib/re
 import { webSearch } from "@/lib/search";
 
 export const runtime = "nodejs";
+// Longer, multi-bottle advisor answers (tasting lists, comparisons, web-search
+// turns) can take well past Vercel's default function duration and get killed
+// mid-stream, which shows up client-side as the advisor never responding.
+export const maxDuration = 120;
 
 export async function POST(req: Request) {
   const url = new URL(req.url);
   const enableSearch = url.searchParams.get("search") === "1";
 
+  try {
+    return await handleAdvisorChat(req, enableSearch);
+  } catch (error) {
+    // Anything thrown before streaming starts (dashboard load, social
+    // context lookup, etc.) used to crash the request with no body, which
+    // the advisor tab rendered as total silence. Return a real error so the
+    // client can show it instead of hanging on "thinking...".
+    console.error("Advisor chat failed:", error);
+    return new Response(
+      JSON.stringify({ error: "The advisor hit a problem generating a response. Please try again." }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+}
+
+async function handleAdvisorChat(req: Request, enableSearch: boolean) {
   const body = (await req.json()) as { messages: UIMessage[]; bottleId?: string };
   const uiMessages = body.messages || [];
   const bottleId = body.bottleId ?? null;
